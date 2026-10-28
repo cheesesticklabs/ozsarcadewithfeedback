@@ -1,0 +1,71 @@
+
+:root{color-scheme:dark;--bg:#111021;--panel:#1b1930;--muted:#aba8c2;--cream:#fff3d2;--pink:#ff6c9e;--yellow:#ffcf70;--cyan:#76d9d4}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--cream);font-family:Trebuchet MS,Arial,sans-serif}body:before{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#ffcf70,#ff8a66,#ee63a9,#aa82e5,#76d9d4)}button,a{-webkit-tap-highlight-color:transparent}a{color:inherit}button{font:inherit}button:focus-visible,a:focus-visible{outline:3px solid var(--cyan);outline-offset:5px}.masthead,main{max-width:1160px;margin:auto}.masthead{height:120px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #343046;padding:0 28px}.brand{display:block;width:325px;height:84px;overflow:hidden;position:relative}.brand img{width:325px;height:auto;position:absolute;top:-11px}.header-note,.eyebrow,.mascot-label,.periods,.card-name,.card-meta,footer,kbd{font-family:Consolas,'Courier New',monospace}.header-note{font-size:11px;letter-spacing:1.5px;color:var(--muted)}.light{display:inline-block;width:7px;height:7px;background:var(--cyan);margin-right:10px;border-radius:50%}main{padding:0 28px}.intro{display:flex;justify-content:space-between;align-items:center;min-height:325px;padding:35px 40px 35px 0}.eyebrow{color:var(--pink);font-size:11px;letter-spacing:2px;font-weight:700;margin:0 0 16px}h1{font-size:clamp(36px,4.5vw,58px);line-height:1.08;letter-spacing:-2.5px;margin:0 0 20px}h1 span{color:var(--yellow)}.intro-copy{font-size:15px;line-height:1.7;color:var(--muted);margin:0}.mascot{position:relative;width:310px;height:260px;display:flex;align-items:center;justify-content:center}.mascot img{width:310px;height:auto;position:relative;object-fit:contain;filter:drop-shadow(0 12px 12px #0005)}.orbit{position:absolute;width:220px;height:220px;border-radius:50%;background:#24213b;border:1px solid #48415c}.mascot-label{position:absolute;bottom:4px;right:-4px;transform:rotate(-5deg);background:var(--yellow);color:#211831;font-size:11px;font-weight:700;padding:10px 15px;box-shadow:4px 4px 0 #080813}.spark{position:absolute;right:5px;top:27px;font-size:33px;color:var(--pink)}.periods{display:flex;gap:12px;padding:4px 0 26px;border-bottom:1px solid #343046}.periods a{display:flex;gap:20px;align-items:center;text-decoration:none;padding:15px 23px;background:#1a182c;border:1px solid #40384e;color:var(--muted);font-size:12px;letter-spacing:1px;border-radius:4px;transition:background .15s,transform .15s}.periods b{font-size:21px}.periods a.active{color:#1a1422;background:var(--yellow);border-color:var(--yellow);box-shadow:0 4px 0 #9c6349}.periods a:hover{transform:translateY(-2px)}.section-heading{display:flex;align-items:center;justify-content:space-between;margin:36px 0 24px}.section-heading .eyebrow{font-size:10px;margin-bottom:9px;color:var(--muted)}h2{font-size:31px;margin:0;letter-spacing:-1px}#game-count{font:12px Consolas,monospace;color:var(--muted)}.game-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:27px 23px}.game-card{--accent:var(--pink);width:100%;padding:0;text-align:left;border:1px solid #4b3b58;border-radius:5px;background:var(--panel);color:var(--cream);overflow:hidden;cursor:pointer;box-shadow:0 5px 0 #080812;transition:transform .15s,border-color .15s}.game-card:hover{transform:translateY(-4px);border-color:var(--accent)}.card-name{display:flex;align-items:center;justify-content:space-between;padding:15px 17px;background:color-mix(in srgb,var(--accent) 12%,#1b1930);font-size:17px;font-weight:bold;border-bottom:2px solid var(--accent)}.card-number{color:var(--accent);font-size:10px;font-weight:normal}.thumbnail{position:relative;aspect-ratio:16/10;background:#0b0e23;overflow:hidden}.thumbnail img{display:block;width:100%;height:100%;object-fit:cover;image-rendering:pixelated}.preview-badge{position:absolute;top:11px;left:11px;font:9px Consolas,monospace;letter-spacing:1px;background:#0c0b20cc;color:#ddd4ee;padding:5px 7px;border:1px solid #ffffff25}.card-meta{display:flex;justify-content:space-between;padding:12px 16px;font-size:10px;letter-spacing:1px;color:var(--muted)}.card-meta b{color:var(--accent);font-weight:normal}footer{display:flex;justify-content:space-between;gap:20px;padding:30px 0;margin-top:55px;border-top:1px solid #343046;font-size:10px;line-height:1.7;letter-spacing:.5px;color:var(--muted)}.footer-star{color:var(--pink);margin:0 8px}#empty{text-align:center;padding:70px 15px;color:var(--muted)}#empty>span{font-size:36px;color:var(--yellow)}#empty h3{color:var(--cream);font-size:25px}dialog{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;padding:0;border:0;margin:0;background:#0b0b18;color:var(--cream)}dialog::backdrop{background:#0b0b18}.player-shell{height:100%;display:flex;flex-direction:column}.player-toolbar{display:flex;justify-content:space-between;align-items:center;padding:18px 26px;border-bottom:1px solid #3b334d;background:#161326;gap:15px}.player-toolbar .eyebrow{display:block;font-size:9px;margin:0 0 5px}.player-toolbar h2{font-size:22px}.player-toolbar button{border:1px solid #645473;background:#272039;color:var(--cream);border-radius:4px;padding:10px 14px;cursor:pointer;font-size:12px}.player-toolbar button span{font-size:22px;vertical-align:middle;margin-left:10px}kbd{display:inline-block;font-size:10px;border:1px solid #897c99;padding:2px 5px;margin-left:10px;border-radius:3px}#game-stage{flex:1;min-height:0;display:grid;place-items:center;padding:20px}#game-stage iframe{width:100%;height:100%;border:0;background:#080914}.waiting-room{text-align:center;max-width:560px}.waiting-room img{width:100%;max-width:430px;image-rendering:pixelated;border:1px solid #4d3e62;border-radius:5px}.waiting-room h3{font-size:28px;margin:24px 0 12px}.waiting-room p{color:var(--muted);line-height:1.7;font-size:14px}.waiting-room .eyebrow{margin-top:22px;color:var(--yellow)}@media(min-width:1500px){.intro{min-height:350px}}@media(max-width:760px){.header-note{display:none}.masthead{height:100px}.intro{padding:30px 0;min-height:280px}.mascot{width:210px;height:210px}.mascot img{width:220px}.orbit{width:170px;height:170px}.mascot-label{font-size:9px;padding:8px}.intro h1{font-size:39px}.intro .eyebrow{font-size:9px}.intro-copy{font-size:13px}.periods{gap:8px}.periods a{flex:1;padding:12px;justify-content:center;gap:10px;font-size:10px}.game-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.desktop{display:none}}@media(max-width:500px){main{padding:0 18px}.masthead{padding:0 18px}.intro{position:relative;min-height:290px}.intro>div:first-child{position:relative;z-index:1}.intro h1{font-size:35px}.intro-copy{max-width:210px}.mascot{position:absolute;right:-8px;bottom:25px;width:145px;height:170px;opacity:.9}.mascot img{width:165px}.orbit{width:130px;height:130px}.mascot-label{right:0;font-size:7px}.spark{font-size:20px;top:0;right:0}.periods a{padding:12px 5px;font-size:8px;gap:6px}.periods b{font-size:18px}.game-grid{grid-template-columns:1fr;gap:22px}.section-heading h2{font-size:28px}.section-heading .eyebrow{font-size:8px}footer{flex-direction:column;gap:8px}.player-toolbar{padding:14px}.player-toolbar button{font-size:10px}.player-toolbar kbd{display:none}}
+
+@media(max-width:360px){.brand{width:260px}.brand img{width:260px;top:0}.periods a{min-width:0;flex-direction:column;gap:3px}.section-heading{gap:12px}#game-count{font-size:10px;text-align:right}.mascot{right:0;width:115px}.mascot img{width:140px}.intro h1{font-size:31px}.intro-copy{max-width:170px}.intro .eyebrow{font-size:8px;letter-spacing:1px}}
+/* Stacked arcade identity and original Cheesestick Labs artwork. */
+.masthead{height:auto;min-height:188px;gap:26px;padding-top:18px;padding-bottom:18px}
+.brand{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;width:390px;max-width:100%;height:auto;min-width:0;overflow:hidden;padding:13px 20px 17px;background:#1b1930;border:1px solid #49405d;border-radius:24px;text-decoration:none;box-shadow:0 5px 0 #090815}
+.brand img.arcade-wordmark{display:block;position:static;width:100%;height:53px;object-fit:cover;object-position:center;flex:none}
+.brand-credit{font:11px Consolas,'Courier New',monospace;letter-spacing:1px;color:var(--cream);line-height:1.4}
+.labs-bubble{display:block;width:258px;max-width:100%;padding:8px 11px;background:#244fa3;border-radius:13px;overflow:hidden}
+.brand img.labs-wordmark{display:block;position:static;width:100%;height:auto;object-fit:contain}
+@media(max-width:760px){.masthead{justify-content:center;min-height:174px}.brand{width:355px;padding:11px 17px 15px;gap:7px}.brand img.arcade-wordmark{height:48px}.labs-bubble{width:240px}}
+@media(max-width:360px){.brand{width:100%;padding:10px 12px 13px;border-radius:20px}.brand img.arcade-wordmark{height:40px}.brand-credit{font-size:10px}.labs-bubble{width:215px;padding:7px 9px}}
+/* Primary arcade logo with a smaller sponsor credit beneath it. */
+.brand{width:325px;padding:0;gap:6px;background:transparent;border:0;border-radius:0;box-shadow:none;overflow:visible}
+.brand img.arcade-wordmark{height:52px}
+.brand-credit{font-size:9px;letter-spacing:.6px;color:var(--muted)}
+.labs-bubble{width:172px;padding:5px 8px;border-radius:10px}
+@media(max-width:760px){.brand{width:325px;padding:0;gap:6px}.brand img.arcade-wordmark{height:52px}.labs-bubble{width:172px}}
+@media(max-width:360px){.brand{width:260px;padding:0;border-radius:0}.brand img.arcade-wordmark{height:44px}.brand-credit{font-size:9px}.labs-bubble{width:155px;padding:5px 7px}}
+/* Large arcade masthead; sponsor credit lives at the foot of each period. */
+.masthead{min-height:150px;padding-top:22px;padding-bottom:22px}
+.brand{width:620px;flex:0 1 620px;max-width:100%}
+.brand img.arcade-wordmark{height:90px}
+.header-note{flex-shrink:0;font-size:10px}
+footer{align-items:center;gap:24px}
+.footer-copy{display:flex;flex-direction:column;gap:7px}
+.sponsor{display:flex;flex-direction:column;align-items:center;gap:7px;flex-shrink:0}
+.sponsor .labs-bubble{width:172px;padding:5px 8px;border-radius:10px}
+.sponsor .labs-wordmark{display:block;width:100%;height:auto}
+@media(max-width:1000px){.header-note{display:none}}
+@media(max-width:760px){.masthead{min-height:120px;padding-top:16px;padding-bottom:16px}.brand{width:100%;flex-basis:620px}.brand img.arcade-wordmark{height:80px}}
+@media(max-width:500px){.masthead{min-height:105px}.brand img.arcade-wordmark{height:65px}footer{align-items:flex-start}.sponsor{align-self:center;margin-top:10px}}
+@media(max-width:360px){.brand{width:100%}.brand img.arcade-wordmark{height:55px}}
+/* Keep the arcade slogan visible alongside the logo, stacking on narrow screens. */
+.header-note{display:block;white-space:nowrap;color:var(--yellow);font-size:12px;letter-spacing:1.5px}
+@media(max-width:1000px){.header-note{display:block}.brand{flex:0 1 620px;min-width:0}}
+@media(max-width:760px){.masthead{flex-direction:column;gap:10px;padding-bottom:22px}.brand{flex:0 1 auto;width:100%}.header-note{font-size:11px}}
+/* Flip the new Oz artwork in the layout, preserving its original image file. */
+.mascot img{position:absolute;right:0;width:540px;max-width:none;height:auto;transform:scaleX(-1)}
+@media(max-width:760px){.mascot img{width:380px}}
+@media(max-width:500px){.mascot img{width:270px}}
+@media(max-width:360px){.mascot img{width:230px}}
+.mascot-label{bottom:auto;top:3px;right:-4px;transform:rotate(3deg);background:var(--cream);color:#211831;border:2px solid #211831;border-radius:18px;padding:12px 19px;font-family:Trebuchet MS,Arial,sans-serif;font-size:17px;font-weight:700;box-shadow:3px 4px 0 #080813}
+.mascot-label:after{content:"";position:absolute;bottom:-10px;left:22px;width:16px;height:16px;background:var(--cream);border-right:2px solid #211831;border-bottom:2px solid #211831;transform:skewY(-22deg) rotate(34deg)}
+.spark{right:3px;top:auto;bottom:20px}
+@media(max-width:760px){.mascot-label{font-size:15px;padding:10px 16px;top:-8px}}
+@media(max-width:500px){.mascot-label{font-size:13px;padding:9px 13px;top:0;right:0}.spark{bottom:5px}}
+@media(max-width:360px){.mascot-label{font-size:12px;padding:8px 11px}}
+.mascot-label,.mascot-label:after{background:#fff}
+.intro-copy{max-width:500px}.intro>div:first-child{min-width:0;flex:1}.mascot{flex-shrink:0}@media(max-width:760px){.intro-copy{max-width:350px}}@media(max-width:500px){.intro-copy{max-width:210px}}@media(max-width:360px){.intro-copy{max-width:170px}}
+/* Student collections and rotating cabinet previews. */
+[hidden]{display:none!important}
+.back-link{display:inline-block;margin-top:28px;color:var(--cyan);font:13px Consolas,monospace;text-decoration:none;padding:10px 0}
+.back-link:hover{text-decoration:underline}
+.back-link:not([hidden])+.section-heading{margin-top:14px}
+.gallery-tools{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+#preview-toggle{background:#272039;color:var(--cream);border:1px solid #645473;border-radius:4px;padding:7px 10px;font:11px Consolas,monospace;cursor:pointer}
+.slide-count{position:absolute;bottom:11px;right:11px;padding:5px 8px;background:#111021e8;border:1px solid #ffffff35;border-radius:3px;font:11px Consolas,monospace;color:var(--cream)}
+.card-name{gap:12px;line-height:1.4;min-height:57px;overflow-wrap:anywhere}
+.thumbnail img{image-rendering:auto}
+.card-meta{gap:10px;line-height:1.5}
+.card-meta b{flex-shrink:0}
+#period-title:focus{outline:none}
+@media(max-width:500px){.section-heading{gap:12px;align-items:flex-start}.gallery-tools{max-width:145px;text-align:right}#game-stage{padding:0}.player-toolbar h2{font-size:18px;overflow-wrap:anywhere}.player-toolbar button{flex-shrink:0}}
+@media(prefers-reduced-motion:reduce){.game-card,.periods a{transition:none}}
+
+/* Students awaiting their first game get a quiet TV-static card. */
+.thumbnail.coming-soon{background:#222}
+.thumbnail.coming-soon img{filter:contrast(1.5);image-rendering:auto}
+.coming-soon-label{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font:700 clamp(18px,2.5vw,28px) Consolas,'Courier New',monospace;letter-spacing:2px;text-shadow:2px 2px 0 #000,-2px -2px 0 #000,0 0 10px #000;background:linear-gradient(transparent,#0003,transparent)}
