@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="night" y2="1"><stop stop-color="#151c2d"/><stop offset="1" stop-color="#080a10"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#night)"/><circle cx="609" cy="85" r="47" fill="#d9deef" opacity=".72"/>
+ <path d="M0 284l62-77 49 75 55-125 68 139 78-197 79 191 61-119 77 124 61-170 59 155 62-87 57 97v190H0z" fill="#171c2a"/>
+ <path d="M0 398h768v82H0z" fill="#10131c"/>
+ <path d="M89 371h155v25H89zm273-69h132v24H362zm199-90h116v22H561zm-277 166h82v21h-82z" fill="#65b7ff"/>
+ <path d="M165 369v-89h18v89m332-72v-90h18v90m-207 92v-92h18v92" stroke="#8797ac" stroke-width="5"/>
+ <path d="M337 273h43v59h-43z" fill="#c8d3dc" stroke="#58aaff" stroke-width="4"/><circle cx="348" cy="286" r="4" fill="#10131c"/><circle cx="369" cy="286" r="4" fill="#10131c"/>
+ <path d="M343 332l-24 35m54-35 22 35" stroke="#c8d3dc" stroke-width="8"/>
+ <text x="34" y="50" fill="#9ed0ff" font-family="monospace" font-size="13" letter-spacing="4">AMANDA'S ARCADE · CHAINED TOGETHER</text>
+ <text x="33" y="452" fill="#f0f2fa" font-family="Arial,sans-serif" font-weight="700" font-size="43" letter-spacing="2">GOTHAM OBBY</text>
+</svg>

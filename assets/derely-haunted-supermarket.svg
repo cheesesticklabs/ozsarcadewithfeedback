@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="night" y2="1"><stop stop-color="#18251a"/><stop offset="1" stop-color="#080d0a"/></linearGradient><linearGradient id="light"><stop stop-color="#e4efb4" stop-opacity=".5"/><stop offset="1" stop-color="#e4efb4" stop-opacity="0"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#night)"/><path d="M91 126h586v275H91z" fill="#111a12" stroke="#53634c" stroke-width="5"/>
+ <path d="M91 126h586v42H91z" fill="#303b24"/><text x="138" y="155" fill="#e4efb4" font-family="monospace" font-size="19" letter-spacing="5">NIGHT SHIFT MARKET</text>
+ <path d="M175 168v232m141-232v232m141-232v232m141-232v232" stroke="#53634c" stroke-width="8"/>
+ <g fill="#b6c98b"><path d="M116 216h52v27h-52zm75 0h51v27h-51zm-75 53h52v25h-52zm75 0h51v25h-51zM329 207h47v34h-47zm63 0h46v34h-46zm-63 59h47v28h-47zm63 0h46v28h-46z"/></g>
+ <path d="M0 418h768v62H0z" fill="#111711"/><path d="M289 400l95-193 95 193" fill="url(#light)"/>
+ <path d="M376 353q-12-35 18-44l-7-28 21 22q29 14 12 51l-8 37h-35z" fill="#121511" stroke="#99a77f" stroke-width="3"/>
+ <circle cx="391" cy="334" r="3" fill="#e4efb4"/><circle cx="407" cy="334" r="3" fill="#e4efb4"/>
+ <text x="34" y="53" fill="#b8c89a" font-family="monospace" font-size="13" letter-spacing="4">DERELY'S ARCADE · TWO PLAYER</text>
+ <text x="32" y="457" fill="#edf2d8" font-family="Arial,sans-serif" font-weight="700" font-size="31" letter-spacing="1">NIGHT SHIFT: HAUNTED SUPERMARKET</text>
+</svg>

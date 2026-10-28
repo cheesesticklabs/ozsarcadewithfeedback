@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="dark" y2="1"><stop stop-color="#170c15"/><stop offset="1" stop-color="#030309"/></linearGradient><radialGradient id="red"><stop stop-color="#a90e32" stop-opacity=".6"/><stop offset="1" stop-color="#070309" stop-opacity="0"/></radialGradient></defs>
+ <rect width="768" height="480" fill="url(#dark)"/><ellipse cx="394" cy="286" rx="303" ry="192" fill="url(#red)"/>
+ <path d="M0 0h213l137 175H0m768-175H555L418 175h350M0 480h222l128-173H0m768 173H546L418 307h350" fill="#130c12" stroke="#49202f" stroke-width="5"/>
+ <path d="M283 175h202v132H283z" fill="#07060a" stroke="#633043" stroke-width="4"/><path d="M342 276q-16-39 9-63l28-36 25 31 19 52-16 47h-60z" fill="#050509" stroke="#8b344e" stroke-width="3"/>
+ <circle cx="366" cy="243" r="5" fill="#e93b66"/><circle cx="400" cy="243" r="5" fill="#e93b66"/>
+ <path d="M42 50h100M626 50h100M42 432h100M626 432h100" stroke="#b51d3a" stroke-width="3"/>
+ <text x="35" y="80" fill="#8ac9f0" font-family="monospace" font-size="13" letter-spacing="4">ROVER'S ARCADE · TWO PLAYER</text>
+ <text x="32" y="442" fill="#f7e8f2" font-family="Arial,sans-serif" font-weight="700" font-size="63" letter-spacing="4">AFTERIMAGE</text>
+</svg>

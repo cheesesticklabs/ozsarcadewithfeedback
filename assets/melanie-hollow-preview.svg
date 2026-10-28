@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+  <defs>
+    <radialGradient id="light"><stop stop-color="#39493e"/><stop offset="1" stop-color="#030706"/></radialGradient>
+    <linearGradient id="shade"><stop stop-color="#030706"/><stop offset="1" stop-color="#030706" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect width="768" height="480" fill="#030706"/>
+  <path d="M260 0H768V480H260L487 283V181Z" fill="url(#light)"/>
+  <g fill="none" stroke="#718477" stroke-opacity=".2">
+    <path d="M768 0L550 181V283L768 480M260 0L487 181V283L260 480M487 181H550M487 283H550"/>
+    <path d="M655 70V388M704 32V438M595 119V335M768 122L550 210M768 364L550 257M297 480L492 283M650 480L536 283"/>
+  </g>
+  <path d="M605 155L650 125V351L605 321Z" fill="#030706" stroke="#546a58" stroke-opacity=".35"/>
+  <rect x="500" y="199" width="38" height="84" fill="#030505"/>
+  <path d="M511 198H529" stroke="#a44131" stroke-width="3"/>
+  <rect width="600" height="480" fill="url(#shade)"/>
+  <text x="43" y="72" fill="#b65240" font-family="Arial,sans-serif" font-size="12" letter-spacing="4">A SURVIVAL EXPERIENCE</text>
+  <text x="37" y="206" fill="#d8ded9" font-family="Impact,Arial Narrow,sans-serif" font-weight="700" font-size="103" letter-spacing="5">HOLLOW</text>
+  <text x="43" y="243" fill="#a8b3a9" font-family="Arial,sans-serif" font-size="12" letter-spacing="5">SOME THINGS STAY BEHIND.</text>
+  <text x="43" y="305" fill="#8d9a93" font-family="Arial,sans-serif" font-size="15">St. Agnes Hospital. 03:17 AM.</text>
+  <text x="43" y="333" fill="#8d9a93" font-family="Arial,sans-serif" font-size="15">And the footsteps aren't yours.</text>
+  <path d="M43 377H224" stroke="#a44131" stroke-width="2"/>
+  <text x="43" y="412" fill="#bf6654" font-family="monospace" font-size="13" letter-spacing="3">WARD 09 / MELANIE</text>
+  <text x="690" y="432" fill="#899b8a" font-family="monospace" font-size="34">09</text>
+</svg>

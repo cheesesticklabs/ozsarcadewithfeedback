@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="night" y2="1"><stop stop-color="#19241e"/><stop offset="1" stop-color="#080c0a"/></linearGradient><radialGradient id="moon"><stop stop-color="#d6dd9b" stop-opacity=".38"/><stop offset="1" stop-color="#d6dd9b" stop-opacity="0"/></radialGradient></defs>
+ <rect width="768" height="480" fill="url(#night)"/><circle cx="550" cy="183" r="195" fill="url(#moon)"/><circle cx="615" cy="82" r="42" fill="#d6dd9b" opacity=".72"/>
+ <path d="M0 320l93-123 79 114 91-166 87 170 89-136 82 141 91-175 77 158 79-111v288H0z" fill="#182018"/>
+ <path d="M252 404V241l68-50 65 50v163zm24-116h28v37h-28zm52 0h28v37h-28z" fill="#080b09" stroke="#60725a" stroke-width="4"/>
+ <path d="M444 344q-21-47 9-72l11-38 21 31q31 13 19 56l-7 58h-49z" fill="#101410" stroke="#849178" stroke-width="4"/><circle cx="472" cy="302" r="5" fill="#c3e777"/><circle cx="493" cy="302" r="5" fill="#c3e777"/>
+ <path d="M65 416h638" stroke="#b63c3a" stroke-width="3" stroke-dasharray="10 9"/><path d="M151 416v-46m466 46v-46" stroke="#b63c3a" stroke-width="4"/>
+ <text x="34" y="52" fill="#b9d38b" font-family="monospace" font-size="13" letter-spacing="4">ANGEL'S ARCADE · DON'T GET CAUGHT</text>
+ <text x="33" y="451" fill="#e6e8d7" font-family="Arial,sans-serif" font-weight="700" font-size="51" letter-spacing="2">ESCAPE THE ZOMBIE</text>
+</svg>

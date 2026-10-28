@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="sky" y2="1"><stop stop-color="#17142f"/><stop offset="1" stop-color="#342347"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#sky)"/><circle cx="597" cy="113" r="56" fill="#f5e9c5"/><circle cx="617" cy="96" r="53" fill="#17142f"/>
+ <g fill="#e5d8ff"><circle cx="93" cy="81" r="2"/><circle cx="213" cy="106" r="2"/><circle cx="356" cy="73" r="2"/><circle cx="703" cy="205" r="2"/></g>
+ <path d="M0 339l65-132 58 103 81-166 65 184 72-123 70 129 71-188 72 183 87-127 71 140 56-91v229H0z" fill="#211b38"/><path d="M0 382q163-83 322 8t446-12v102H0" fill="#171626"/>
+ <g stroke="#0b0b17" stroke-width="24" stroke-linecap="round"><path d="M87 47l-3 269M687 31l8 293M190 68v209M604 63l-16 205"/></g>
+ <path d="M394 285q-38-47 7-86 30-25 59 1 29 26 8 58l26 33h-93z" fill="#bcb5d9"/><path d="M411 222l15 8m23-8 15 8" stroke="#17142f" stroke-width="6"/>
+ <path d="M509 205l21-51 24 48 29-67 21 68" fill="#141120"/>
+ <text x="38" y="58" fill="#dfccfa" font-family="monospace" font-size="13" letter-spacing="4">KOFI A'S ARCADE · CHAPTER 1</text>
+ <text x="38" y="434" fill="#fff1ce" font-family="Arial,sans-serif" font-weight="700" font-size="34">MARCELINE: NIGHT HUNT</text>
+</svg>

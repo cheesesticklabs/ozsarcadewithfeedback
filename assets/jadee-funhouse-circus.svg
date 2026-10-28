@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="night" y2="1"><stop stop-color="#160925"/><stop offset="1" stop-color="#05030e"/></linearGradient><radialGradient id="glow"><stop stop-color="#ff287f" stop-opacity=".52"/><stop offset="1" stop-color="#9a52ff" stop-opacity="0"/></radialGradient></defs>
+ <rect width="768" height="480" fill="url(#night)"/><ellipse cx="390" cy="298" rx="330" ry="186" fill="url(#glow)"/>
+ <path d="M141 398V214l68-115 70 115v184m0 0V190l105-86 108 86v208m0 0V214l72-115 68 115v184" fill="#110b19" stroke="#ff287f" stroke-width="5"/>
+ <path d="M141 214h138m5-24h216M526 214h106" stroke="#54f7ef" stroke-width="6"/>
+ <path d="M313 398V255q78-91 156 0v143" fill="#05030e" stroke="#9a52ff" stroke-width="5"/>
+ <path d="M367 291q23-40 48 0v41h-48z" fill="#e1b9ff"/><circle cx="380" cy="307" r="4" fill="#ff287f"/><circle cx="402" cy="307" r="4" fill="#ff287f"/>
+ <g fill="#54f7ef"><circle cx="179" cy="157" r="7"/><circle cx="218" cy="157" r="7"/><circle cx="255" cy="157" r="7"/><circle cx="333" cy="146" r="7"/><circle cx="384" cy="125" r="7"/><circle cx="435" cy="146" r="7"/><circle cx="558" cy="157" r="7"/><circle cx="599" cy="157" r="7"/></g>
+ <text x="33" y="53" fill="#54f7ef" font-family="monospace" font-size="13" letter-spacing="4">JADEE'S ARCADE · CIRCUS DELUXE</text>
+ <text x="32" y="451" fill="#f7e9ff" font-family="Arial,sans-serif" font-weight="700" font-size="37" letter-spacing="1">THE FUNHOUSE IS WATCHING</text>
+</svg>

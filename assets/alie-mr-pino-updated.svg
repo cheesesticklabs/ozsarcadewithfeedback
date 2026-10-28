@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="hall" y2="1"><stop stop-color="#25202c"/><stop offset="1" stop-color="#080810"/></linearGradient><radialGradient id="light"><stop stop-color="#e2ba69" stop-opacity=".46"/><stop offset="1" stop-color="#e2ba69" stop-opacity="0"/></radialGradient></defs>
+ <rect width="768" height="480" fill="url(#hall)"/><ellipse cx="381" cy="268" rx="247" ry="175" fill="url(#light)"/>
+ <path d="M0 0h196l171 174H0m768-174H572L400 174h368M0 480h218l149-172H0m768 0H550l-150 172h368" fill="#17141d" stroke="#51414f" stroke-width="4"/>
+ <path d="M295 174h180v134H295z" fill="#0a090e" stroke="#72524b" stroke-width="4"/><path d="M345 308v-95h81v95" fill="#171319" stroke="#c18e5e" stroke-width="4"/>
+ <path d="M364 251q0-31 23-31t23 31l-8 31h-31z" fill="#07070a"/><circle cx="376" cy="247" r="3" fill="#e0bd6d"/><circle cx="395" cy="247" r="3" fill="#e0bd6d"/>
+ <path d="M0 385h768" stroke="#403140" stroke-width="4"/><path d="M99 112v34m565-34v34" stroke="#b69a72" stroke-width="8"/>
+ <text x="34" y="51" fill="#dbbc8e" font-family="monospace" font-size="13" letter-spacing="4">ALIE'S ARCADE · UPDATED VERSION</text>
+ <text x="32" y="450" fill="#fff1d8" font-family="Arial,sans-serif" font-weight="700" font-size="55" letter-spacing="2">ESCAPE MR PINO</text>
+</svg>

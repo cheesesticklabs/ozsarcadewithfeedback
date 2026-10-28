@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="sky" y2="1"><stop stop-color="#100d26"/><stop offset="1" stop-color="#45315e"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#sky)"/><circle cx="614" cy="92" r="47" fill="#d0bfff" opacity=".72"/>
+ <g fill="#ece4ff" opacity=".8"><circle cx="93" cy="76" r="2"/><circle cx="226" cy="122" r="2"/><circle cx="410" cy="66" r="2"/><circle cx="539" cy="156" r="2"/><circle cx="694" cy="192" r="2"/></g>
+ <path d="M0 350L130 287l83 36 92-82 99 82 94-45 87 56 83-42v188H0Z" fill="#211a35"/>
+ <path d="M169 354V222l85-65 85 65v132Zm52 0v-79h65v79Z" fill="#10101d" stroke="#8875ab" stroke-width="5"/>
+ <path d="M148 228l106-85 106 85M199 233h29v39h-29zm82 0h29v39h-29z" fill="none" stroke="#cbbfff" stroke-width="6"/>
+ <path d="M454 357q-35-37 0-69 35-32 70 0 22 22 7 47l24 29h-91z" fill="#cbbfff" opacity=".8"/>
+ <path d="M474 296l12 6m22-6l11 6" stroke="#231d39" stroke-width="6"/>
+ <text x="39" y="65" fill="#d0bfff" font-family="monospace" font-size="13" letter-spacing="4">ANAYA'S ARCADE</text>
+ <text x="37" y="424" fill="#f0eaff" font-family="Arial,sans-serif" font-weight="700" font-size="41" letter-spacing="2">HAUNTED SCHOOL SHOWDOWN</text>
+</svg>

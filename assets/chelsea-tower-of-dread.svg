@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="sky" y2="1"><stop stop-color="#1a1417"/><stop offset="1" stop-color="#09080b"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#sky)"/><circle cx="612" cy="93" r="42" fill="#d3c7bf" opacity=".75"/>
+ <path d="M0 321l93-111 56 87 88-141 60 146 67-105 69 108 86-162 79 165 74-101 96 126v147H0z" fill="#171316"/>
+ <path d="M321 378V171l37-43 39 43v207zm-24-204h146M332 229h108m-108 58h108m-108 59h108" fill="#241b20" stroke="#7b272a" stroke-width="5"/>
+ <path d="M350 186h15v24h-15zm34 49h15v23h-15zm-34 59h15v23h-15zm34 60h15v23h-15z" fill="#c4161c"/>
+ <path d="M0 417h768" stroke="#7b272a" stroke-width="3"/><path d="M171 418l213-229 213 229" fill="none" stroke="#bd7b60" stroke-opacity=".35" stroke-width="2"/>
+ <text x="36" y="52" fill="#e7caca" font-family="monospace" font-size="13" letter-spacing="4">CHELSEA'S ARCADE · TWO PLAYER</text>
+ <text x="33" y="452" fill="#f1e8e8" font-family="Arial,sans-serif" font-weight="700" font-size="43" letter-spacing="2">TOWER OF DREAD 3D</text>
+</svg>

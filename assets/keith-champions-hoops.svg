@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="gym" y2="1"><stop stop-color="#2e3446"/><stop offset="1" stop-color="#10131c"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#gym)"/><path d="M0 113h768v213H0z" fill="#e7e4db"/><path d="M0 125h768v194H0z" fill="#c9823e"/>
+ <path d="M0 347h768v133H0z" fill="#ad6636"/><path d="M0 393h768m0 0-208-46m208 46-208 87M0 393l211-46m-211 46 211 87" fill="none" stroke="#f8ebd9" stroke-width="4"/>
+ <path d="M65 186h63v61H65zm575 0h63v61h-63z" fill="#fff"/><path d="M73 196h47v41H73zm575 0h47v41h-47z" fill="#333d50"/><path d="M96 247v37m0-12h42" stroke="#eee" stroke-width="7"/>
+ <circle cx="365" cy="267" r="32" fill="#f2a13f" stroke="#6c371b" stroke-width="4"/><path d="M334 267h62m-31-31v62m-22-53q22 22 44 44m0-44q-22 22-44 44" fill="none" stroke="#6c371b" stroke-width="3"/>
+ <path d="M280 337v-48m-22 24h44m164 24v-48m-22 24h44" stroke="#f6f1e6" stroke-width="6"/>
+ <text x="34" y="53" fill="#ffe0bd" font-family="monospace" font-size="13" letter-spacing="4">KEITH'S ARCADE · ONE ON ONE</text>
+ <text x="33" y="451" fill="#fff" font-family="Arial,sans-serif" font-weight="700" font-size="47" letter-spacing="2">CHAMPIONS HOOPS 1v1</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="sky" y2="1"><stop stop-color="#221b39"/><stop offset="1" stop-color="#07070d"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#sky)"/><circle cx="616" cy="89" r="49" fill="#ffc46a"/>
+ <path d="M0 333l111-101 97 101 119-173 113 173 93-96 101 96 86-69 48 54v162H0z" fill="#302545"/>
+ <path d="M0 385h768v95H0z" fill="#121019"/><path d="M0 402h768m-768 49h768" stroke="#9a72d1" stroke-opacity=".55" stroke-width="4"/>
+ <path d="M123 356h109v26H123zm276-66h103v25H399zm188 90h109v27H587z" fill="#61e1e0"/>
+ <path d="M307 333l24-45 24 45v53h-48z" fill="#ff5d82" stroke="#ffe8ef" stroke-width="4"/>
+ <path d="M314 343h34m-34 15h34" stroke="#fff" stroke-width="4"/>
+ <path d="M223 356l18 30h-36zm272-66 18 28h-36zm132 89 19 29h-38z" fill="#f6ba59"/>
+ <text x="35" y="51" fill="#8cf2e6" font-family="monospace" font-size="13" letter-spacing="4">ILANNAH'S ARCADE · DODGE AND DASH</text>
+ <text x="33" y="452" fill="#fff" font-family="Arial,sans-serif" font-weight="700" font-size="55" letter-spacing="3">SPIKE DASH</text>
+</svg>

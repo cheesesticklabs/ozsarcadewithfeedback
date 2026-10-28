@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="sky" y2="1"><stop stop-color="#12112e"/><stop offset="1" stop-color="#251047"/></linearGradient><linearGradient id="track" y2="1"><stop stop-color="#492c73"/><stop offset="1" stop-color="#120d22"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#sky)"/><circle cx="613" cy="92" r="56" fill="#ffcf70" opacity=".83"/>
+ <path d="M0 294l120-71 104 62 119-129 112 135 108-78 92 61 113-71v277H0z" fill="#32214c"/>
+ <path d="M0 368h768v112H0z" fill="url(#track)"/><path d="M0 393h768M0 425h768M0 461h768M384 368L58 480m326-112L217 480m167-112 54 112m-54-112 268 112m-268-112 381 112" stroke="#aa73ea" stroke-opacity=".45" stroke-width="3"/>
+ <path d="M363 323h49v47h-49z" fill="#fc4fa5" stroke="#ffe3fa" stroke-width="4"/><path d="M372 333h13v13h-13z" fill="#fff"/>
+ <path d="M151 389h73v13h-73zm462-34h92v13h-92zm-377-62h64v13h-64z" fill="#54f7ef"/>
+ <g fill="#ffcf70"><path d="M285 357h44v12h-44z"/><path d="M486 410h51v12h-51z"/></g>
+ <text x="36" y="54" fill="#f7c5e6" font-family="monospace" font-size="13" letter-spacing="4">GABRIEL'S ARCADE · RUN FOR IT</text>
+ <text x="33" y="451" fill="#fff3d2" font-family="Arial,sans-serif" font-weight="700" font-size="51" letter-spacing="3">CUBE DASH</text>
+</svg>

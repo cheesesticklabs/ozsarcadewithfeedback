@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="sky" y2="1"><stop stop-color="#2363e7"/><stop offset="1" stop-color="#081044"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#sky)"/><path d="M0 328h768v152H0z" fill="#101642"/><path d="M0 374h768m-768 57h768" stroke="#416ef2" stroke-width="4"/>
+ <path d="M66 322l76-104 72 104m38 0 63-158 66 158m52 0 69-113 64 113m39 0 55-85 56 85" fill="none" stroke="#55eaff" stroke-opacity=".65" stroke-width="5"/>
+ <path d="M179 283h57v57h-57z" fill="#ed4de2" stroke="#fff" stroke-width="4"/><path d="M448 283h57v57h-57z" fill="#ffd23f" stroke="#fff" stroke-width="4"/>
+ <path d="M144 378h126m179 0h126" stroke="#ffd23f" stroke-width="5" stroke-dasharray="12 10"/>
+ <text x="35" y="51" fill="#c5f6ff" font-family="monospace" font-size="13" letter-spacing="4">JACOB'S ARCADE · SOLO OR DUO</text>
+ <text x="32" y="448" fill="#fff" font-family="Arial,sans-serif" font-weight="700" font-size="56" letter-spacing="3">NEON DASH DUO</text>
+</svg>

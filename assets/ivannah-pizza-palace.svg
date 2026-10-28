@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="room" y2="1"><stop stop-color="#251b17"/><stop offset="1" stop-color="#070707"/></linearGradient><radialGradient id="glow"><stop stop-color="#c88242" stop-opacity=".5"/><stop offset="1" stop-color="#c88242" stop-opacity="0"/></radialGradient></defs>
+ <rect width="768" height="480" fill="url(#room)"/><ellipse cx="385" cy="340" rx="300" ry="130" fill="url(#glow)"/>
+ <path d="M0 97h768v19H0zM0 368h768v112H0z" fill="#161513"/><path d="M120 116v230m529-230v230M229 116v230m312-230v230" stroke="#77644a" stroke-width="9" opacity=".45"/>
+ <path d="M277 162h213v170H277z" fill="#201b17" stroke="#9e7650" stroke-width="3"/><path d="M290 178h187v8H290zm0 136h187v8H290z" fill="#6e4931"/>
+ <path d="M327 251q0-57 58-57t58 57v56H327z" fill="#11110f" stroke="#ba8754" stroke-width="4"/><circle cx="355" cy="250" r="7" fill="#e77a47"/><circle cx="416" cy="250" r="7" fill="#e77a47"/>
+ <path d="M107 288l50-94 54 94zm442 7l49-85 51 85z" fill="#131411"/><path d="M376 332v52m-27-25h54" stroke="#e5bc70" stroke-width="5"/>
+ <text x="34" y="52" fill="#f2ca86" font-family="monospace" font-size="13" letter-spacing="4">IVANNAH'S ARCADE · NIGHT SHIFT</text>
+ <text x="31" y="449" fill="#f2e5d3" font-family="Arial,sans-serif" font-weight="700" font-size="38" letter-spacing="1">NIGHT SHIFT AT PIZZA PALACE</text>
+</svg>

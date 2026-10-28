@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="sky" y2="1"><stop stop-color="#dfeaff"/><stop offset="1" stop-color="#8ca8ce"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#sky)"/><circle cx="620" cy="91" r="39" fill="#fff4cc"/>
+ <path d="M0 305l125-121 103 116 117-152 111 155 107-113 106 115v175H0z" fill="#39475f"/><path d="M0 382h768v98H0z" fill="#273244"/>
+ <path d="M102 320l109-73 110 73m151 17 77-55 78 55" fill="none" stroke="#bbc9dc" stroke-width="5"/>
+ <path d="M252 366h68v-48h-68z" fill="#3868ad" stroke="#e8eef8" stroke-width="4"/><circle cx="267" cy="373" r="12" fill="#202736"/><circle cx="304" cy="373" r="12" fill="#202736"/>
+ <path d="M446 356h68v-48h-68z" fill="#c75340" stroke="#ffe9de" stroke-width="4"/><circle cx="461" cy="363" r="12" fill="#202736"/><circle cx="498" cy="363" r="12" fill="#202736"/>
+ <path d="M250 301h72m124-4h72" stroke="#f2c76c" stroke-width="6"/>
+ <text x="34" y="53" fill="#344665" font-family="monospace" font-size="13" letter-spacing="4">JAYDEN'S ARCADE · TWO PLAYER</text>
+ <text x="33" y="449" fill="#fff" font-family="Arial,sans-serif" font-weight="700" font-size="47" letter-spacing="2">RANGER BREAKOUT</text>
+</svg>

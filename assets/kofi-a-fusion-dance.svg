@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><radialGradient id="bg"><stop stop-color="#552a80"/><stop offset="1" stop-color="#160d2d"/></radialGradient><linearGradient id="floor" y2="1"><stop stop-color="#8d65c9"/><stop offset="1" stop-color="#25133e"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#bg)"/><circle cx="384" cy="198" r="129" fill="#a881d4" opacity=".12"/>
+ <path d="M0 342Q384 272 768 342v138H0" fill="url(#floor)"/><path d="M145 352L384 231l239 121M214 354l170-123 171 123" fill="none" stroke="#d8aaff" stroke-opacity=".5" stroke-width="3"/>
+ <path d="M245 181l36-68 34 17-18 83 21 42-38 47-53-20 26-51zm0 32l-63 21-17 53 18 5 32-29 42-14m93-56l59-22 22 9-36 32-36 18m-136 86l-19 48-25 24 15 9 56-41 23-35m79-7l22 47 42 30 14-12-30-44-14-45" fill="#ed79c6" stroke="#ffe4fc" stroke-width="4"/>
+ <path d="M478 175l-34-66-34 17 18 83-21 42 38 47 53-20-26-51zm0 32l63 21 17 53-18 5-32-29-42-14m-93-56l-59-22-22 9 36 32 36 18m136 86l19 48 25 24-15 9-56-41-23-35m-79-7l-22 47-42 30-14-12 30-44 14-45" fill="#49c7eb" stroke="#daf7ff" stroke-width="4"/>
+ <path d="M0 76h768M0 87h768" stroke="#ffc8f4" stroke-opacity=".15"/>
+ <text x="38" y="58" fill="#e5caff" font-family="monospace" font-size="13" letter-spacing="4">KOFI A'S ARCADE · LOCAL MULTIPLAYER</text>
+ <text x="38" y="438" fill="#fff7ff" font-family="Arial,sans-serif" font-weight="700" font-size="36">FUSION DANCE BATTLE</text>
+</svg>

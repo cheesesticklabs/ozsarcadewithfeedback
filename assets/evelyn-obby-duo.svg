@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="sky" y2="1"><stop stop-color="#bceeff"/><stop offset="1" stop-color="#ffe0e9"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#sky)"/><circle cx="634" cy="96" r="44" fill="#fff7bd"/>
+ <path d="M0 364h768v116H0z" fill="#d5bff5"/><path d="M0 390h768m-768 48h768" stroke="#fff" stroke-opacity=".65" stroke-width="5"/>
+ <path d="M62 316h124v33H62zm183-61h113v32H245zm179 69h120v32H424zm164-80h126v32H588z" fill="#fa8dbb"/>
+ <path d="M106 313v-74h26v74m246-62v-77h26v77m245 57v-96h26v96" fill="#9e78df"/>
+ <path d="M168 309l20-34 21 34m175-64 21-34 21 34m169 73 22-34 21 34" fill="#ffce5f"/>
+ <g stroke="#463755" stroke-width="4"><path d="M272 326v-37m-17 18h34m214 86v-38m-17 19h34"/></g>
+ <circle cx="264" cy="285" r="14" fill="#fa6c9e"/><circle cx="286" cy="285" r="14" fill="#76c9ee"/>
+ <text x="35" y="49" fill="#55356c" font-family="monospace" font-size="13" letter-spacing="4">EVELYN'S ARCADE · PLAY TOGETHER</text>
+ <text x="34" y="454" fill="#36234a" font-family="Arial,sans-serif" font-weight="700" font-size="52" letter-spacing="2">OBBY DUO</text>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="ocean" y2="1"><stop stop-color="#123c61"/><stop offset="1" stop-color="#04101f"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#ocean)"/><path d="M0 123q96-24 192 0t192 0 192 0 192 0v17q-96 24-192 0t-192 0-192 0-192 0z" fill="#5de2ff" opacity=".6"/>
+ <g fill="#9feeff" opacity=".5"><circle cx="95" cy="204" r="4"/><circle cx="662" cy="177" r="3"/><circle cx="590" cy="326" r="5"/><circle cx="156" cy="373" r="3"/><circle cx="354" cy="211" r="3"/></g>
+ <path d="M155 283q107-137 279-35l99 12-82 43-50 91-55-73q-90 32-191-38z" fill="#6896ad" stroke="#b9e3ee" stroke-width="5"/>
+ <path d="M302 226l41-86 39 108m96 13 53-39-4 51m-302 42-56 33 97-4" fill="#476f88" stroke="#b9e3ee" stroke-width="5"/>
+ <circle cx="353" cy="258" r="9" fill="#f7ffff"/><circle cx="356" cy="258" r="4" fill="#111b29"/>
+ <path d="M492 286q22 8 40 1" fill="none" stroke="#13263a" stroke-width="5"/>
+ <path d="M58 390v-37h16v-25h18v25h14v37m525 0v-50h15v-22h19v22h13v50" fill="#0a1c2e" stroke="#83b7ca" stroke-width="3"/>
+ <text x="39" y="65" fill="#8be9ff" font-family="monospace" font-size="13" letter-spacing="4">ANAYA'S ARCADE</text>
+ <text x="37" y="434" fill="#ecfaff" font-family="Arial,sans-serif" font-weight="700" font-size="39" letter-spacing="1">HAUNTED SHARK HUNT</text>
+</svg>

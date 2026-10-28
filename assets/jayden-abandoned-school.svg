@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="hall" y2="1"><stop stop-color="#171314"/><stop offset="1" stop-color="#050506"/></linearGradient><radialGradient id="red"><stop stop-color="#9b2925" stop-opacity=".55"/><stop offset="1" stop-color="#050506" stop-opacity="0"/></radialGradient></defs>
+ <rect width="768" height="480" fill="url(#hall)"/><path d="M0 0h768L492 192H276z" fill="#211b1d"/><path d="M0 480L276 192h216L768 480" fill="#141112"/>
+ <path d="M55 70h162v266H55zm500 0h162v266H555z" fill="#09090a" stroke="#514344" stroke-width="5"/>
+ <path d="M276 192v288M492 192v288M0 338h768M0 393h768" stroke="#665453" stroke-width="3" opacity=".55"/>
+ <path d="M350 0h68l27 70H322z" fill="#7d2221"/><path d="M275 84h218l138 250H137z" fill="url(#red)"/>
+ <path d="M371 480v-90q15-28 30 0v90" fill="#080708"/><circle cx="384" cy="367" r="4" fill="#c33d33"/>
+ <text x="34" y="53" fill="#d46a59" font-family="monospace" font-size="13" letter-spacing="4">JAYDEN'S ARCADE · ESCAPE THE SCHOOL</text>
+ <text x="32" y="451" fill="#eee6e4" font-family="Arial,sans-serif" font-weight="700" font-size="41" letter-spacing="2">ABANDONED SCHOOL ESCAPE</text>
+</svg>

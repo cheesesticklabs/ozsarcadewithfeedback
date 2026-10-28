@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="sky" y2="1"><stop stop-color="#bde5ff"/><stop offset="1" stop-color="#f8f0ff"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#sky)"/><circle cx="643" cy="89" r="43" fill="#fff2aa"/>
+ <path d="M0 294q165-91 330 0t438 0v186H0z" fill="#b9e3ac"/><path d="M0 366q185-49 363 0t405-3v117H0z" fill="#94cd91"/>
+ <path d="M84 237h157v146H84z" fill="#ffcfdf" stroke="#fff" stroke-width="8"/><path d="M69 236l94-87 96 87z" fill="#e66d9e" stroke="#fff" stroke-width="7"/><path d="M142 306h42v77h-42z" fill="#9f78c6"/><path d="M103 267h28v28h-28zm91 0h28v28h-28z" fill="#fff2aa"/>
+ <path d="M466 268h165v116H466z" fill="#ffecd0" stroke="#fff" stroke-width="8"/><path d="M449 267l100-75 100 75z" fill="#78c5a1" stroke="#fff" stroke-width="7"/><path d="M534 322h37v62h-37z" fill="#9f78c6"/><path d="M483 289h27v26h-27zm98 0h27v26h-27z" fill="#8bd7ed"/>
+ <g><circle cx="335" cy="329" r="22" fill="#f6a1c3"/><path d="M315 324q20-38 40 0v34h-40z" fill="#fff1e6"/><circle cx="327" cy="324" r="3" fill="#594663"/><circle cx="342" cy="324" r="3" fill="#594663"/><path d="M300 356l-13 26m49-26 15 26" stroke="#594663" stroke-width="6"/></g>
+ <g fill="#fff"><circle cx="77" cy="130" r="18"/><circle cx="104" cy="122" r="24"/><circle cx="131" cy="132" r="17"/><circle cx="359" cy="107" r="17"/><circle cx="384" cy="98" r="23"/><circle cx="411" cy="108" r="17"/></g>
+ <text x="30" y="48" fill="#785b8c" font-family="monospace" font-size="13" letter-spacing="4">VALERIE'S ARCADE · A GIFT FOR A FRIEND</text>
+ <text x="31" y="451" fill="#5a426c" font-family="Arial,sans-serif" font-weight="700" font-size="51" letter-spacing="2">GIFTIE GROVE</text>
+</svg>

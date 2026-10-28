@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="480" viewBox="0 0 768 480">
+ <defs><linearGradient id="sky" y2="1"><stop stop-color="#17452a"/><stop offset="1" stop-color="#07160d"/></linearGradient></defs>
+ <rect width="768" height="480" fill="url(#sky)"/><path d="M0 228h768v252H0z" fill="#16853b"/><path d="M0 278h768v30H0zm0 79h768v30H0zm0 78h768v30H0z" fill="#26a94d" opacity=".6"/>
+ <path d="M96 252h576v191H96z" fill="none" stroke="#dff9df" stroke-width="4"/><path d="M384 252v191m-61-95a61 61 0 1 0 122 0 61 61 0 1 0-122 0m-227-48h80v96h-80m496-96h80v96h-80" fill="none" stroke="#dff9df" stroke-width="4" opacity=".8"/>
+ <path d="M350 213h68v14h-68z" fill="#f5f0dc"/><path d="M370 190h28v27h-28z" fill="#fff" stroke="#111" stroke-width="3"/><path d="M383 190l8 7-4 10h-9l-5-9z" fill="#111"/>
+ <rect x="74" y="43" width="194" height="45" rx="20" fill="#0a1b11" stroke="#7dff91" stroke-width="2"/><text x="99" y="73" fill="#8dff9a" font-family="monospace" font-size="20">GREEN METER</text>
+ <text x="35" y="130" fill="#dfffe4" font-family="monospace" font-size="13" letter-spacing="4">PRINCE'S ARCADE · ON THE PITCH</text>
+ <text x="32" y="452" fill="#fff" font-family="Arial,sans-serif" font-weight="700" font-size="49" letter-spacing="2">GREEN METER SOCCER</text>
+</svg>
