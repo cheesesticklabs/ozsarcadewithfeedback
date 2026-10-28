@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>St. Morrow Hospital: Dead Wing</title>
+<style>
+:root{--bg:#06090a;--panel:#0d1415;--ink:#d6e4dc;--dim:#7d908a;--accent:#7CFC9a;--blood:#b3121f;--door:#27343a;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#06090a;--ink:#d6e4dc}}
+:root[data-theme="dark"]{--bg:#06090a;--ink:#d6e4dc}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"Courier New",ui-monospace,monospace}
+#app{max-width:760px;margin:0 auto;padding:14px}
+h1{font-size:18px;letter-spacing:3px;margin:4px 0;color:var(--accent);text-transform:uppercase}
+#hud{display:flex;justify-content:space-between;font-size:14px;color:var(--dim);margin-bottom:10px}
+#hall{position:relative;height:230px;background:linear-gradient(transparent 82%,#16282b 82%),repeating-linear-gradient(90deg,transparent 0 38px,rgba(255,255,255,.04) 38px 40px),linear-gradient(#0b1213,#05080a);border:1px solid #1b2a2c;display:flex;justify-content:space-around;align-items:flex-end;padding:0 6px 40px;overflow:hidden}
+#hall::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 0,rgba(124,252,154,.12),transparent 40%);animation:fl 3s infinite steps(1)}
+@keyframes fl{0%,100%{opacity:1}7%{opacity:.2}9%{opacity:1}55%{opacity:.5}58%{opacity:1}}
+#hall::after{content:"EXIT";position:absolute;top:8px;right:10px;color:#7CFC9a;border:1px solid #7CFC9a;padding:1px 6px;font-size:11px;letter-spacing:2px;text-shadow:0 0 6px #7CFC9a}
+.door{position:relative;z-index:1;width:15%;height:72%;background:var(--door);border:2px solid #3b4d54;border-bottom:0;cursor:pointer;color:var(--ink);font:inherit;font-size:20px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:12px;transition:transform .15s}
+.door:hover:not(:disabled){transform:translateY(-4px);border-color:var(--accent)}
+.door small{font-size:11px;color:var(--dim);margin-top:auto;margin-bottom:10px}
+.door::after{content:"";position:absolute;top:44%;right:8px;width:7px;height:7px;border-radius:50%;background:#b8a25a}
+.door.cleared{background:#101a14;border-color:#244;color:var(--dim);cursor:default}
+.door.cleared::after{background:#333}
+#room{display:none;margin-top:12px;background:var(--panel);border:1px solid #1b2a2c;padding:14px}
+#stage{height:150px;display:flex;align-items:center;justify-content:center;font-size:54px;position:relative;background:radial-gradient(circle,#1a0c0e,#060808 70%)}
+.z{display:inline-block;transition:transform .25s}
+.z.lunge{transform:scale(1.6) translateY(10px)}
+.z.dead{transform:rotate(90deg) translateY(30px);opacity:.25;filter:grayscale(1)}
+#flash{position:absolute;inset:0;background:var(--blood);opacity:0;pointer-events:none}
+#flash.on{animation:hit .4s}
+@keyframes hit{0%{opacity:.7}100%{opacity:0}}
+#q{font-size:16px;line-height:1.4;margin:12px 0}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;padding:11px;background:#0a1011;color:var(--ink);border:1px solid #2b3d40;font:inherit;font-size:15px;cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt.ok{border-color:var(--accent);background:#10301c}
+.opt.bad{border-color:var(--blood);background:#2a0c10}
+#msg{min-height:22px;margin:8px 0;color:var(--dim)}
+#shoot,#btn{display:none;padding:12px 20px;background:var(--blood);color:#fff;border:0;font:inherit;font-size:16px;cursor:pointer;letter-spacing:2px}
+#btn{display:inline-block;background:var(--accent);color:#000}
+#over{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;align-items:center;justify-content:center;text-align:center;z-index:9;padding:20px}
+#over h2{font-size:32px;margin:0 0 10px}
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>🏥 St. Morrow Hospital: Dead Wing</h1>
+  <div id="hud"><span id="lives"></span><span id="left"></span></div>
+  <div id="hall"></div>
+  <div id="msg0" style="color:var(--dim);font-size:13px;margin-top:8px">The hospital has been overrun. Pick a ward door. Answer right to earn the shot. Answer wrong and it bites.</div>
+  <div id="room">
+    <div id="rn" style="color:var(--accent);letter-spacing:2px;font-size:13px;margin-bottom:6px"></div>
+    <div id="stage"><div id="zs" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center"></div><div id="prop" style="position:absolute;bottom:4px;left:8px;font-size:26px;opacity:.5"></div><div id="flash"></div></div>
+    <div id="q"></div>
+    <div id="opts"></div>
+    <div id="msg"></div>
+    <button id="shoot">🔫 SHOOT</button>
+  </div>
+</div>
+<div id="over"><div><h2 id="ot"></h2><p id="os"></p><button id="btn">PLAY AGAIN</button></div></div>
+<script>
+const QS=[
+{q:"What organ pumps blood around the body?",o:["Liver","Heart","Lung","Kidney"],a:1},
+{q:"How many bones does an adult human have?",o:["106","206","306","406"],a:1},
+{q:"Which vitamin is made in skin with sunlight?",o:["A","C","D","K"],a:2},
+{q:"What does an ECG measure?",o:["Brain waves","Heart’s electrical activity","Lung volume","Blood sugar"],a:1},
+{q:"Which blood type is the universal donor?",o:["AB+","A−","O−","B+"],a:2},
+{q:"What’s the largest organ of the human body?",o:["Skin","Liver","Brain","Intestine"],a:0},
+{q:"Which gas do we need to breathe in to live?",o:["Nitrogen","Oxygen","Helium","Carbon dioxide"],a:1},
+{q:"What carries oxygen in red blood cells?",o:["Insulin","Hemoglobin","Keratin","Collagen"],a:1},
+{q:"Which bone protects the brain?",o:["Femur","Skull","Sternum","Pelvis"],a:1},
+{q:"What does a stethoscope listen to?",o:["Heart and lung sounds","Brain waves","Stomach acid","Eye pressure"],a:0},
+{q:"Which hormone lowers blood sugar?",o:["Adrenaline","Insulin","Cortisol","Estrogen"],a:1},
+{q:"What is the body’s longest bone?",o:["Tibia","Humerus","Femur","Spine"],a:2},
+{q:"Normal adult body temperature is about…",o:["30°C","37°C","42°C","25°C"],a:1},
+{q:"Which organ filters blood to make urine?",o:["Spleen","Kidney","Pancreas","Stomach"],a:1},
+{q:"What do white blood cells mainly fight?",o:["Infection","Hunger","Cold air","Dehydration"],a:0},
+{q:"How many chambers does the human heart have?",o:["2","3","4","6"],a:2},
+{q:"What does an X-ray mainly show?",o:["Bones","Emotions","Hormones","Dreams"],a:0},
+{q:"Which organ produces bile?",o:["Liver","Heart","Lung","Brain"],a:0}
+];
+const ROOMS=[2,3,2,3,4,3];
+const NM=["ER","ICU","X-RAY","OR","LAB","MORGUE"];
+const ICO=["🚑","🫀","🩻","💉","🧪","⚰️"];
+const SUB=["Emergency Room","Intensive Care Unit","Radiology","Operating Room","Pathology Lab","The Morgue"];
+const PR=["🛏️🩹","📟🫀","🩻🖥️","🩺💉","🔬🧪","⚰️🪦"];
+const shuf=a=>a.sort(()=>Math.random()-.5);
+let deck,left,rem;
+const zl=()=>document.querySelector(".z:not(.dead)");
+let lives,cleared,cur,locked;
+const $=id=>document.getElementById(id);
+function start(){
+  lives=3;cleared=0;cur=null;locked=false;rem=ROOMS.slice();left=ROOMS.reduce((a,b)=>a+b,0);deck=shuf(QS.slice());
+  $("over").style.display="none";$("room").style.display="none";
+  $("hall").innerHTML="";
+  ROOMS.forEach((n,i)=>{
+    const b=document.createElement("button");b.className="door";b.innerHTML="<span style=\"font-size:22px\">"+ICO[i]+"</span><b style=\"font-size:10px;margin-top:4px\">"+NM[i]+"</b><small>🧟×"+n+"</small>";
+    b.onclick=()=>openDoor(i,b);$("hall").appendChild(b);
+  });
+  hud();
+}
+function hud(){$("lives").textContent="HP "+"♥".repeat(lives)+"♡".repeat(3-lives);$("left").textContent="Zombies left: "+left}
+function openDoor(i,b){
+  if(b.classList.contains("cleared")||locked)return;
+  cur={i,b};$("rn").textContent="🏥 "+NM[i]+" — "+SUB[i];$("prop").textContent=PR[i];
+  $("room").style.display="block";
+  $("zs").innerHTML=Array.from({length:rem[i]},()=>'<span class="z">🧟</span>').join("");$("shoot").style.display="none";$("msg").textContent=rem[i]+" zombies shuffle toward you…";ask();
+  $("room").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function ask(){
+  locked=false;if(!deck.length)deck=shuf(QS.slice());
+  const d=deck.pop();cur.d=d;
+  $("q").textContent=d.q;$("opts").innerHTML="";
+  d.o.forEach((t,k)=>{
+    const o=document.createElement("button");o.className="opt";o.textContent=String.fromCharCode(65+k)+") "+t;
+    o.onclick=()=>answer(k,o);$("opts").appendChild(o);
+  });
+}
+function answer(k,el){
+  if(locked)return;const d=cur.d;
+  if(k===d.a){
+    locked=true;el.classList.add("ok");freeze();
+    $("msg").textContent="Correct! The shot is yours.";$("shoot").style.display="inline-block";
+  }else{
+    el.classList.add("bad");el.disabled=true;lives--;hud();
+    const zz=zl();zz&&zz.classList.add("lunge");$("flash").classList.remove("on");void $("flash").offsetWidth;$("flash").classList.add("on");
+    setTimeout(()=>zz&&zz.classList.remove("lunge"),300);
+    $("msg").textContent="Wrong! It bites you.";
+    if(lives<=0)end(false);
+  }
+}
+function freeze(){[...$("opts").children].forEach(x=>x.disabled=true)}
+$("shoot").onclick=()=>{
+  $("shoot").style.display="none";
+  const z=zl();z&&z.classList.add("dead");left--;rem[cur.i]--;hud();
+  if(rem[cur.i]>0){$("msg").textContent="Bang! "+rem[cur.i]+" more in here…";setTimeout(ask,700);return;}
+  $("msg").textContent="Room clear.";cleared++;locked=false;
+  cur.b.classList.add("cleared");cur.b.innerHTML="✔<small>CLEAR</small>";
+  if(left===0)setTimeout(()=>end(true),700);
+};
+function end(win){
+  $("ot").textContent=win?"HOSPITAL CLEARED":"YOU TURNED";
+  $("ot").style.color=win?"var(--accent)":"var(--blood)";
+  $("os").textContent=win?"Every zombie in the hospital is down. You walk out through the lobby alive.":"The hospital goes quiet… then you join the patients.";
+  $("over").style.display="flex";
+}
+$("btn").onclick=start;
+start();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

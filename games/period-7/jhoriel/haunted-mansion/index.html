@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Haunted Mansion: The Great Escape</title>
+<style>
+  :root { color-scheme: dark; --bg:#101018; --panel:#1b1b2a; --ink:#f4f0ff; --muted:#b8b4ce; --gold:#ffd76a; --mint:#75f0bd; --red:#ff777e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:system-ui, sans-serif; color:var(--ink); background:radial-gradient(ellipse at top,#29243d,#101018 65%); min-height:100vh; padding:18px; }
+  main { max-width:1000px; margin:auto; }
+  h1 { margin:0 0 4px; font-size:clamp(1.6rem,4vw,2.4rem); }
+  .sub { color:var(--muted); margin:0 0 16px; }
+  .hud { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-bottom:12px; }
+  .stat { background:var(--panel); border:1px solid #39354f; padding:10px 12px; border-radius:12px; }
+  .stat b { display:block; font-size:1.2rem; }
+  .stat span { font-size:.8rem; color:var(--muted); }
+  .game-wrap { background:#171622; border:1px solid #39354f; border-radius:16px; padding:10px; box-shadow:0 14px 40px #0005; }
+  canvas { display:block; width:100%; height:auto; background:#12111b; border-radius:10px; image-rendering:pixelated; }
+  .under { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+  .card { background:var(--panel); border:1px solid #39354f; padding:12px 14px; border-radius:12px; }
+  .card h2 { font-size:1rem; margin:0 0 6px; }
+  .card p { margin:4px 0; color:var(--muted); font-size:.9rem; }
+  kbd { background:#302c43; color:white; border:1px solid #51496e; border-radius:5px; padding:1px 5px; font:inherit; font-size:.82em; }
+  .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  button { border:0; border-radius:9px; padding:10px 14px; font:600 1rem system-ui; cursor:pointer; background:var(--gold); color:#241b05; }
+  button.secondary { background:#39354f; color:var(--ink); }
+  button:focus-visible { outline:3px solid white; outline-offset:3px; }
+  #message { margin-top:10px; min-height:1.5em; color:var(--mint); font-weight:600; }
+  .note { color:var(--muted); font-size:.82rem; margin-top:10px; }
+  @media(max-width:600px) { .hud { grid-template-columns:repeat(2,minmax(0,1fr)); } .under { grid-template-columns:1fr; } body {padding:10px;} }
+</style>
+</head>
+<body>
+<main>
+  <h1>🏚️ Haunted Mansion: The Great Escape</h1>
+  <p class="sub">Work together. Find three keys. Get out before the mansion claims you!</p>
+  <section class="hud" aria-label="Game status">
+    <div class="stat"><span>TIME LEFT</span><b id="time">2:00</b></div>
+    <div class="stat"><span>KEYS FOUND</span><b id="keys">0 / 3</b></div>
+    <div class="stat"><span>TEAM CAPTURES</span><b id="captures">0 / 3</b></div>
+    <div class="stat"><span>ROUND</span><b id="round">1</b></div>
+  </section>
+  <div class="game-wrap">
+    <canvas id="game" width="800" height="500" aria-label="Top-down haunted mansion game"></canvas>
+  </div>
+  <div class="under">
+    <section class="card">
+      <h2>🧭 Player controls</h2>
+      <p><b style="color:#75d9ff">Player 1 — Blue explorer:</b> move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>. Press <kbd>F</kbd> to reveal nearby hidden objects for 4 seconds.</p>
+      <p><b style="color:#ffbd79">Player 2 — Amber explorer:</b> move with <kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd>. Press <kbd>Enter</kbd> to sprint for 2 seconds.</p>
+      <p>Both players can press <kbd>Space</kbd> to create a ghost distraction that lasts 3 seconds.</p>
+    </section>
+    <section class="card">
+      <h2>👻 How to escape</h2>
+      <p>Collect all <b>3 keys</b>, then get at least one player to the green exit.</p>
+      <p>Touching a ghost adds a team capture and sends that player back to the entrance. Three captures means game over.</p>
+      <p>Watch for red floor traps. The room layout changes every round, so explore together!</p>
+    </section>
+  </div>
+  <div class="actions">
+    <button id="start">Start / Restart Game</button>
+    <button id="newRound" class="secondary">New Round (reset layout)</button>
+  </div>
+  <div id="message" role="status">Ready when you are. Press Start / Restart Game.</div>
+  <p class="note">First-draft tip: the mansion is a small grid of rooms connected by passages. Keys are hidden in different rooms each round; hold your nerve and keep moving!</p>
+</main>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const W = canvas.width, H = canvas.height;
+  const cols = 8, rows = 5, cw = W / cols, ch = H / rows;
+  const keysDown = new Set();
+  let running = false, ended = false, last = 0, timeLeft = 120, captures = 0, round = 1;
+  let keysFound = 0, revealUntil = 0, distractionUntil = 0, messageText = 'Ready when you are. Press Start / Restart Game.';
+  let rooms = [], keys = [], traps = [], ghosts = [], exit = {x:W-48,y:H-42};
+  const players = [
+    {x:42,y:42,r:12,color:'#75d9ff',speed:155,spawnX:42,spawnY:42,ability:'reveal'},
+    {x:W-48,y:H-42,r:12,color:'#ffbd79',speed:155,spawnX:W-48,spawnY:H-42,ability:'sprint',sprintUntil:0}
+  ];
+  function setMessage(s) { messageText = s; $('message').textContent = s; }
+  function rand(n) { return Math.floor(Math.random()*n); }
+  function roomCenter(c,r) { return {x:c*cw+cw/2, y:r*ch+ch/2}; }
+  function generateLayout() {
+    rooms = []; keys = []; traps = []; ghosts = [];
+    // Room placement changes each round. Each room has a clear floor and connecting doorways.
+    for (let r=0;r<rows;r++) for (let c=0;c<cols;c++) {
+      rooms.push({c,r,shade:rand(3),sealed:Math.random()<.10 && !(c===0&&r===0) && !(c===cols-1&&r===rows-1)});
+    }
+    // Ensure a navigable route: no blocked cells in the center corridor.
+    for(let c=0;c<cols;c++) rooms[2*cols+c].sealed=false;
+    rooms[0].sealed=false; rooms[rooms.length-1].sealed=false;
+    exit = {x:W-48,y:H-42};
+    players[0].x=42; players[0].y=42; players[0].spawnX=42; players[0].spawnY=42;
+    players[1].x=W-48; players[1].y=H-42; players[1].spawnX=W-48; players[1].spawnY=H-42;
+    const available = rooms.filter(r=>!r.sealed && !(r.c===0&&r.r===0) && !(r.c===cols-1&&r.r===rows-1));
+    const shuffled = [...available].sort(()=>Math.random()-.5);
+    for(let i=0;i<3;i++) { const r=shuffled[i]; const p=roomCenter(r.c,r.r); keys.push({x:p.x,y:p.y,found:false,room:r}); }
+    for(let i=0;i<6;i++) {
+      const r=shuffled[i+3] || available[rand(available.length)];
+      const p=roomCenter(r.c,r.r);
+      traps.push({x:p.x+(rand(2)?18:-18),y:p.y+(rand(2)?12:-12),active:true});
+    }
+    for(let i=0;i<3;i++) {
+      const r=shuffled[i+9] || available[rand(available.length)];
+      const p=roomCenter(r.c,r.r);
+      ghosts.push({x:p.x,y:p.y,homeX:p.x,homeY:p.y,r:13,phase:Math.random()*6});
+    }
+  }
+  function startGame() {
+    running=true; ended=false; timeLeft=120; captures=0; keysFound=0; round=1; revealUntil=0; distractionUntil=0;
+    players[1].sprintUntil=0; generateLayout(); updateHud(); setMessage('The front door slams shut. Find those keys!');
+    last=performance.now(); requestAnimationFrame(loop);
+  }
+  function nextRound() {
+    if(!running) { startGame(); return; }
+    round++; keysFound=0; revealUntil=0; distractionUntil=0; generateLayout(); updateHud();
+    setMessage('The mansion shifts! The rooms and keys have moved.');
+  }
+  function updateHud() {
+    $('time').textContent = `${Math.floor(timeLeft/60)}:${String(Math.max(0,Math.ceil(timeLeft%60))).padStart(2,'0')}`;
+    $('keys').textContent = `${keysFound} / 3`;
+    $('captures').textContent = `${captures} / 3`;
+    $('round').textContent = round;
+  }
+  function blocked(x,y,r) {
+    if(x<r+8 || x>W-r-8 || y<r+8 || y>H-r-8) return true;
+    const c=Math.max(0,Math.min(cols-1,Math.floor(x/cw))), rr=Math.max(0,Math.min(rows-1,Math.floor(y/ch)));
+    const room=rooms[rr*cols+c];
+    if(room && room.sealed) {
+      const left=c*cw+8, right=(c+1)*cw-8, top=rr*ch+8, bottom=(rr+1)*ch-8;
+      if(x>left-r && x<right+r && y>top-r && y<bottom+r) return true;
+    }
+    return false;
+  }
+  function movePlayer(p,dx,dy,dt,index) {
+    const mag=Math.hypot(dx,dy)||1; dx/=mag; dy/=mag;
+    let speed=p.speed;
+    if(index===1 && performance.now()<p.sprintUntil) speed*=1.85;
+    const nx=p.x+dx*speed*dt, ny=p.y+dy*speed*dt;
+    if(!blocked(nx,p.y,p.r)) p.x=nx;
+    if(!blocked(p.x,ny,p.r)) p.y=ny;
+  }
+  function dist(a,b) { return Math.hypot(a.x-b.x,a.y-b.y); }
+  function caught(p,index) {
+    captures++; p.x=p.spawnX; p.y=p.spawnY;
+    updateHud();
+    if(captures>=3) finish(false,'The ghosts caught your team three times. The mansion wins!');
+    else setMessage(`A ghost got Player ${index+1}! Team captures: ${captures}/3.`);
+  }
+  function finish(won,text) { running=false; ended=true; setMessage((won?'🎉 YOU ESCAPED! ':'💀 GAME OVER! ')+text+' Press Start to play again.'); draw(); }
+  function update(dt,now) {
+    if(!running) return;
+    timeLeft-=dt;
+    if(timeLeft<=0) { timeLeft=0; updateHud(); finish(false,'Time ran out before anyone escaped.'); return; }
+    const p1=players[0], p2=players[1];
+    let x1=(keysDown.has('d')?1:0)-(keysDown.has('a')?1:0), y1=(keysDown.has('s')?1:0)-(keysDown.has('w')?1:0);
+    let x2=(keysDown.has('ArrowRight')?1:0)-(keysDown.has('ArrowLeft')?1:0), y2=(keysDown.has('ArrowDown')?1:0)-(keysDown.has('ArrowUp')?1:0);
+    if(x1||y1) movePlayer(p1,x1,y1,dt,0);
+    if(x2||y2) movePlayer(p2,x2,y2,dt,1);
+    ghosts.forEach((g,i)=>{
+      g.phase+=dt;
+      if(now<distractionUntil) { g.x += (g.homeX-g.x)*Math.min(1,dt*3); g.y += (g.homeY-g.y)*Math.min(1,dt*3); }
+      else {
+        const target=players.reduce((best,p)=>dist(g,p)<dist(g,best)?p:best,players[0]);
+        const d=dist(g,target)||1, speed=32+i*5;
+        g.x+=(target.x-g.x)/d*speed*dt; g.y+=(target.y-g.y)/d*speed*dt;
+      }
+      for(let j=0;j<players.length;j++) if(dist(g,players[j])<g.r+players[j].r) { caught(players[j],j); break; }
+    });
+    traps.forEach(t=>{ if(t.active && players.some(p=>dist(t,p)<18)) { t.active=false; setMessage('Snap! You triggered a trap, but escaped it.'); } });
+    keys.forEach(k=>{ if(!k.found && players.some(p=>dist(k,p)<22)) { k.found=true; keysFound++; updateHud(); setMessage(`Key found! ${keysFound}/3 keys collected.`); } });
+    if(keysFound===3 && players.some(p=>dist(p,exit)<24)) { finish(true,'You found all three keys and made it to the exit!'); return; }
+    updateHud();
+  }
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    // rooms and borders
+    rooms.forEach(r=>{
+      const x=r.c*cw,y=r.r*ch;
+      ctx.fillStyle=r.sealed?'#08080e':['#252236','#29243a','#211f31'][r.shade];
+      ctx.fillRect(x+3,y+3,cw-6,ch-6);
+      ctx.strokeStyle='#4a435e'; ctx.lineWidth=2; ctx.strokeRect(x+3,y+3,cw-6,ch-6);
+      // floorboards
+      if(!r.sealed) { ctx.strokeStyle='#383149'; ctx.lineWidth=1; for(let yy=y+18;yy<y+ch-8;yy+=20){ctx.beginPath();ctx.moveTo(x+8,yy);ctx.lineTo(x+cw-8,yy);ctx.stroke();} }
+      if(r.sealed){ctx.fillStyle='#ff777e';ctx.font='24px sans-serif';ctx.textAlign='center';ctx.fillText('🔒',x+cw/2,y+ch/2+8);}
+    });
+    // Exit
+    ctx.textAlign='center'; ctx.font='28px sans-serif'; ctx.fillText('🚪',exit.x,exit.y+8);
+    ctx.fillStyle=keysFound===3?'#75f0bd':'#aaa2b8'; ctx.font='bold 11px system-ui'; ctx.fillText(keysFound===3?'EXIT OPEN':'LOCKED EXIT',exit.x,exit.y+25);
+    // traps
+    traps.forEach(t=>{if(t.active){ctx.fillStyle='#8e303e';ctx.beginPath();ctx.arc(t.x,t.y,10,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ff777e';ctx.beginPath();ctx.moveTo(t.x-6,t.y-6);ctx.lineTo(t.x+6,t.y+6);ctx.moveTo(t.x+6,t.y-6);ctx.lineTo(t.x-6,t.y+6);ctx.stroke();}});
+    // hidden keys; reveal ability shows them even when not nearby
+    keys.forEach(k=>{if(!k.found){const shown=performance.now()<revealUntil || players.some(p=>dist(k,p)<52); if(shown){ctx.font='25px sans-serif';ctx.fillText('🗝️',k.x,k.y+8);} else {ctx.fillStyle='#4c465d';ctx.beginPath();ctx.arc(k.x,k.y,6,0,Math.PI*2);ctx.fill();}}});
+    // ghosts
+    ghosts.forEach(g=>{ctx.save();ctx.globalAlpha=performance.now()<distractionUntil?.45:1;ctx.font='29px sans-serif';ctx.fillText('👻',g.x,g.y+9);ctx.restore();});
+    // players and ability rings
+    players.forEach((p,i)=>{
+      ctx.beginPath();ctx.fillStyle=p.color;ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+      ctx.fillStyle='#14121d';ctx.font='bold 12px system-ui';ctx.fillText(i===0?'1':'2',p.x,p.y+4);
+      ctx.fillStyle=p.color;ctx.font='bold 11px system-ui';ctx.fillText(i===0?'P1':'P2',p.x,p.y-18);
+    });
+    if(!running){
+      ctx.fillStyle='#080710c9';ctx.fillRect(0,0,W,H);
+      ctx.textAlign='center';ctx.fillStyle='#fff';ctx.font='bold 30px system-ui';ctx.fillText(ended?'MANSION RUN ENDED':'READY TO ENTER?',W/2,H/2-15);
+      ctx.font='16px system-ui';ctx.fillStyle='#d4cde9';ctx.fillText(ended?'Press Start / Restart Game to try again':'Press Start / Restart Game to begin',W/2,H/2+20);
+    }
+  }
+  function loop(now) {
+    if(!running) { draw(); return; }
+    const dt=Math.min(.04,(now-last)/1000||0); last=now;
+    update(dt,now); draw();
+    if(running) requestAnimationFrame(loop);
+  }
+  window.addEventListener('keydown',e=>{
+    const k=e.key.length===1?e.key.toLowerCase():e.key;
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' ','Enter'].includes(e.key)) e.preventDefault();
+    keysDown.add(k);
+    if(e.repeat || !running) return;
+    const now=performance.now();
+    if(k==='f') { revealUntil=now+4000; setMessage('Player 1 reveals nearby hidden keys for 4 seconds!'); }
+    if(k==='Enter') { players[1].sprintUntil=now+2000; setMessage('Player 2 sprint boost!'); }
+    if(k===' ') { distractionUntil=now+3000; setMessage('Ghost distraction! Use the opening to run.'); }
+  });
+  window.addEventListener('keyup',e=>{keysDown.delete(e.key.length===1?e.key.toLowerCase():e.key);});
+  $('start').addEventListener('click',startGame);
+  $('newRound').addEventListener('click',nextRound);
+  generateLayout(); draw(); updateHud();
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

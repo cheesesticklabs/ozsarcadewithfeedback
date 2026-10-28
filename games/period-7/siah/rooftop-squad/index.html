@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rooftop Squad</title>
+<style>
+:root{--bg:#eceae4;--fg:#1d2330;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10131c;--fg:#e8e6df}}
+:root[data-theme="dark"]{--bg:#10131c;--fg:#e8e6df}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:Georgia,"Times New Roman",serif}
+body{display:flex;flex-direction:column;align-items:center;padding:12px}
+canvas{width:100%;max-width:800px;height:auto;border-radius:6px;cursor:crosshair;touch-action:none}
+p{max-width:800px;margin:10px 0;font-size:15px;line-height:1.5}
+</style></head><body>
+<canvas id="c" width="800" height="450"></canvas>
+<p>Click or tap to fire. Your squad of three snipers shares the work: the closest sniper who has reloaded takes the shot. Every target wears a red marker, so we always know who to stop. Civilians are safe: the squad won’t fire on them.</p>
+<script>
+const c=document.getElementById('c'),g=c.getContext('2d');
+const W=800,H=450,RELOAD=1.4;
+const snipers=[{x:130,cd:0},{x:400,cd:0},{x:670,cd:0}];
+let people,score,lives,spawnT,over,mouse={x:400,y:250},tracers,msg,msgT,best=0,started=false,t0=0;
+function reset(){people=[];score=0;lives=5;spawnT=1;over=false;tracers=[];msg='';msgT=0;snipers.forEach(s=>s.cd=0)}
+reset();
+function spawn(){
+  const crim=Math.random()<0.65,dir=Math.random()<0.5?1:-1,lane=330+Math.random()*80;
+  const sp=crim?(40+Math.random()*30+score*6):(22+Math.random()*18+score*1.5);
+  people.push({x:dir>0?-20:W+20,y:lane,vx:dir*Math.min(sp,340),crim,ph:Math.random()*6});
+}
+function say(t){msg=t;msgT=1.2}
+function fire(px,py){
+  if(!started){started=true;return}
+  if(over){reset();return}
+  const near=people.filter(p=>Math.hypot(p.x-px,p.y-18-py)<20);
+  if(near.length&&!near.some(p=>p.crim)){say('Hold fire: civilian!');return}
+  let best=null;
+  snipers.forEach((s,i)=>{if(s.cd<=0&&(!best||Math.abs(s.x-px)<Math.abs(snipers[best].x-px)))best=i});
+  if(best===null){say('Squad reloading…');return}
+  const s=snipers[best];s.cd=RELOAD;
+  tracers.push({x1:s.x,y1:112,x2:px,y2:py,a:1});
+  let hit=null;
+  for(const p of people){if(p.crim&&Math.hypot(p.x-px,p.y-18-py)<20){hit=p;break}}
+  if(!hit){say('Sniper '+(best+1)+' missed');return}
+  people.splice(people.indexOf(hit),1);
+  if(hit.crim){score++;say('Sniper '+(best+1)+' got one!')}
+  else{lives--;say('Civilian hit!');checkEnd()}
+}
+function checkEnd(){if(lives<=0){over=true;best=Math.max(best,score)}}
+function pos(e){const r=c.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
+c.addEventListener('pointermove',e=>{mouse=pos(e)});
+c.addEventListener('pointerdown',e=>{mouse=pos(e);fire(mouse.x,mouse.y)});
+function person(p,t){
+  const step=Math.sin(t*10+p.ph)*3;
+  g.fillStyle='rgba(0,0,0,.25)';g.beginPath();g.ellipse(p.x,p.y+2,10,3,0,0,7);g.fill();
+  g.fillStyle=p.crim?'#f2761f':'#4b7fb8';
+  g.fillRect(p.x-6,p.y-26,12,18);
+  g.fillStyle='#e9c9a4';g.beginPath();g.arc(p.x,p.y-32,6,0,7);g.fill();
+  g.fillStyle='#2a2f3d';g.fillRect(p.x-5,p.y-8,4,8+step/2);g.fillRect(p.x+1,p.y-8,4,8-step/2);
+  if(p.crim){g.fillStyle='#ff3b3b';g.beginPath();g.moveTo(p.x-7,p.y-56);g.lineTo(p.x+7,p.y-56);g.lineTo(p.x,p.y-45);g.fill()}
+}
+let last=performance.now();
+function loop(now){
+  const dt=Math.min((now-last)/1000,0.05);last=now;const t=now/1000;
+  if(started&&!over){
+    spawnT-=dt;if(spawnT<=0){spawn();spawnT=Math.max(0.3,2.4-score*0.1)}
+    snipers.forEach(s=>{if(s.cd>0)s.cd-=dt});
+    for(let i=people.length-1;i>=0;i--){const p=people[i];p.x+=p.vx*dt;
+      if(p.x<-30||p.x>W+30){people.splice(i,1);if(p.crim){lives--;say('A criminal got away!');checkEnd()}}}
+  }
+  tracers.forEach(r=>r.a-=dt*4);tracers=tracers.filter(r=>r.a>0);if(msgT>0)msgT-=dt;
+  // sky
+  const sky=g.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#1b2540');sky.addColorStop(1,'#d98a5a');
+  g.fillStyle=sky;g.fillRect(0,0,W,H);
+  // far skyline
+  g.fillStyle='#2b2f45';for(let x=0;x<W;x+=50){g.fillRect(x,200+((x*7)%60),42,160)}
+  // rooftops
+  snipers.forEach((s,i)=>{g.fillStyle='#161a26';g.fillRect(s.x-75,125,150,200);
+    g.fillStyle='#0e111a';g.fillRect(s.x-75,118,150,8);
+    g.fillStyle='#f3d67a';for(let r=0;r<4;r++)for(let k=0;k<4;k++)if((r*5+k*3+i)%3)g.fillRect(s.x-55+k*34,145+r*38,14,18);
+    g.fillStyle='#3a4a3a';g.beginPath();g.arc(s.x,112,7,0,7);g.fill();
+    g.fillStyle='#222';g.fillRect(s.x-3,106,22,3);
+  });
+  // street
+  g.fillStyle='#3a3d48';g.fillRect(0,320,W,130);
+  g.fillStyle='#575b68';g.fillRect(0,320,W,5);
+  people.slice().sort((a,b)=>a.y-b.y).forEach(p=>person(p,t));
+  // tracers
+  tracers.forEach(r=>{g.strokeStyle='rgba(255,240,170,'+r.a+')';g.lineWidth=2;g.beginPath();g.moveTo(r.x1,r.y1);g.lineTo(r.x2,r.y2);g.stroke()});
+  // crosshair
+  g.strokeStyle='#fff';g.lineWidth=1.5;g.beginPath();g.arc(mouse.x,mouse.y,16,0,7);
+  g.moveTo(mouse.x-24,mouse.y);g.lineTo(mouse.x+24,mouse.y);g.moveTo(mouse.x,mouse.y-24);g.lineTo(mouse.x,mouse.y+24);g.stroke();
+  // HUD
+  g.fillStyle='#fff';g.font='bold 20px Georgia,serif';g.textAlign='left';g.fillText('Caught: '+score,16,30);
+  g.textAlign='right';g.fillText('Lives: '+'♥'.repeat(Math.max(lives,0)),W-16,30);
+  g.font='14px Georgia,serif';g.textAlign='center';
+  snipers.forEach((s,i)=>{const w=60,f=1-Math.max(s.cd,0)/RELOAD;
+    g.fillStyle='rgba(0,0,0,.5)';g.fillRect(s.x-w/2,96,w,6);
+    g.fillStyle=f>=1?'#7ee08a':'#e0b04a';g.fillRect(s.x-w/2,96,w*f,6);
+    g.fillStyle='#fff';g.fillText('Sniper '+(i+1),s.x,90)});
+  if(msgT>0){g.font='italic 18px Georgia,serif';g.fillStyle='#fff';g.fillText(msg,W/2,60)}
+  if(!started||over){
+    g.fillStyle='rgba(8,10,16,.72)';g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';
+    g.font='bold 40px Georgia,serif';g.fillText(over?'Case closed':'Rooftop Squad',W/2,190);
+    g.font='18px Georgia,serif';
+    g.fillText(over?'You caught '+score+' (best: '+best+'). Click to play again.':'Three snipers, one city, no escapes. Click to start.',W/2,235);
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

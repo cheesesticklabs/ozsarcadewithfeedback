@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Haunted Shark Hunt</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#061426; color:#eefaff; font-family:system-ui,Arial,sans-serif; display:flex; justify-content:center; }
+  .wrap { width:min(100%,1000px); padding:12px; }
+  h1 { margin:2px 0 8px; text-align:center; color:#8be9ff; letter-spacing:1px; font-size:clamp(22px,4vw,34px); text-shadow:0 0 14px #008cff; }
+  .hud { display:flex; gap:8px; justify-content:space-between; flex-wrap:wrap; padding:10px 12px; background:#030914; border:1px solid #174b78; border-radius:12px; margin-bottom:8px; font-weight:700; }
+  .hud span { white-space:nowrap; }
+  #game { display:block; width:100%; height:auto; border:2px solid #14618a; border-radius:12px; background:#07365b; box-shadow:0 0 24px #0075a944; touch-action:none; }
+  .help { margin-top:8px; padding:10px 12px; border-radius:12px; background:#030914; border:1px solid #174b78; font-size:14px; line-height:1.55; }
+  .p1 { color:#ff737b; } .p2 { color:#65a9ff; } .tip { color:#9defff; }
+  button { display:block; margin:10px auto 0; border:0; border-radius:9px; padding:10px 20px; color:#061426; background:#8be9ff; font-weight:800; cursor:pointer; font-size:15px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>👻 HAUNTED SHARK HUNT 🦈</h1>
+  <div class="hud">
+    <span class="p1">🔴 Player 1: <b id="p1fish">0</b> fish</span>
+    <span class="p2">🔵 Player 2: <b id="p2fish">0</b> fish</span>
+    <span>🐟 Sharks fed: <b id="fed">0</b>/10</span>
+    <span>⏱️ Time: <b id="time">2:30</b></span>
+  </div>
+  <canvas id="game" width="960" height="560" aria-label="Haunted underwater two player game"></canvas>
+  <div class="help">
+    <b class="p1">Player 1:</b> Move with <b>W A S D</b>, feed with <b>F</b>.
+    &nbsp; <b class="p2">Player 2:</b> Move with <b>I J K L</b>, feed with <b>O</b>.<br>
+    Collect glowing fish, then get close to the shark and press your feed key. The shark chases one player at a time and switches targets after each feeding. Feed it <b>10 times before the timer reaches zero</b> to win!
+    <br><span class="tip">Tip: work together and keep moving. If the shark catches you, you drop one fish.</span>
+  </div>
+  <button id="restart">Restart Game</button>
+</div>
+<script>
+(() => {
+const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+const W=canvas.width,H=canvas.height;
+const keys = Object.create(null);
+let p1,p2,fish,shark,fed,timeLeft,last,gameState,seaweed, bubbles, targetPlayer, message, messageTimer;
+const $ = id => document.getElementById(id);
+function reset(){
+  p1={x:120,y:270,r:17,color:'#ff5964',fish:0,feedKey:'f',label:'1',cool:0};
+  p2={x:190,y:360,r:17,color:'#328bff',fish:0,feedKey:'o',label:'2',cool:0};
+  fish=[]; for(let i=0;i<12;i++) spawnFish();
+  shark={x:720,y:280,r:31,speed:88};
+  fed=0; timeLeft=150; last=performance.now(); gameState='playing'; targetPlayer=1;
+  message='Collect glowing fish!'; messageTimer=2.5;
+  seaweed=Array.from({length:26},(_,i)=>({x:i*39+Math.random()*15,h:35+Math.random()*90,phase:Math.random()*6}));
+  bubbles=Array.from({length:48},()=>({x:Math.random()*W,y:Math.random()*H,r:1+Math.random()*4,s:10+Math.random()*25}));
+  updateHud();
+}
+function spawnFish(){ fish.push({x:35+Math.random()*(W-70),y:70+Math.random()*(H-105),r:10,phase:Math.random()*6}); }
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+function say(t){message=t;messageTimer=2.2;}
+function updateHud(){
+  $('p1fish').textContent=p1.fish; $('p2fish').textContent=p2.fish;
+  $('fed').textContent=fed; $('time').textContent=`${Math.floor(timeLeft/60)}:${String(Math.ceil(timeLeft%60)).padStart(2,'0')}`;
+}
+function movePlayer(p,up,left,down,right,dt){
+  let dx=(keys[right]?1:0)-(keys[left]?1:0),dy=(keys[down]?1:0)-(keys[up]?1:0);
+  if(dx&&dy){dx*=.707;dy*=.707;}
+  p.x=clamp(p.x+dx*205*dt,22,W-22); p.y=clamp(p.y+dy*205*dt,65,H-22);
+}
+function update(dt){
+ if(gameState!=='playing')return;
+ timeLeft-=dt; if(timeLeft<=0){timeLeft=0;gameState='lost';say('TIME UP! The haunted sea wins...');}
+ movePlayer(p1,'w','a','s','d',dt); movePlayer(p2,'i','j','k','l',dt);
+ // collect fish
+ for(let i=fish.length-1;i>=0;i--){
+   for(const p of [p1,p2]) if(dist(p,fish[i])<p.r+fish[i].r+2){
+     p.fish++; fish.splice(i,1); spawnFish(); break;
+   }
+ }
+ // only one shark chases at a time; it switches after a successful feeding
+ const target=targetPlayer===1?p1:p2;
+ const d=dist(shark,target);
+ if(d>1){shark.x+=((target.x-shark.x)/d)*shark.speed*dt;shark.y+=((target.y-shark.y)/d)*shark.speed*dt;}
+ for(const p of [p1,p2]){
+   if(dist(shark,p)<shark.r+p.r-3 && p.cool<=0){
+     if(p.fish>0)p.fish--;
+     p.cool=1.3; say(`Shark caught Player ${p.label}! Keep swimming!`);
+     const d2=dist(shark,p)||1; p.x=clamp(p.x+(p.x-shark.x)/d2*55,25,W-25);p.y=clamp(p.y+(p.y-shark.y)/d2*55,70,H-25);
+   }
+   p.cool=Math.max(0,p.cool-dt);
+   if(keys[p.feedKey] && !p._feedHeld){
+     p._feedHeld=true;
+     if(dist(shark,p)<shark.r+p.r+32){
+       if(p.fish>0){
+         p.fish--; fed++; targetPlayer=targetPlayer===1?2:1;
+         shark.speed=Math.min(145,shark.speed+3);
+         shark.x=clamp(shark.x+(Math.random()-.5)*220,60,W-60);
+         shark.y=clamp(shark.y+(Math.random()-.5)*180,90,H-50);
+         say(`Yum! Sharks fed: ${fed}/10`);
+         if(fed>=10){gameState='won';say('YOU WIN! The sharks are fed!');}
+       }else say('You need to collect a glowing fish first!');
+     }else say('Get closer to the shark to feed it!');
+   }
+   if(!keys[p.feedKey])p._feedHeld=false;
+ }
+ bubbles.forEach(b=>{b.y-=b.s*dt;if(b.y<-5){b.y=H+5;b.x=Math.random()*W;}});
+ messageTimer=Math.max(0,messageTimer-dt); updateHud();
+}
+function drawBackground(){
+ const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#06264d');g.addColorStop(.55,'#075078');g.addColorStop(1,'#02182f');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ // distant haunted wreck
+ ctx.globalAlpha=.23;ctx.strokeStyle='#020d20';ctx.lineWidth=12;
+ ctx.beginPath();ctx.moveTo(80,110);ctx.lineTo(190,190);ctx.lineTo(275,150);ctx.moveTo(155,150);ctx.lineTo(150,70);ctx.moveTo(680,100);ctx.lineTo(790,205);ctx.lineTo(900,160);ctx.moveTo(750,165);ctx.lineTo(770,65);ctx.stroke();ctx.globalAlpha=1;
+ // seabed
+ ctx.fillStyle='#03152b';ctx.beginPath();ctx.moveTo(0,H-45);for(let x=0;x<=W;x+=45)ctx.lineTo(x,H-42-Math.sin(x*.027)*10);ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.fill();
+ seaweed.forEach((s,i)=>{ctx.strokeStyle=i%2?'#087568':'#126d60';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(s.x,H-30);ctx.quadraticCurveTo(s.x-12+Math.sin(performance.now()/850+s.phase)*12,H-s.h/2,s.x+Math.sin(performance.now()/700+s.phase)*15,H-s.h);ctx.stroke();});
+ bubbles.forEach(b=>{ctx.strokeStyle='#76dfff88';ctx.lineWidth=1.4;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.stroke();});
+}
+function drawFish(f){
+ const bob=Math.sin(performance.now()/260+f.phase)*3;
+ ctx.save();ctx.translate(f.x,f.y+bob);ctx.shadowBlur=17;ctx.shadowColor='#5af5ff';ctx.fillStyle='#7cf7ff';
+ ctx.beginPath();ctx.ellipse(0,0,11,7,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.moveTo(-8,0);ctx.lineTo(-16,-6);ctx.lineTo(-16,6);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#062746';ctx.beginPath();ctx.arc(5,-2,1.5,0,Math.PI*2);ctx.fill();ctx.restore();
+}
+function drawPlayer(p){
+ ctx.save();ctx.translate(p.x,p.y);ctx.fillStyle=p.color;ctx.shadowBlur=12;ctx.shadowColor=p.color;
+ ctx.beginPath();ctx.ellipse(0,0,18,12,0,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+ ctx.fillStyle='#ffe0c0';ctx.beginPath();ctx.arc(7,-10,8,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#071426';ctx.beginPath();ctx.arc(10,-11,1.8,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle='#eafaff';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-6,7);ctx.lineTo(-14,15);ctx.moveTo(3,8);ctx.lineTo(0,17);ctx.stroke();
+ ctx.fillStyle='#fff';ctx.font='bold 13px system-ui';ctx.textAlign='center';ctx.fillText('P'+p.label,0,-25);
+ if(p.cool>0){ctx.strokeStyle='#ffffff99';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,25,0,Math.PI*2);ctx.stroke();}
+ ctx.restore();
+}
+function drawShark(){
+ ctx.save();ctx.translate(shark.x,shark.y);
+ const near=dist(shark,targetPlayer===1?p1:p2)<155;
+ ctx.shadowBlur=near?25:14;ctx.shadowColor=near?'#ff304d':'#46d8ff';
+ ctx.fillStyle='#506b8c';ctx.beginPath();ctx.ellipse(0,0,34,22,0,0,Math.PI*2);ctx.fill();
+ ctx.beginPath();ctx.moveTo(-22,0);ctx.lineTo(-47,-16);ctx.lineTo(-42,7);ctx.closePath();ctx.fill();
+ ctx.beginPath();ctx.moveTo(-5,-17);ctx.lineTo(7,-39);ctx.lineTo(17,-16);ctx.closePath();ctx.fill();
+ ctx.beginPath();ctx.moveTo(1,15);ctx.lineTo(18,32);ctx.lineTo(22,12);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#bdeaff';ctx.beginPath();ctx.ellipse(8,8,22,10,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#ff263f';ctx.shadowColor='#ff263f';ctx.shadowBlur=12;ctx.beginPath();ctx.arc(16,-6,4.5,0,Math.PI*2);ctx.fill();
+ ctx.shadowBlur=0;ctx.fillStyle='#09223a';ctx.beginPath();ctx.moveTo(18,9);ctx.lineTo(31,8);ctx.lineTo(19,15);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#fff';for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo(18+i*3,9);ctx.lineTo(20+i*3,13);ctx.lineTo(21+i*3,9);ctx.fill();}
+ ctx.restore();
+}
+function draw(){
+ drawBackground();fish.forEach(drawFish);drawShark();drawPlayer(p1);drawPlayer(p2);
+ if(messageTimer>0 && gameState==='playing'){
+   ctx.fillStyle='#020a18cc';ctx.fillRect(W/2-190,18,380,38);ctx.fillStyle='#e9fbff';ctx.font='bold 17px system-ui';ctx.textAlign='center';ctx.fillText(message,W/2,43);
+ }
+ if(gameState!=='playing'){
+   ctx.fillStyle='#020817d9';ctx.fillRect(0,0,W,H);
+   ctx.textAlign='center';ctx.fillStyle=gameState==='won'?'#8dffcb':'#ff8a9b';ctx.font='bold 48px system-ui';ctx.fillText(gameState==='won'?'YOU WIN!':'TIME UP!',W/2,H/2-25);
+   ctx.fillStyle='#fff';ctx.font='bold 22px system-ui';ctx.fillText(gameState==='won'?'You fed 10 sharks together!':'You fed '+fed+' of 10 sharks.',W/2,H/2+18);
+   ctx.font='17px system-ui';ctx.fillText('Press Restart Game to play again',W/2,H/2+55);
+ }
+}
+function loop(now){let dt=Math.min(.04,(now-last)/1000||0);last=now;update(dt);draw();requestAnimationFrame(loop);}
+window.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if(['w','a','s','d','f','i','j','k','l','o',' '].includes(k))e.preventDefault();keys[k]=true;});
+window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+$('restart').addEventListener('click',()=>{for(const k in keys)keys[k]=false;reset();});
+reset();requestAnimationFrame(loop);
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

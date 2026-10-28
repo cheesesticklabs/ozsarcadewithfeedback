@@ -1,0 +1,430 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Dark School Obby</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Special+Elite&display=swap">
+<style>
+/* Layout: one centered stage. Header above, the canvas is the whole game, a progress strip and touch pad below. Single dark look by choice. */
+:root{
+  color-scheme:dark;
+  --bg:#0a0c0f;
+  --panel:#12181b;
+  --line:#26312f;
+  --ink:#dfe6dc;
+  --dim:#8c9a92;
+  --lamp:#f0d37a;
+  --blood:#d2443a;
+  --exit:#5fd08a;
+  --display:'Special Elite','Courier New',monospace;
+  --body:'Courier Prime','Courier New',monospace;
+}
+html,body{min-height:100%}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font:16px/1.5 var(--body);
+  padding-block:12px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.wrap{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:4px 16px;flex-wrap:wrap}
+h1{font:400 clamp(20px,4vw,28px)/1.1 var(--display);margin:0;letter-spacing:.05em;text-transform:uppercase}
+#roomLabel{font:400 15px/1.2 var(--display);color:var(--lamp);letter-spacing:.06em;min-width:0}
+.stage{position:relative;border:1px solid var(--line);background:#050608}
+canvas{display:block;width:100%;height:auto;aspect-ratio:16/9;touch-action:none}
+.overlay{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;text-align:center;padding:16px;background:rgba(5,6,8,.8)
+}
+.overlay h2{font:400 clamp(22px,5vw,40px)/1.1 var(--display);margin:0;text-wrap:balance}
+.overlay p{margin:0;max-width:46ch;color:var(--dim);font-size:clamp(13px,2.4vw,16px)}
+.cta{
+  font:700 16px var(--body);background:var(--lamp);color:#1a1405;border:0;padding:10px 24px;
+  cursor:pointer;letter-spacing:.08em;text-transform:uppercase
+}
+.cta:focus-visible,.pad button:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+.track{position:relative;height:8px;background:var(--panel);border:1px solid var(--line);margin-top:4px}
+.track i{position:absolute;top:-4px;width:4px;height:14px;transform:translateX(-50%)}
+#mon{background:var(--blood)}
+#you{background:var(--lamp)}
+#door{right:0;left:auto;background:var(--exit);transform:none}
+.stats{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--dim);font-size:14px}
+.pad{display:none;gap:10px}
+.pad button{
+  flex:1;min-height:60px;font:400 20px var(--display);background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);touch-action:none;user-select:none;-webkit-user-select:none
+}
+.pad button.wide{flex:1.6;color:var(--lamp)}
+.hint{margin:0;color:var(--dim);font-size:14px;max-width:70ch}
+@media (pointer:coarse){.pad{display:flex}.keys{display:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Dark School Obby</h1>
+    <div id="roomLabel">Room 1</div>
+  </header>
+
+  <div class="stage">
+    <canvas id="game" width="800" height="450" aria-label="Dark school obby game"></canvas>
+    <div class="overlay" id="overlay">
+      <h2 id="ovTitle"></h2>
+      <p id="ovText"></p>
+      <button class="cta" id="ovBtn" type="button"></button>
+    </div>
+  </div>
+
+  <div class="track" aria-hidden="true"><i id="mon" style="left:0"></i><i id="you" style="left:0"></i><i id="door"></i></div>
+  <div class="stats"><span id="caught">Caught 0</span><span id="best">Best: Room 1</span></div>
+
+  <div class="pad">
+    <button id="bl" type="button" aria-label="Move left">&larr;</button>
+    <button id="br" type="button" aria-label="Move right">&rarr;</button>
+    <button id="bj" type="button" class="wide" aria-label="Jump">JUMP</button>
+  </div>
+  <p class="hint"><span class="keys">Move with A / D or the arrow keys. Jump with Space or W. </span>Reach the green EXIT before the Hall Monitor reaches you. Red marker on the bar is the monster, yellow is you.</p>
+</div>
+
+<script>
+(function(){
+"use strict";
+var W=800,H=450,GROUND=360,GRAV=1900,JUMP=640,SPEED=250;
+var canvas=document.getElementById("game"),ctx=canvas.getContext("2d");
+function $(id){return document.getElementById(id)}
+var ov=$("overlay"),ovTitle=$("ovTitle"),ovText=$("ovText"),ovBtn=$("ovBtn");
+var NAMES=["Front Hallway","Classroom 101","Gym","Cafeteria","Library","Science Lab","Art Room","Boiler Room","Music Room","Principal's Office"];
+var HUES=[165,200,30,270,120,340,55,230];
+
+var state="title",room=1,deaths=0,best=1,T=0,clearTimer=0,camX=0,scale=1;
+var R,P,M,t=0,jumpPressed=false;
+try{var saved=parseInt(localStorage.getItem("dark-school-best"),10);if(saved>0)best=saved}catch(e){}
+
+function nameOf(n){return NAMES[(n-1)%NAMES.length]}
+
+/* ---------- input ---------- */
+var keys={left:false,right:false,jump:false};
+var KEYMAP={ArrowLeft:"left",a:"left",A:"left",ArrowRight:"right",d:"right",D:"right",ArrowUp:"jump",w:"jump",W:"jump"," ":"jump"};
+window.addEventListener("keydown",function(e){
+  var k=KEYMAP[e.key];
+  if(k){
+    if(e.key===" "||e.key.indexOf("Arrow")===0)e.preventDefault();
+    if(k==="jump"&&!keys.jump)jumpPressed=true;
+    keys[k]=true;
+  }
+  if(state!=="play"&&(e.key==="Enter"||e.key===" "||e.key==="r"||e.key==="R")){e.preventDefault();action()}
+});
+window.addEventListener("keyup",function(e){var k=KEYMAP[e.key];if(k)keys[k]=false});
+window.addEventListener("blur",function(){keys.left=keys.right=keys.jump=false});
+function bindPad(id,k){
+  var el=$(id);
+  el.addEventListener("pointerdown",function(e){
+    e.preventDefault();keys[k]=true;if(k==="jump")jumpPressed=true;
+    try{el.setPointerCapture(e.pointerId)}catch(_){}
+  });
+  function up(){keys[k]=false}
+  el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);el.addEventListener("lostpointercapture",up);
+}
+bindPad("bl","left");bindPad("br","right");bindPad("bj","jump");
+
+/* ---------- room generation ---------- */
+function rng(seed){
+  var a=seed>>>0;
+  return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+}
+function buildRoom(n){
+  var r=rng(n*7919+13),plats=[],hazards=[],x=0;
+  function rr(a,b){return a+(b-a)*r()}
+  function ground(w){plats.push({x:x,y:GROUND,w:w,h:200,kind:"floor"});x+=w}
+  var types=["gap","desk"];
+  if(n>=2)types.push("spikes");
+  if(n>=3)types.push("steps");
+  if(n>=4)types.push("floaters");
+  var segs=Math.min(5+n,13),prev="",i,start;
+  ground(380);
+  for(i=0;i<segs;i++){
+    ground(Math.max(100,190-n*8+rr(0,50)));
+    var type;
+    do{type=types[Math.floor(r()*types.length)]}while(type===prev&&types.length>1);
+    prev=type;
+    if(type==="gap"){
+      x+=Math.min(72+n*9+rr(0,20),135);
+    }else if(type==="desk"){
+      start=x;ground(130);
+      var dh=Math.min(34+rr(0,24)+n*2,82);
+      plats.push({x:start+40,y:GROUND-dh,w:46+rr(0,20),h:dh,kind:"desk"});
+    }else if(type==="spikes"){
+      var sw=Math.min(36+n*4+rr(0,20),110);
+      start=x;ground(sw+150);
+      hazards.push({x:start+60,y:GROUND-16,w:sw,h:16});
+    }else if(type==="steps"){
+      start=x;ground(310);
+      plats.push({x:start+50,y:GROUND-40,w:70,h:40,kind:"desk"});
+      plats.push({x:start+120,y:GROUND-76,w:70,h:76,kind:"desk"});
+      plats.push({x:start+190,y:GROUND-40,w:70,h:40,kind:"desk"});
+    }else{
+      var py=GROUND,gapW;
+      for(var f=0;f<3;f++){
+        gapW=Math.min(60+n*6+rr(0,15),115);
+        x+=gapW;
+        var w=Math.max(60,95-n*3);
+        py=Math.max(300,Math.min(372,py+rr(-55,35)));
+        if(f===0)py=Math.max(py,310);
+        plats.push({x:x,y:py,w:w,h:14,kind:"ledge"});
+        x+=w;
+      }
+      x+=Math.min(60+n*6+rr(0,15),115);
+    }
+  }
+  ground(240);
+  var door={x:x-110,y:GROUND-96,w:44,h:96};
+  ground(160);
+  return {plats:plats,hazards:hazards,door:door,width:x};
+}
+
+/* ---------- game flow ---------- */
+function showOverlay(title,text,btn){
+  ovTitle.textContent=title;ovText.textContent=text;
+  ovBtn.hidden=!btn;if(btn)ovBtn.textContent=btn;
+  ov.hidden=false;
+}
+function updateHud(){
+  $("roomLabel").textContent="Room "+room+" · "+nameOf(room);
+  $("caught").textContent="Caught "+deaths;
+  $("best").textContent="Best: Room "+best;
+}
+function resetActors(){
+  P={x:90,y:GROUND-34,w:22,h:34,vx:0,vy:0,ground:false,face:1,coyote:0,buf:0,step:0};
+  M={x:-200};t=0;jumpPressed=false;
+}
+function startRoom(n){
+  room=n;R=buildRoom(n);resetActors();
+  if(n>best){best=n;try{localStorage.setItem("dark-school-best",String(best))}catch(e){}}
+  state="play";ov.hidden=true;
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+  updateHud();
+}
+function action(){
+  if(state==="play")return;
+  if(state==="title")startRoom(1);
+  else if(state==="dead")startRoom(room);
+  else if(state==="clear")startRoom(room+1);
+}
+ovBtn.addEventListener("click",action);
+function die(reason){
+  if(state!=="play")return;
+  state="dead";deaths++;updateHud();
+  showOverlay(reason==="caught"?"The Hall Monitor got you.":"You fell into the dark.","Room "+room+" · "+nameOf(room),"Retry room");
+}
+function clearRoom(){
+  state="clear";clearTimer=1.8;
+  showOverlay("Room "+room+" cleared","Next: Room "+(room+1)+" · "+nameOf(room+1)+". The monster is faster now.",null);
+}
+
+/* ---------- simulation ---------- */
+function hit(a,b,e){return a.x+e<b.x+b.w&&a.x+a.w-e>b.x&&a.y+e<b.y+b.h&&a.y+a.h-e>b.y}
+function update(dt){
+  t+=dt;
+  var dir=(keys.right?1:0)-(keys.left?1:0);
+  P.vx+=(dir*SPEED-P.vx)*Math.min(1,dt*16);
+  if(dir===0&&Math.abs(P.vx)<4)P.vx=0;
+  if(dir)P.face=dir;
+  if(jumpPressed){P.buf=0.12;jumpPressed=false}
+  P.buf-=dt;
+  if(P.ground)P.coyote=0.1;else P.coyote-=dt;
+  if(P.buf>0&&P.coyote>0){P.vy=-JUMP;P.buf=0;P.coyote=0;P.ground=false}
+  var g=GRAV;if(P.vy<0&&!keys.jump)g=GRAV*2.2;
+  P.vy=Math.min(P.vy+g*dt,900);
+
+  P.x+=P.vx*dt;
+  if(P.x<0){P.x=0;P.vx=0}
+  var i,p;
+  for(i=0;i<R.plats.length;i++){
+    p=R.plats[i];
+    if(hit(P,p,0.5)){
+      if(P.vx>0)P.x=p.x-P.w;else if(P.vx<0)P.x=p.x+p.w;
+      P.vx=0;
+    }
+  }
+  P.ground=false;
+  P.y+=P.vy*dt;
+  for(i=0;i<R.plats.length;i++){
+    p=R.plats[i];
+    if(hit(P,p,0.5)){
+      if(P.vy>0){P.y=p.y-P.h;P.ground=true}else if(P.vy<0){P.y=p.y+p.h}
+      P.vy=0;
+    }
+  }
+  if(P.ground&&Math.abs(P.vx)>20)P.step+=dt*14;
+
+  if(P.y>H+60){die("fell");return}
+  for(i=0;i<R.hazards.length;i++){
+    var h=R.hazards[i];
+    if(hit(P,{x:h.x+2,y:h.y+4,w:h.w-4,h:h.h-4},0)){die("spikes");return}
+  }
+
+  var spd=Math.min(130+20*room,250)+Math.min(t*3.5,50);
+  if(t>1.2)M.x+=spd*dt;
+  if(P.x-M.x>450)M.x=P.x-450;
+  if(P.x<M.x+64&&P.x+P.w>M.x+10&&P.y+P.h>200){die("caught");return}
+
+  if(hit(P,R.door,0))clearRoom();
+}
+
+/* ---------- drawing ---------- */
+function resize(){
+  var rect=canvas.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);
+  if(rect.width<1)return;
+  canvas.width=Math.round(rect.width*dpr);
+  canvas.height=Math.round(rect.width*dpr*H/W);
+  scale=canvas.width/W;
+}
+if(window.ResizeObserver)new ResizeObserver(resize).observe(canvas);
+window.addEventListener("resize",resize);
+
+function monsterBob(){return Math.sin(T*3)*4}
+function drawMonsterBody(){
+  var x=M.x,b=monsterBob(),gy=GROUND;
+  ctx.fillStyle="#14171b";
+  ctx.fillRect(x+16,gy-34,10,34);ctx.fillRect(x+38,gy-34,10,34);
+  ctx.beginPath();ctx.moveTo(x+10,gy-34);ctx.lineTo(x+54,gy-34);ctx.lineTo(x+48,gy-130+b);ctx.lineTo(x+16,gy-130+b);ctx.closePath();ctx.fill();
+  ctx.strokeStyle="#14171b";ctx.lineWidth=7;ctx.lineCap="round";
+  ctx.beginPath();ctx.moveTo(x+16,gy-120+b);ctx.lineTo(x-14,gy-60+b*0.5);ctx.lineTo(x-20,gy-14);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(x+48,gy-120+b);ctx.lineTo(x+78,gy-62+b*0.5);ctx.lineTo(x+86,gy-14);ctx.stroke();
+  ctx.fillStyle="#1a1e23";ctx.beginPath();ctx.ellipse(x+32,gy-150+b,20,25,0,0,Math.PI*2);ctx.fill();
+}
+function drawEyes(){
+  var hx=M.x+32,hy=GROUND-152+monsterBob();
+  ctx.save();
+  ctx.shadowColor="#ff3b2a";ctx.shadowBlur=16;ctx.fillStyle="#ff4636";
+  ctx.beginPath();ctx.ellipse(hx-8,hy,4.5,3,-0.25,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.ellipse(hx+8,hy,4.5,3,0.25,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;ctx.fillStyle="rgba(225,222,200,.8)";
+  ctx.beginPath();ctx.moveTo(hx-10,hy+12);
+  for(var k=0;k<5;k++){ctx.lineTo(hx-10+k*5+2.5,hy+18);ctx.lineTo(hx-10+(k+1)*5,hy+12)}
+  ctx.fill();ctx.restore();
+}
+function drawPlayer(){
+  var x=P.x,y=P.y,moving=P.ground&&Math.abs(P.vx)>20;
+  var lg=moving?Math.sin(P.step)*5:(P.ground?0:3);
+  ctx.fillStyle="#c0562f";ctx.fillRect(P.face>0?x-4:x+20,y+13,6,13);
+  ctx.fillStyle="#2c3345";ctx.fillRect(x+4+lg,y+26,5,8);ctx.fillRect(x+13-lg,y+26,5,8);
+  ctx.fillStyle="#4f7fd1";ctx.fillRect(x+2,y+12,18,15);
+  ctx.fillStyle="#e8c39e";ctx.beginPath();ctx.arc(x+11,y+7,7,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#2a1d14";ctx.beginPath();ctx.arc(x+11,y+6,7,Math.PI,0);ctx.fill();
+  ctx.fillStyle="#fff";ctx.fillRect(x+10+P.face*3,y+7,2,2);
+}
+function drawExit(cx){
+  var d=R.door;
+  if(d.x<cx-160||d.x>cx+W+160)return;
+  var gr=ctx.createRadialGradient(d.x+22,d.y+40,4,d.x+22,d.y+40,130);
+  gr.addColorStop(0,"rgba(95,208,138,.35)");gr.addColorStop(1,"rgba(95,208,138,0)");
+  ctx.fillStyle=gr;ctx.fillRect(d.x-110,d.y-90,264,280);
+  ctx.fillStyle="#5fd08a";ctx.fillRect(d.x-6,d.y-24,56,16);
+  ctx.fillStyle="#07140d";ctx.font="bold 12px 'Courier Prime','Courier New',monospace";ctx.textAlign="center";
+  ctx.fillText("EXIT",d.x+22,d.y-12);
+}
+function draw(){
+  ctx.setTransform(scale,0,0,scale,0,0);
+  ctx.clearRect(0,0,W,H);
+  var hue=HUES[(room-1)%HUES.length],i;
+  camX=Math.max(0,Math.min(P.x-330,R.width-W));
+  var cx=Math.round(camX);
+
+  ctx.fillStyle="hsl("+hue+",20%,10%)";ctx.fillRect(0,0,W,GROUND);
+  ctx.fillStyle="#050608";ctx.fillRect(0,GROUND,W,H-GROUND);
+  ctx.fillStyle="hsl("+hue+",20%,6%)";ctx.fillRect(0,0,W,44);
+  var par=cx*0.55,sp=52,first=Math.floor(par/sp);
+  for(i=first;i<=first+Math.ceil(W/sp)+1;i++){
+    var lx=i*sp-par;
+    ctx.fillStyle="hsl("+hue+",24%,17%)";ctx.fillRect(lx,120,46,GROUND-120);
+    ctx.fillStyle="rgba(0,0,0,.35)";
+    for(var s=0;s<3;s++)ctx.fillRect(lx+8,132+s*6,30,2);
+    ctx.fillStyle="rgba(255,255,255,.08)";ctx.fillRect(lx+36,236,3,16);
+  }
+  for(i=Math.floor(cx/360);i<=Math.floor((cx+W)/360)+1;i++){
+    var on=Math.sin(T*19+i*7.3)>0.9?0.15:1;
+    ctx.fillStyle="rgba(240,228,170,"+(0.5*on)+")";ctx.fillRect(i*360+100-cx,44,90,6);
+  }
+
+  ctx.save();ctx.translate(-cx,0);
+  for(i=0;i<R.plats.length;i++){
+    var p=R.plats[i];
+    if(p.x+p.w<cx-10||p.x>cx+W+10)continue;
+    if(p.kind==="floor"){
+      ctx.fillStyle="#17211e";ctx.fillRect(p.x,p.y,p.w,p.h);
+      ctx.fillStyle="hsl("+hue+",15%,30%)";ctx.fillRect(p.x,p.y,p.w,4);
+      ctx.fillStyle="rgba(255,255,255,.05)";
+      for(var tx=Math.ceil(Math.max(p.x,cx)/60)*60;tx<Math.min(p.x+p.w,cx+W);tx+=60)ctx.fillRect(tx,p.y+4,1,18);
+    }else if(p.kind==="desk"){
+      ctx.fillStyle="#3b2c1e";ctx.fillRect(p.x,p.y,p.w,p.h);
+      ctx.fillStyle="#7a5f40";ctx.fillRect(p.x,p.y,p.w,6);
+      ctx.fillStyle="rgba(0,0,0,.3)";ctx.fillRect(p.x+6,p.y+12,p.w-12,3);
+    }else{
+      ctx.fillStyle="#4a3a28";ctx.fillRect(p.x,p.y,p.w,p.h);
+      ctx.fillStyle="#8a6c48";ctx.fillRect(p.x,p.y,p.w,4);
+    }
+  }
+  for(i=0;i<R.hazards.length;i++){
+    var h=R.hazards[i];
+    if(h.x+h.w<cx-10||h.x>cx+W+10)continue;
+    var cnt=Math.max(1,Math.floor(h.w/12));
+    for(var q=0;q<cnt;q++){
+      var px=h.x+q*(h.w/cnt),pw=h.w/cnt;
+      ctx.fillStyle="#e3b92f";ctx.beginPath();ctx.moveTo(px,h.y+16);ctx.lineTo(px+pw/2,h.y);ctx.lineTo(px+pw,h.y+16);ctx.fill();
+      ctx.fillStyle="#2b2b2b";ctx.beginPath();ctx.moveTo(px+pw*0.32,h.y+6);ctx.lineTo(px+pw/2,h.y);ctx.lineTo(px+pw*0.68,h.y+6);ctx.fill();
+    }
+  }
+  var d=R.door;
+  ctx.fillStyle="#1d2c25";ctx.fillRect(d.x,d.y,d.w,d.h);
+  ctx.strokeStyle="#39574a";ctx.lineWidth=3;ctx.strokeRect(d.x+1.5,d.y+1.5,d.w-3,d.h-3);
+  ctx.fillStyle="#8a9a90";ctx.fillRect(d.x+d.w-10,d.y+50,4,10);
+  drawMonsterBody();
+  drawPlayer();
+  ctx.restore();
+
+  var sx=P.x+11-cx+P.face*38,sy=P.y+14;
+  var rad=Math.max(190,300-room*9);
+  rad*=1+0.02*Math.sin(T*31);
+  if(Math.sin(T*7.7)>0.985)rad*=0.8;
+  var gd=ctx.createRadialGradient(sx,sy,rad*0.15,sx,sy,rad);
+  gd.addColorStop(0,"rgba(4,5,8,0)");gd.addColorStop(0.55,"rgba(4,5,8,.55)");gd.addColorStop(1,"rgba(4,5,8,.95)");
+  ctx.fillStyle=gd;ctx.fillRect(0,0,W,H);
+
+  ctx.save();ctx.translate(-cx,0);drawEyes();drawExit(cx);ctx.restore();
+
+  var dist=P.x-M.x;
+  if(dist<340){
+    var a=Math.max(0,Math.min(0.55,(340-dist)/310*0.55));
+    var rg=ctx.createLinearGradient(0,0,220,0);
+    rg.addColorStop(0,"rgba(190,20,20,"+a+")");rg.addColorStop(1,"rgba(190,20,20,0)");
+    ctx.fillStyle=rg;ctx.fillRect(0,0,220,H);
+  }
+  if(state==="play"&&t<2.6){
+    ctx.globalAlpha=Math.min(1,2.6-t);
+    ctx.fillStyle="#dfe6dc";ctx.font="24px 'Special Elite','Courier New',monospace";ctx.textAlign="center";
+    ctx.fillText("ROOM "+room+" · "+nameOf(room).toUpperCase(),W/2,80);
+    ctx.globalAlpha=1;
+  }
+
+  $("mon").style.left=Math.max(0,Math.min(1,M.x/R.width))*100+"%";
+  $("you").style.left=Math.max(0,Math.min(1,P.x/R.width))*100+"%";
+}
+
+var last=0;
+function frame(ts){
+  var dt=Math.min(0.033,(ts-last)/1000||0);last=ts;T+=dt;
+  if(state==="play")update(dt);
+  else if(state==="clear"){clearTimer-=dt;if(clearTimer<=0)startRoom(room+1)}
+  draw();
+  requestAnimationFrame(frame);
+}
+
+R=buildRoom(1);resetActors();updateHud();resize();
+showOverlay("Dark School Obby","The lights are out and something is walking the halls behind you. Run and jump to the EXIT of every room. Each room is harder, and the monster gets faster.","Start");
+requestAnimationFrame(frame);
+})();
+</script>
+
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

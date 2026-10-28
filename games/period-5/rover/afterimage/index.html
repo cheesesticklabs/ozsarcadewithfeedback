@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AFTERIMAGE — Two Player Horror</title>
+<style>
+:root{color-scheme:dark;--bg:#070309;--panel:#130810;--line:#49202f;--red:#b51d3a;--muted:#aa8b9b;--cyan:#8ac9f0;--gold:#d8b6ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#240b1b 0%,#080309 65%);color:#e9dfe7;font:14px/1.45 system-ui,Segoe UI,sans-serif;min-height:100vh;display:flex;justify-content:center;padding:20px}
+main{width:min(980px,100%)}h1{font-size:clamp(25px,4vw,40px);letter-spacing:.18em;margin:0;color:#f2f3f6}h1 span{color:var(--red)}.sub{color:var(--muted);margin:2px 0 15px}.top{display:flex;justify-content:space-between;gap:12px;align-items:end;flex-wrap:wrap}.status{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}.pill{border:1px solid var(--line);background:#0c0f15;border-radius:6px;padding:7px 10px;color:#dbe0e9}.pill b{color:var(--gold)}.gamewrap{position:relative;border:3px solid #41162a;background:#030207;box-shadow:0 15px 60px #000b;border-radius:0;overflow:hidden}canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-action:none}.overlay{position:absolute;inset:0;background:#08030bea;display:flex;align-items:center;justify-content:center;text-align:center;padding:22px}.overlay.hidden{display:none}.dialog{max-width:520px}.dialog h2{font-size:25px;letter-spacing:.08em;margin:0 0 8px}.dialog p{color:#bac2cf}.sequence{font-size:32px;letter-spacing:.35em;color:var(--gold);margin:12px 0}.btn{cursor:pointer;background:#7f1830;color:white;border:1px solid #d44760;border-radius:0;padding:11px 18px;font-weight:800;letter-spacing:.06em}.btn:hover{background:#d1384b}.help{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:13px}.card{background:#130812;border:1px solid var(--line);border-radius:0;padding:11px 13px;color:#b7bfcc}.card strong{color:#eef2f7}.card p{margin:4px 0 0}.small{font-size:12px;color:#929baa;margin-top:12px}
+</style>
+</head>
+<body>
+<main>
+ <div class="top"><div><h1>AFTER<span>IMAGE</span></h1><div class="sub">A two-player memory horror arcade prototype</div></div><div class="pill">OBJECTIVE: <b>REMEMBER. RETRIEVE. ESCAPE.</b></div></div>
+ <div class="status">
+  <div class="pill">Memory: <b id="progress">0 / 4</b></div>
+  <div class="pill">Hand: <b id="threat">DORMANT</b></div>
+  <div class="pill">Vision: <b id="vision">CLEAR</b></div>
+  <div class="pill">Round: <b id="round">1</b></div>
+ </div>
+ <div class="gamewrap">
+  <canvas id="game" width="800" height="520" aria-label="Afterimage game field"></canvas>
+  <div class="overlay" id="overlay"><div class="dialog">
+   <h2 id="overlayTitle">DON'T TRUST THE DARK</h2>
+   <p id="overlayText">Memorize four symbols. Find them in order, then reach the exit. The hand accelerates as you collect sigils. The room stays almost completely dark; blackouts reduce your sight to a tiny glow.</p>
+   <div class="sequence" id="sequencePreview">☾ ◆ ◉</div>
+   <p><strong>Two players share one keyboard.</strong><br>Player 1: WASD · Player 2: arrow keys</p>
+   <button class="btn" id="start">ENTER THE ROOM</button>
+  </div></div>
+ </div>
+ <div class="help">
+  <div class="card"><strong>PLAYER 1</strong><p>Move with <b>W A S D</b>. Cyan glow.</p></div>
+  <div class="card"><strong>PLAYER 2</strong><p>Move with <b>arrow keys</b>. Amber glow.</p></div>
+  <div class="card"><strong>MEMORY</strong><p>Collect all four sigils in the shown order. Wrong order resets your progress.</p></div>
+  <div class="card"><strong>SURVIVE</strong><p>Hide in a shadow patch when the hand is near. Reach the green exit after collecting all four sigils.</p></div>
+ </div>
+ <div class="small">Prototype note: stay inside the room walls. Shadow patches are the dark circular areas; the hand cannot catch players hiding inside them.</div>
+</main>
+<script>
+(() => {
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),W=canvas.width,H=canvas.height;
+const $=id=>document.getElementById(id),symbols=['☾','◆','◉','✦','⌁','△','✧','⊗'];
+let keys={},players=[],sigils=[],shadows=[],walls=[],hand={x:390,y:260},exit={x:750,y:320,r:22};
+let sequence=[],found=0,round=1,started=false,ended=false,blackout=0,cycle=0,last=0,flash=0,memorized=false,previewTime=0;
+function setup(){
+ players=[{x:365,y:315,r:9,color:'#8ac9f0',up:'w',left:'a',down:'s',right:'d',hidden:false},{x:415,y:315,r:9,color:'#d8b6ff',up:'ArrowUp',left:'ArrowLeft',down:'ArrowDown',right:'ArrowRight',hidden:false}];
+ walls=[];
+ shadows=[{x:110,y:350,r:23},{x:390,y:350,r:20},{x:675,y:350,r:22}];
+ sequence=[];while(sequence.length<4){let s=symbols[Math.floor(Math.random()*symbols.length)];if(!sequence.includes(s))sequence.push(s)}
+ const spots=[{x:145,y:340},{x:265,y:340},{x:365,y:340},{x:475,y:340},{x:575,y:340},{x:690,y:340},{x:510,y:295},{x:220,y:300}];
+ sigils=spots.sort(()=>Math.random()-.5).slice(0,4).map((p,i)=>({...p,symbol:sequence[i],got:false}));
+ found=0;hand={x:570,y:305};cycle=0;blackout=0;flash=0;ended=false;memorized=false;
+ $('progress').textContent='0 / 4';$('threat').textContent='DORMANT';$('vision').textContent='CLEAR';$('round').textContent=round;
+}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function circleRect(x,y,r,o){return x+r>o.x&&x-r<o.x+o.w&&y+r>o.y&&y-r<o.y+o.h}
+function blocked(x,y,r){return x-r<8||x+r>W-8||y-r<8||y+r>H-8||walls.some(o=>circleRect(x,y,r,o))}
+function isHidden(p){return shadows.some(s=>Math.hypot(p.x-s.x,p.y-s.y)<s.r-3)}
+function movePlayer(p,dt){
+ let dx=(keys[p.right]?1:0)-(keys[p.left]?1:0),dy=(keys[p.down]?1:0)-(keys[p.up]?1:0);
+ if(dx&&dy){dx*=.7071;dy*=.7071}const speed=132,nx=p.x+dx*speed*dt,ny=p.y+dy*speed*dt;
+ if(!blocked(nx,p.y,p.r))p.x=nx;if(!blocked(p.x,ny,p.r))p.y=ny;p.hidden=isHidden(p);
+}
+function showOverlay(title,text,button){$('overlayTitle').textContent=title;$('overlayText').textContent=text;$('sequencePreview').textContent=sequence.join('   ');$('start').textContent=button;$('overlay').classList.remove('hidden')}
+function update(dt){
+ if(!started||ended||!memorized)return;
+ cycle+=dt;flash=Math.max(0,flash-dt);const phase=cycle%6.8;
+ blackout=phase>3.9?(phase<4.12?(phase-3.9)/.22:phase<6.15?1:Math.max(0,(6.8-phase)/.65)):phase<.28?Math.max(0,(.28-phase)/.28):0;
+ players.forEach(p=>movePlayer(p,dt));
+ const targets=players.filter(p=>!p.hidden).sort((a,b)=>dist(a,hand)-dist(b,hand)),target=targets[0];
+ if(target){let d=dist(target,hand),speed=blackout>.5?38:76+found*5;if(d>1){hand.x+=(target.x-hand.x)/d*speed*dt;hand.y+=(target.y-hand.y)/d*speed*dt}
+ if(d<25){ended=true;showOverlay('THE HAND FOUND YOU','The hand caught you. Try again, and use the shadow patches when it gets close.','TRY AGAIN');return}}
+ sigils.forEach(s=>{if(s.got)return;for(const p of players){if(dist(p,s)<20){if(s.symbol===sequence[found]){s.got=true;found++;flash=.35;$('progress').textContent=found+' / 4'}else{found=0;sigils.forEach(q=>q.got=false);flash=.55;$('progress').textContent='0 / 4'}break}}});
+ if(found===4&&players.some(p=>dist(p,exit)<exit.r+8)){ended=true;showOverlay('YOU REMEMBERED','You found the sequence and escaped the room. The hand is still waiting somewhere.','PLAY AGAIN');return}
+ $('threat').textContent=players.some(p=>p.hidden)?'CIRCLING':'HUNTING';$('vision').textContent=blackout>.5?'BLACKOUT':'CLEAR';
+}
+function px(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))}
+function draw(){
+ // Low-resolution-inspired pixel-art room, with the same side-view composition as the reference.
+ ctx.imageSmoothingEnabled=false;
+ px(0,0,W,H,'#08050c');
+ // mottled wine-red wallpaper
+ px(0,0,W,292,'#210b1a');
+ for(let i=0;i<620;i++){let x=(i*73+Math.floor(i/7)*19)%W,y=(i*47+Math.floor(i/9)*13)%292;px(x,y,2+(i%3),2+(i%2),i%4===0?'#3b1028':i%4===1?'#2c0a20':i%4===2?'#180916':'#26091a')}
+ // black upper shadow and room corners
+ px(0,0,W,16,'#08050a');px(0,0,32,292,'#100610');px(785,0,15,292,'#100610');
+ // distant central doorway
+ px(492,10,155,253,'#16060e');px(505,22,130,232,'#350d18');px(517,34,106,215,'#080307');px(510,23,9,225,'#4b1320');px(632,23,9,225,'#4b1320');px(509,18,133,10,'#4a1420');px(520,43,100,190,'#020204');
+ // pile of crawling black texture in doorway
+ for(let i=0;i<170;i++){let x=545+(i*31%85),y=190+(i*17%55);px(x,y,2+(i%3),2,'#15151a')}
+ // tall old lockers / cabinet on left-center
+ px(151,43,195,263,'#080e12');px(160,49,181,249,'#111b20');px(168,58,48,65,'#070b0e');px(174,64,36,51,'#172126');px(235,58,44,66,'#080c10');px(242,64,31,52,'#172126');px(294,58,43,66,'#080c10');px(300,64,30,52,'#172126');px(164,128,176,8,'#05090c');px(165,141,102,163,'#0b1217');px(276,141,54,163,'#060a0d');px(283,148,39,149,'#10191e');
+ for(let y=154;y<288;y+=9)px(269,y,4,4,'#30353a');
+ // angled staircase on the left, broad dark steps
+ ctx.save();ctx.translate(5,280);ctx.rotate(-0.68);px(-18,-15,310,88,'#160915');for(let i=0;i<13;i++){px(-10+i*24,-8,15,90,i%2?'#32112b':'#270d23');px(-10+i*24,-8,4,90,'#100811')}ctx.restore();
+ // red broken machine/organic shape at far left
+ px(0,212,74,124,'#5b1025');px(8,205,45,79,'#a51d3b');px(17,194,26,58,'#c42a49');px(31,222,29,42,'#8e1734');px(17,241,61,42,'#190711');px(27,255,40,25,'#070509');px(36,267,17,7,'#b52c49');px(0,285,61,9,'#280817');
+ // floor and planks
+ px(0,294,W,76,'#100811');px(0,294,W,6,'#320d22');
+ for(let x=0;x<W;x+=24){px(x,300,2,70,x%48===0?'#1f0d1b':'#160a17');px(x+7,320,13,2,'#220d1c')}
+ // black void beneath the broken floor, foreground silhouettes
+ px(0,370,W,150,'#030407');
+ for(let i=0;i<13;i++){let x=i*67;px(x,370,40+(i%3)*12,50+(i%4)*13,'#050609');px(x+7,370,5,30,'#08090d')}
+ // lower visible blue-black room edge, like the screenshot
+ px(285,434,210,86,'#10152a');px(495,434,304,86,'#111d20');px(500,434,10,86,'#060b10');px(620,434,14,86,'#05090b');px(720,434,11,86,'#04070a');
+ // right-side blue door ajar
+ px(683,0,99,359,'#171b46');px(695,0,82,350,'#282c68');px(705,0,12,347,'#11152d');px(752,0,14,350,'#11142e');
+ ctx.fillStyle='#131735';ctx.beginPath();ctx.moveTo(692,0);ctx.lineTo(752,0);ctx.lineTo(782,45);ctx.lineTo(782,350);ctx.lineTo(758,350);ctx.lineTo(758,50);ctx.closePath();ctx.fill();
+ px(713,53,25,53,'#0c1025');px(718,59,15,40,'#3b3c7d');px(710,152,30,55,'#171b42');px(720,174,7,9,'#080b1b');px(731,185,6,6,'#080b1b');
+ // hand-painted floor sigils glow dimly against the floor
+ shadows.forEach(s=>{ctx.globalAlpha=.35;px(s.x-s.r,s.y+5,s.r*2,5,'#020205');ctx.globalAlpha=1});
+ // exit is the open doorway at right; highlight only when ready
+ px(exit.x-13,exit.y-26,26,50,found===4?'#24402c':'#0b0a10');px(exit.x-9,exit.y-22,18,42,found===4?'#4e8d59':'#19101a');
+ if(found===4){px(exit.x-5,exit.y-16,10,30,'#8ae5a0')}
+ sigils.forEach(s=>{if(s.got)return;ctx.globalAlpha=.88;px(s.x-10,s.y-10,20,20,'#160b19');px(s.x-8,s.y-8,16,16,'#51203c');px(s.x-5,s.y-5,10,10,'#b34b7b');ctx.fillStyle='#f2c7ed';ctx.font='bold 18px monospace';ctx.textAlign='center';ctx.fillText(s.symbol,s.x,s.y+6);ctx.globalAlpha=1});
+ // the monster: an enormous, looming crimson hand reaching down from the darkness
+ ctx.save();ctx.translate(hand.x,hand.y);ctx.rotate(Math.sin(cycle*1.6)*.035);
+ // broad palm and wrist
+ px(-47,-56,94,62,'#17040d');px(-43,-51,86,53,'#3d0718');px(-37,-45,74,43,'#610b22');px(-31,-40,62,32,'#250611');
+ px(-35,-29,70,22,'#4d091d');px(-25,-20,50,25,'#360716');
+ // four long fingers, with hooked tips
+ const fingers=[-39,-18,5,28];
+ fingers.forEach((fx,i)=>{let len=[48,67,63,43][i];px(fx,-48,15,len,'#430819');px(fx+3,-45,9,len-5,'#710d27');px(fx+1,-15+len-30,12,18,'#27040e');px(fx-1,-18+len-30,15,8,'#a01838');px(fx+2,-14+len-30,8,4,'#c52a4b');});
+ // thumb reaching sideways
+ px(37,-29,25,19,'#3b0717');px(52,-16,20,19,'#650b22');px(60,-3,15,17,'#8a1230');px(57,9,12,10,'#26040d');
+ // jagged red rim-light and knuckles
+ px(-42,-51,84,4,'#8e1532');px(-44,-40,4,35,'#a51a3a');px(39,-39,4,29,'#9d1737');
+ for(let i=0;i<24;i++){let x=-38+(i*29%76),y=-42+(i*17%39);px(x,y,2+(i%3),2,i%2?'#78102a':'#26050f')}
+ ctx.restore();
+ // players are tiny human silhouettes rather than glowing circles
+ players.forEach((p,i)=>{let c=p.color,shade=i===0?'#567ca2':'#a98ec7';
+ px(p.x-5,p.y-45,10,12,'#42333b');px(p.x-7,p.y-47,9,7,'#65505a');px(p.x-9,p.y-33,17,25,shade);px(p.x-11,p.y-28,5,20,c);px(p.x+5,p.y-30,5,17,shade);px(p.x+7,p.y-17,10,4,'#796179');px(p.x-6,p.y-9,6,13,'#304653');px(p.x+1,p.y-9,6,13,'#35404d');px(p.x-11,p.y+3,12,4,c);px(p.x+1,p.y+3,13,4,c);
+ if(p.hidden){ctx.globalAlpha=.55;px(p.x-16,p.y-50,32,61,'#171b2b');ctx.globalAlpha=1}
+ });
+ // permanent oppressive darkness: only weak pools of light around each player remain visible
+ if(started&&memorized){ctx.save();ctx.fillStyle='rgba(0,0,0,.78)';ctx.fillRect(0,0,W,H);ctx.globalCompositeOperation='destination-out';players.forEach(p=>{let r=112,g=ctx.createRadialGradient(p.x,p.y-20,5,p.x,p.y-20,r);g.addColorStop(0,'rgba(0,0,0,.94)');g.addColorStop(.45,'rgba(0,0,0,.68)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y-20,r,0,Math.PI*2);ctx.fill()});ctx.restore()}
+ // periodic blackout with small local visibility pools
+ if(blackout>.01&&started&&memorized){ctx.save();ctx.fillStyle=`rgba(0,0,0,${.995*blackout})`;ctx.fillRect(0,0,W,H);ctx.globalCompositeOperation='destination-out';players.forEach(p=>{let r=34,g=ctx.createRadialGradient(p.x,p.y-20,3,p.x,p.y-20,r);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y-20,r,0,Math.PI*2);ctx.fill()});ctx.restore()}
+ if(flash>0){ctx.fillStyle=`rgba(174,15,49,${flash*.35})`;ctx.fillRect(0,0,W,H)}
+ // dark vignette, limited palette
+ let vg=ctx.createRadialGradient(W/2,H/2,130,W/2,H/2,520);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.5)');ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
+}
+function loop(t){let dt=Math.min(.035,(t-last)/1000||0);last=t;update(dt);draw();requestAnimationFrame(loop)}
+window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();keys[e.key.length===1?e.key.toLowerCase():e.key]=true});
+window.addEventListener('keyup',e=>{keys[e.key.length===1?e.key.toLowerCase():e.key]=false});
+$('start').addEventListener('click',()=>{
+ if(!started||ended){if(ended)round++;setup();started=true;memorized=false;showOverlay('MEMORIZE THE SIGILS','Remember the order below. It will vanish when you enter the room.','I REMEMBER');return}
+ if(!memorized){memorized=true;$('overlay').classList.add('hidden');return}
+});
+setup();requestAnimationFrame(loop);
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

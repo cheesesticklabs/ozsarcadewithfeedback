@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dribble &amp; Pass: Derby Day</title>
+<style>
+:root{--bg:#eef1f5;--fg:#12202e;--card:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1620;--fg:#e8eef5;--card:#17222f}}
+:root[data-theme="dark"]{--bg:#0e1620;--fg:#e8eef5;--card:#17222f}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;padding:12px}
+h1{font-size:20px;margin:4px 0}
+#wrap{position:relative;width:100%;max-width:800px}
+canvas{width:100%;height:auto;border-radius:10px;display:block;touch-action:none}
+.help{font-size:13px;opacity:.8;margin:8px 0;text-align:center}
+.pad{display:none;gap:10px;margin-top:8px;width:100%;max-width:800px;justify-content:space-between}
+.pad button{flex:1;font-size:18px;padding:16px;border:0;border-radius:12px;background:var(--card);color:var(--fg);font-weight:700}
+@media (pointer:coarse){.pad{display:flex}}
+</style></head><body>
+<h1>⚽ Derby Day: Dribble, Pass, Score</h1>
+<div id="wrap"><canvas id="c" width="800" height="500"></canvas></div>
+<div class="pad"><button id="bp">PASS</button><button id="bs">SHOOT</button></div>
+<div class="help">Move: WASD / arrows (drag on touch) · Shoot: Space · Pass: X · Passing a team-mate lets you take control of them</div>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d'),W=800,H=500,GY1=200,GY2=300;
+const LEVELS=[{name:'Training Pitch',reds:3,rs:1,ks:1.5,goals:1,time:60},{name:'Local Rivals',reds:4,rs:1.15,ks:1.9,goals:2,time:60},{name:'Derby Nerves',reds:5,rs:1.3,ks:2.2,goals:3,time:60},{name:'Packed Stadium',reds:6,rs:1.45,ks:2.6,goals:4,time:70},{name:'Cup Final',reds:7,rs:1.6,ks:3,goals:5,time:75}];let lv=0;const L=()=>LEVELS[lv];const keys={};let state='menu',frames=5400,goals=0,assists=0,conceded=0,msg='',msgT=0,freeze=0,tick=0;
+let blues,reds,keeper,bkeeper,ball,owner,ctrl,cool=0,lastPasser=null,passT=0,shooter=null;
+const norm=(x,y)=>{const l=Math.hypot(x,y)||1;return[x/l,y/l]};
+function mk(x,y,n){return{x,y,fx:1,fy:0,n,stun:0}}
+function reset(){
+ blues=[mk(150,250,10),mk(300,140,7),mk(300,360,11)];
+ reds=[[450,250,5],[540,150,2],[540,350,6],[640,250,4],[390,170,3],[390,330,8],[600,250,9]].slice(0,L().reds).map(a=>mk(...a));
+ keeper={x:766,y:250};bkeeper={x:34,y:250};ball={x:0,y:0,vx:0,vy:0};owner=blues[0];ctrl=blues[0];cool=0;lastPasser=null;shooter=null}
+function say(t){msg=t;msgT=70}
+function shoot(){
+ if(owner!==ctrl)return;
+ let [dx,dy]=[ctrl.fx,ctrl.fy];
+ if(ctrl.x>460&&dx>0.2){const ty=keeper.y<250?272:228;const [ax,ay]=norm(W-ctrl.x,ty-ctrl.y);[dx,dy]=norm(dx+ax,dy+ay)}
+ ball.vx=dx*11;ball.vy=dy*11;shooter=ctrl;owner=null;cool=18}
+function pass(){
+ if(owner!==ctrl)return;
+ let best=null,bs=-9;
+ for(const t of blues){if(t===ctrl)continue;
+  const [dx,dy]=norm(t.x-ctrl.x,t.y-ctrl.y);const s=dx*ctrl.fx+dy*ctrl.fy+(t.x>ctrl.x?.15:0);
+  if(s>bs){bs=s;best=t}}
+ const lx=best.x+40,ly=best.y;const [dx,dy]=norm(lx-ctrl.x,ly-ctrl.y);
+ ball.vx=dx*8;ball.vy=dy*8;lastPasser=ctrl;passT=tick;shooter=null;owner=null;cool=20;ctrl.pc=25;say('Pass!')}
+addEventListener('keydown',e=>{keys[e.code]=true;
+ if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
+ if(state!=='play'){if(e.code==='Space'||e.code==='Enter')start();return}
+ if(e.code==='Space')shoot();if(e.code==='KeyX'||e.code==='KeyZ')pass()});
+addEventListener('keyup',e=>keys[e.code]=false);
+document.getElementById('bp').onpointerdown=()=>state==='play'?pass():start();
+document.getElementById('bs').onpointerdown=()=>state==='play'?shoot():start();
+let drag=null;
+cv.addEventListener('pointerdown',e=>{if(state!=='play')return start();drag={x:e.clientX,y:e.clientY,dx:0,dy:0}});
+cv.addEventListener('pointermove',e=>{if(drag){drag.dx=e.clientX-drag.x;drag.dy=e.clientY-drag.y}});
+addEventListener('pointerup',()=>drag=null);
+function begin(){goals=0;assists=0;conceded=0;frames=L().time*60;reset();state='play';freeze=0;say('Level '+(lv+1)+': '+L().name)}
+function start(){if(state==='won')lv++;else if(state==='done')lv=0;begin()}
+function dir(){
+ let x=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0),y=(keys.KeyS||keys.ArrowDown?1:0)-(keys.KeyW||keys.ArrowUp?1:0);
+ if(drag&&Math.hypot(drag.dx,drag.dy)>12){[x,y]=norm(drag.dx,drag.dy)}return[x,y]}
+function moveTo(p,tx,ty,s){const d=Math.hypot(tx-p.x,ty-p.y);if(d<4)return;const [dx,dy]=norm(tx-p.x,ty-p.y);p.x+=dx*s;p.y+=dy*s;p.fx=dx;p.fy=dy}
+function update(){
+ tick++;
+ if(freeze>0){freeze--;if(freeze===0)reset();return}
+ if(--frames<=0){state='over';return}
+ if(cool>0)cool--;
+ const [ix,iy]=dir();
+ if(ix||iy){const [nx,ny]=norm(ix,iy);const s=owner===ctrl?2.7:3.1;ctrl.x+=nx*s;ctrl.y+=ny*s;ctrl.fx=nx;ctrl.fy=ny}
+ for(const b of blues){if(b.pc)b.pc--;if(b===ctrl)continue;
+  if(!owner&&b.pc!==undefined&&!b.pc&&Math.hypot(ball.x-b.x,ball.y-b.y)<160)moveTo(b,ball.x,ball.y,2.2);
+  else if(owner===ctrl)moveTo(b,Math.min(ctrl.x+110+b.n*3,700),b.y<250?130:370,2.1);
+  else moveTo(b,Math.min(ball.x+60,700),b.y,1.5)}
+ reds.forEach((r,i)=>{if(r.stun>0){r.stun--;return}
+  const tx=owner?owner.x:ball.x,ty=owner?owner.y:ball.y;
+  if(i%3===0)moveTo(r,tx,ty,(1.5+i*.03)*L().rs);
+  else moveTo(r,Math.max(tx+60,r.x>tx?tx+20:tx),ty+(i===1?-40:40),1.35*L().rs)});
+ keeper.y+=Math.max(-L().ks,Math.min(L().ks,ball.y-keeper.y));keeper.y=Math.max(GY1+6,Math.min(GY2-6,keeper.y));bkeeper.y+=Math.max(-2.3,Math.min(2.3,ball.y-bkeeper.y));bkeeper.y=Math.max(GY1+6,Math.min(GY2-6,bkeeper.y));
+ for(const p of blues.concat(reds)){p.x=Math.max(25,Math.min(W-25,p.x));p.y=Math.max(25,Math.min(H-25,p.y))}
+ if(owner){ball.x=owner.x+owner.fx*14;ball.y=owner.y+owner.fy*14;ball.vx=ball.vy=0;
+  for(const r of reds)if(!r.stun&&Math.hypot(ball.x-r.x,ball.y-r.y)<17){
+   const [dx,dy]=norm(owner.x-r.x,owner.y-r.y);ball.vx=dx*3+(Math.random()-.5)*3;ball.vy=dy*3+(Math.random()-.5)*3;
+   owner=null;r.stun=45;cool=22;say('Tackled!');break}}
+ else{
+  ball.x+=ball.vx;ball.y+=ball.vy;ball.vx*=.985;ball.vy*=.985;
+  if(ball.y<22){ball.y=22;ball.vy*=-.7}if(ball.y>H-22){ball.y=H-22;ball.vy*=-.7}
+  
+  const inGoal=ball.y>GY1&&ball.y<GY2;if(ball.x<22&&!inGoal){ball.x=22;ball.vx*=-.7}if(ball.x<6&&inGoal){conceded++;say('CONCEDED!');freeze=100;if(conceded>=3)state='over';ball.vx=ball.vy=0;return}
+  if(ball.x>W-22&&!inGoal){ball.x=W-22;ball.vx*=-.7}
+  if(ball.x>W-6&&inGoal){goals++;let a=shooter&&lastPasser&&lastPasser!==shooter&&tick-passT<420;if(a)assists++;
+   say(a?'GOAL! + ASSIST':'GOAL!');freeze=100;if(goals>=L().goals)state=lv===LEVELS.length-1?'done':'won';ball.vx=ball.vy=0;return}
+  if(Math.hypot(ball.x-keeper.x,ball.y-keeper.y)<17&&ball.vx>0){ball.vx=-4;ball.vy=(Math.random()-.5)*6;say('Saved!')}
+  if(Math.hypot(ball.x-bkeeper.x,ball.y-bkeeper.y)<17&&ball.vx<0){ball.vx=4;ball.vy=(Math.random()-.5)*6;say('Great save!')}
+  for(const r of reds)if(!r.stun&&Math.hypot(ball.x-r.x,ball.y-r.y)<14){
+   const sp=Math.hypot(ball.vx,ball.vy);if(sp<9){{const [ax,ay]=norm(30-ball.x,230+Math.random()*40-ball.y);ball.vx=ax*6;ball.vy=ay*6}r.stun=30;cool=14}}
+  if(cool===0&&Math.hypot(ball.vx,ball.vy)<9)for(const b of blues)
+   if(!(b.pc>0)&&Math.hypot(ball.x-b.x,ball.y-b.y)<15){owner=b;
+    if(b!==ctrl&&lastPasser===ctrl)say('Take control!');ctrl=b;break}}
+ if(msgT>0)msgT--}
+function player(p,col,ring){
+ g.fillStyle='rgba(0,0,0,.25)';g.beginPath();g.ellipse(p.x,p.y+9,10,4,0,0,7);g.fill();
+ g.fillStyle=col;g.beginPath();g.arc(p.x,p.y,11,0,7);g.fill();
+ g.fillStyle='#fff';g.font='bold 10px sans-serif';g.textAlign='center';g.fillText(p.n,p.x,p.y+4);
+ if(ring){g.strokeStyle='#ffd54a';g.lineWidth=3;g.beginPath();g.arc(p.x,p.y,16,0,7);g.stroke()}}
+function draw(){
+ for(let i=0;i<10;i++){g.fillStyle=i%2?'#2e8b43':'#339a4a';g.fillRect(i*80,0,80,H)}
+ g.strokeStyle='rgba(255,255,255,.85)';g.lineWidth=2;g.strokeRect(20,20,W-40,H-40);
+ g.beginPath();g.moveTo(W/2,20);g.lineTo(W/2,H-20);g.stroke();g.beginPath();g.arc(W/2,H/2,60,0,7);g.stroke();
+ g.strokeRect(W-130,130,110,240);g.strokeRect(20,130,110,240);
+ g.fillStyle='rgba(255,255,255,.9)';g.fillRect(W-20,GY1,12,GY2-GY1);g.fillRect(8,GY1,12,GY2-GY1);
+ g.fillStyle='#35c7c0';g.beginPath();g.arc(bkeeper.x,bkeeper.y,11,0,7);g.fill();
+ g.fillStyle='#e8c000';g.beginPath();g.arc(keeper.x,keeper.y,11,0,7);g.fill();
+ reds.forEach(r=>player(r,'#d1261f'));blues.forEach(b=>player(b,'#1d4fd8',b===ctrl));
+ g.fillStyle='#fff';g.beginPath();g.arc(ball.x,ball.y,6,0,7);g.fill();g.strokeStyle='#222';g.lineWidth=1;g.stroke();
+ g.fillStyle='rgba(0,0,0,.55)';g.fillRect(0,0,W,30);g.fillStyle='#fff';g.font='bold 16px sans-serif';g.textAlign='left';
+ g.fillText('Lv '+(lv+1)+'   Goals '+goals+'/'+L().goals+'   Assists '+assists+'   Conceded '+conceded+'/3',12,21);g.textAlign='right';
+ g.fillText('Time '+Math.ceil(frames/60)+'s',W-12,21);
+ if(msgT>0){g.textAlign='center';g.font='bold 40px sans-serif';g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=5;
+  g.strokeText(msg,W/2,H/2-90);g.fillText(msg,W/2,H/2-90)}}
+function overlay(t1,t2){
+ g.fillStyle='rgba(8,16,28,.82)';g.fillRect(0,0,W,H);g.fillStyle='#fff';g.textAlign='center';
+ g.font='bold 38px sans-serif';g.fillText(t1,W/2,170);g.font='18px sans-serif';
+ t2.forEach((l,i)=>g.fillText(l,W/2,225+i*30))}
+function loop(){
+ if(state==='play'){update();draw()}
+ else{reset();draw();
+  if(state==='menu')overlay('Derby Day',['Dribble past the red defenders and score.','Pass to a team-mate to set up goals and assists.','Move: WASD / arrows   Shoot: Space   Pass: X','5 levels, each tougher. Score the target before time runs out.','Concede 3 goals and the level is lost. Press Space or tap to start.']);
+  else if(state==='won')overlay('Level '+(lv+1)+' complete!',['Goals: '+goals+'   Assists: '+assists,'Next up: Level '+(lv+2)+', '+LEVELS[lv+1].name,'Press Space or tap to continue.']);else if(state==='done')overlay('Champion!',['You beat all 5 levels.','Press Space or tap to play again.']);else overlay(frames<=0?'Time up':'Too many goals conceded',['Goals: '+goals+'   Assists: '+assists+'   Conceded: '+conceded,'Press Space or tap to retry level '+(lv+1)+'.'])}
+ requestAnimationFrame(loop)}
+reset();loop();
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

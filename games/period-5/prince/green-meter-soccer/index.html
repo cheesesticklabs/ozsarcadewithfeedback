@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Green Meter Soccer</title>
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:#0e2a14;overflow:hidden;font-family:"Trebuchet MS",Verdana,sans-serif;color:#fff}
+canvas{display:block}
+#score{position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#000a;padding:6px 24px;border-radius:10px;font-size:26px;font-weight:800;white-space:nowrap}
+.b{color:#6db3ff}.r{color:#ff7a6e}
+#msg{position:fixed;top:36%;left:0;right:0;text-align:center;font-size:clamp(36px,8vw,76px);font-weight:900;text-shadow:0 4px 14px #000;pointer-events:none}
+.m{position:fixed;bottom:16px;width:min(320px,42vw);font-size:14px}
+.m span{display:block;margin-bottom:4px;text-shadow:0 1px 4px #000}
+.bar{position:relative;height:28px;background:#0b1d12cc;border:3px solid #fff;border-radius:8px}
+.zone{position:absolute;left:72%;width:18%;top:0;bottom:0;background:#2ee35a;box-shadow:0 0 14px #2ee35a}
+.mk{position:absolute;top:-6px;bottom:-6px;width:6px;margin-left:-3px;background:#fff;border-radius:3px;left:0}
+#menu{position:fixed;inset:0;background:#06140adc;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;text-align:center}
+#menu h1{font-size:clamp(34px,7vw,64px);font-weight:900;letter-spacing:-1px}
+#menu .bar{width:min(420px,80vw)}
+#menu .mk{animation:sw 1.2s linear infinite alternate}
+@keyframes sw{to{left:100%}}
+table{border-collapse:collapse;font-size:16px;line-height:1.7}
+td,th{padding:2px 14px;text-align:left}
+th{font-size:18px}
+button{font:inherit;font-weight:800;font-size:20px;padding:10px 30px;border:0;border-radius:10px;background:#2ee35a;color:#06210f;cursor:pointer}
+button:focus-visible{outline:3px solid #fff}
+</style></head><body>
+<div id="score"></div><div id="msg"></div>
+<div class="m" style="left:16px"><span class="b">P1 shoot: hold F</span><div class="bar"><div class="zone"></div><div class="mk" id="k0"></div></div></div>
+<div class="m" style="right:16px"><span class="r" style="text-align:right">P2 shoot: hold /</span><div class="bar"><div class="zone"></div><div class="mk" id="k1"></div></div></div>
+<div id="menu">
+<h1>Green Meter Soccer</h1>
+<p>Hold shoot to fill the meter. Let go inside the green for a perfect shot.</p>
+<div class="bar"><div class="zone"></div><div class="mk"></div></div>
+<table>
+<tr><th class="b">Player 1 (blue, attacks right)</th><th class="r">Player 2 (red, attacks left)</th></tr>
+<tr><td>Move: W A S D</td><td>Move: arrow keys</td></tr>
+<tr><td>Shoot: hold F, release</td><td>Shoot: hold /, release</td></tr>
+<tr><td>Pass to teammate: E</td><td>Pass to teammate: .</td></tr>
+<tr><td>Block (slide tackle): Q</td><td>Block (slide tackle): ,</td></tr>
+</table>
+<p>Hold up or down while shooting to aim at a corner. First to 5 goals wins.</p>
+<button id="go">Kick off (Enter)</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const T=THREE,GW=4,$=id=>document.getElementById(id);
+const R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,1.5));R.shadowMap.enabled=true;document.body.appendChild(R.domElement);
+const S=new T.Scene();S.background=new T.Color(0x8fd0ff);
+const C=new T.PerspectiveCamera(45,1,.1,300);
+function rs(){R.setSize(innerWidth,innerHeight);C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix()}addEventListener('resize',rs);rs();
+S.add(new T.HemisphereLight(0xffffff,0x3a6b3a,.85));
+const L=new T.DirectionalLight(0xffffff,.7);L.position.set(10,30,15);L.castShadow=true;L.shadow.mapSize.set(1024,1024);
+Object.assign(L.shadow.camera,{left:-40,right:40,top:30,bottom:-30,near:1,far:80});S.add(L);
+// field
+const cv=document.createElement('canvas');cv.width=1200;cv.height=800;const g=cv.getContext('2d');
+for(let i=0;i<12;i++){g.fillStyle=i%2?'#2f8f3c':'#37a046';g.fillRect(i*100,0,100,800)}
+g.strokeStyle='#fff';g.lineWidth=5;g.strokeRect(10,10,1180,780);g.beginPath();g.moveTo(600,10);g.lineTo(600,790);g.stroke();
+g.beginPath();g.arc(600,400,90,0,7);g.stroke();g.strokeRect(10,200,180,400);g.strokeRect(1010,200,180,400);
+const fl=new T.Mesh(new T.PlaneGeometry(60,40),new T.MeshLambertMaterial({map:new T.CanvasTexture(cv)}));fl.rotation.x=-Math.PI/2;fl.receiveShadow=true;S.add(fl);
+const gr=new T.Mesh(new T.PlaneGeometry(300,300),new T.MeshLambertMaterial({color:0x1f5a2a}));gr.rotation.x=-Math.PI/2;gr.position.y=-.03;S.add(gr);
+const wm=new T.MeshLambertMaterial({color:0xffffff});
+function goal(s){[-GW,GW].forEach(z=>{const p=new T.Mesh(new T.CylinderGeometry(.13,.13,2.6),wm);p.position.set(s*30,1.3,z);S.add(p)});
+ const b=new T.Mesh(new T.CylinderGeometry(.13,.13,2*GW),wm);b.rotation.x=Math.PI/2;b.position.set(s*30,2.6,0);S.add(b);
+ const n=new T.Mesh(new T.PlaneGeometry(2*GW,2.6),new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.25,side:T.DoubleSide}));n.rotation.y=Math.PI/2;n.position.set(s*31.6,1.3,0);S.add(n)}
+goal(1);goal(-1);
+// players
+function lab(txt,col){const c=document.createElement('canvas');c.width=128;c.height=64;const x=c.getContext('2d');x.fillStyle=col;x.fillRect(0,8,128,48);x.fillStyle='#fff';x.font='bold 40px Trebuchet MS';x.textAlign='center';x.fillText(txt,64,46);
+ const s=new T.Sprite(new T.SpriteMaterial({map:new T.CanvasTexture(c)}));s.scale.set(1.5,.75,1);s.position.y=3.2;return s}
+function mk(col,hex,tag){const gp=new T.Group(),j=new T.MeshLambertMaterial({color:col}),sk=new T.MeshLambertMaterial({color:0xf0c9a0}),bk=new T.MeshLambertMaterial({color:0x111111});
+ const add=(geo,m,x,y,z,par)=>{const o=new T.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=true;(par||gp).add(o);return o};
+ add(new T.BoxGeometry(.8,1.1,.5),j,0,1.55,0);add(new T.BoxGeometry(.8,.35,.5),wm,0,.85,0);
+ add(new T.SphereGeometry(.34,16,12),sk,0,2.35,0);add(new T.SphereGeometry(.05,8,6),bk,-.12,2.4,.31);add(new T.SphereGeometry(.05,8,6),bk,.12,2.4,.31);
+ add(new T.BoxGeometry(.2,.1,.05),bk,0,2.22,.33);
+ const legs=[-.2,.2].map(x=>{const lg=new T.Group();lg.position.set(x,.7,0);gp.add(lg);add(new T.BoxGeometry(.28,.7,.3),sk,0,-.35,0,lg);return lg});
+ gp.legs=legs;gp.rotation.order='YXZ';const l=lab(tag,hex);gp.add(l);gp.lab=l;S.add(gp);
+ const ring=new T.Mesh(new T.RingGeometry(.9,1.2,24),new T.MeshBasicMaterial({color:col,side:T.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=.04;S.add(ring);gp.ring=ring;return gp}
+const ps=[];[[0x2e7bff,'#2e7bff','P1'],[0x2e7bff,'#2e7bff','mate'],[0xe53b2f,'#e53b2f','P2'],[0xe53b2f,'#e53b2f','mate']].forEach((c,i)=>{
+ const m=mk(c[0],c[1],c[2]=='mate'?(i<2?'1':'2'):c[2]);ps.push({id:i,t:i>>1,m,x:0,z:0,vx:0,vz:0,fx:1,fz:0,kcd:0,sl:0,slcd:0,hit:0,ch:0,mt:0,md:1,sd:{x:1,z:0}})});
+const bm=new T.Mesh(new T.SphereGeometry(.4,20,14),new T.MeshLambertMaterial({color:0xffffff}));bm.castShadow=true;S.add(bm);
+const B={x:0,y:.4,z:0,vx:0,vy:0,vz:0,o:-1,lt:0};
+// keepers
+const kp=[0,1].map(t=>{const gp=new T.Group(),c=t?0x2e7bff:0xe53b2f,m=new T.MeshLambertMaterial({color:0xffdd33});
+ const b=new T.Mesh(new T.BoxGeometry(.9,1.6,.9),m);b.position.y=1;b.castShadow=true;gp.add(b);
+ const h=new T.Mesh(new T.SphereGeometry(.34,14,10),new T.MeshLambertMaterial({color:0xf0c9a0}));h.position.y=2.1;gp.add(h);
+ const a=new T.Mesh(new T.BoxGeometry(2.4,.25,.3),new T.MeshLambertMaterial({color:c}));a.position.y=1.5;gp.add(a);S.add(gp);return{m:gp,z:0,x:t?29:-29,j:0,t}});
+// input
+const KM=[{u:'KeyW',d:'KeyS',l:'KeyA',r:'KeyD',s:'KeyF',p:'KeyE',b:'KeyQ'},{u:'ArrowUp',d:'ArrowDown',l:'ArrowLeft',r:'ArrowRight',s:'Slash',p:'Period',b:'Comma'}];
+const K={},pv=[{},{}];
+addEventListener('keydown',e=>{K[e.code]=1;if(/^Arrow|Slash|Space|Period|Comma/.test(e.code))e.preventDefault();if(e.code=='Enter'&&(st=='menu'||st=='end'))start()});
+addEventListener('keyup',e=>K[e.code]=0);$('go').onclick=start;
+let st='menu',sc=[0,0],act=[0,2],lock=[0,0],gt=0,tm=0,mto;
+function flash(s,ms){$('msg').textContent=s;clearTimeout(mto);if(ms)mto=setTimeout(()=>$('msg').textContent='',ms)}
+function hud(){$('score').innerHTML='<span class="b">BLUE '+sc[0]+'</span>  :  <span class="r">'+sc[1]+' RED</span>'}
+function reset(kt){const pos=[[-2.5,0],[-12,6],[2.5,0],[12,-6]];ps.forEach((p,i)=>{p.x=pos[i][0];p.z=pos[i][1];p.vx=p.vz=0;p.fx=i<2?1:-1;p.fz=0;p.sl=0;p.kcd=0;p.slcd=0;p.ch=0});
+ act=[0,2];lock=[0,0];B.o=kt*2;B.vx=B.vy=B.vz=0;B.lt=kt;kp.forEach(k=>k.z=0)}
+function start(){$('menu').style.display='none';sc=[0,0];hud();flash('',0);reset(0);st='play'}
+function dist(p){return Math.hypot(B.x-p.x,B.z-p.z)}
+function shoot(p,t){const m=p.mt,d=t?-1:1,lo=.72,hi=.9;let pw,err=0,lift;
+ if(m<lo){pw=12+14*m/lo;err=(Math.random()*2-1)*(lo-m)*14;lift=1.5}
+ else if(m<=hi){pw=28+4*(m-lo)/(hi-lo);lift=2.5;flash('PERFECT!',600)}
+ else{pw=34;err=(Math.random()*2-1)*(m-hi)*45;lift=5+(m-hi)*35;flash('TOO HARD',500)}
+ const tz=Math.max(-1,Math.min(1,p.fz))*3.3+err,dx=d*30-B.x,dz=tz-B.z,n=Math.hypot(dx,dz);
+ B.vx=dx/n*pw;B.vz=dz/n*pw;B.vy=lift;B.o=-1;B.lt=t;p.kcd=.5}
+function pass(p,t){const q=ps[p.id^1],tx=q.x+q.vx*.4,tz=q.z+q.vz*.4,dx=tx-p.x,dz=tz-p.z,n=Math.hypot(dx,dz)||1,sp=Math.min(14,6+n*.7);
+ B.vx=dx/n*sp;B.vz=dz/n*sp;B.vy=.6;B.o=-1;B.lt=t;p.kcd=.5;act[t]=q.id;lock[t]=.8}
+function slide(p,x,z){const n=Math.hypot(x,z)||1;p.sl=.45;p.slcd=1.1;p.hit=0;p.sd={x:x/n,z:z/n}}
+function mv(p,tx,tz,sp,dt){if(p.sl>0){const f=14*(p.sl/.45+.3);p.vx=p.sd.x*f;p.vz=p.sd.z*f}
+ else{p.vx+=(tx*sp-p.vx)*Math.min(1,dt*10);p.vz+=(tz*sp-p.vz)*Math.min(1,dt*10)}}
+function ai(p,dt){const t=p.t,d=t?-1:1,o=B.o>=0?ps[B.o].t:-1;let tx,tz;
+ if(o==t){tx=B.x+d*9;tz=B.z>0?-6:6}else{tx=B.x-d*4;tz=B.z*.7}
+ tx=Math.max(-25,Math.min(25,tx));const dx=tx-p.x,dz=tz-p.z,n=Math.hypot(dx,dz);
+ mv(p,n>1?dx/n:0,n>1?dz/n:0,5.2,dt);if(n>.5&&p.sl<=0){p.fx=dx/n;p.fz=dz/n}
+ if(o>=0&&o!=t&&p.sl<=0&&p.slcd<=0&&dist(p)<2.4&&Math.random()<dt*1.5)slide(p,B.x-p.x,B.z-p.z)}
+function goalScored(t){sc[t]++;hud();st='goal';gt=2;B.o=-1;flash('GOAL! '+(t?'RED':'BLUE'),0);
+ if(sc[t]>=5){st='end';flash((t?'RED':'BLUE')+' WINS! Press Enter to play again',0)}}
+function step(dt){
+ for(let t=0;t<2;t++){const km=KM[t],a=act[t],p=ps[a],pr=K[km.p]&&!pv[t].p,bl=K[km.b]&&!pv[t].b;pv[t].p=K[km.p];pv[t].b=K[km.b];
+  let ix=(K[km.r]?1:0)-(K[km.l]?1:0),iz=(K[km.d]?1:0)-(K[km.u]?1:0);const n=Math.hypot(ix,iz);if(n){ix/=n;iz/=n;if(p.sl<=0){p.fx=ix;p.fz=iz}}
+  const own=B.o==a;
+  if(K[km.s]&&own&&p.sl<=0){if(!p.ch){p.ch=1;p.mt=0;p.md=1}p.mt+=p.md*dt*1.7;if(p.mt>1){p.mt=1;p.md=-1}if(p.mt<0){p.mt=0;p.md=1}}
+  else if(p.ch){if(own&&!K[km.s])shoot(p,t);p.ch=0}
+  if(pr&&own&&p.sl<=0)pass(p,t);
+  if(bl&&!own&&p.slcd<=0&&p.sl<=0&&!p.ch)slide(p,p.fx,p.fz);
+  mv(p,ix,iz,p.ch?4.5:own?6.8:7.8,dt)}
+ ps.forEach(p=>{if(p.id!=act[p.t])ai(p,dt)});
+ ps.forEach(p=>{p.x=Math.max(-29,Math.min(29,p.x+p.vx*dt));p.z=Math.max(-19,Math.min(19,p.z+p.vz*dt));p.kcd-=dt;p.slcd-=dt;if(p.sl>0)p.sl-=dt});
+ // slide hits
+ ps.forEach(p=>{if(p.sl>0&&!p.hit&&dist(p)<1.8&&B.y<2.2){
+  if(B.o>=0&&ps[B.o].t!=p.t){p.hit=1;ps[B.o].kcd=.6;B.o=-1;B.vx=p.sd.x*9;B.vz=p.sd.z*9;B.vy=3;B.lt=p.t}
+  else if(B.o<0&&B.lt!=p.t&&Math.hypot(B.vx,B.vz)>5){p.hit=1;B.vx*=-.5;B.vz*=-.5;B.vy=Math.max(B.vy,3);B.lt=p.t;flash('BLOCKED!',500)}}});
+ // ball
+ if(B.o>=0){const o=ps[B.o];B.x=o.x+o.fx*1;B.z=o.z+o.fz*1;B.y=.4;B.vx=B.vy=B.vz=0}
+ else{B.vy-=22*dt;B.x+=B.vx*dt;B.y+=B.vy*dt;B.z+=B.vz*dt;
+  if(B.y<.4){B.y=.4;B.vy=B.vy<-1?-B.vy*.5:0}
+  if(B.y<.45){const f=Math.max(0,1-.9*dt);B.vx*=f;B.vz*=f}
+  if(Math.abs(B.x)>30){if(Math.abs(B.z)<GW-.15&&B.y<2.5){goalScored(B.x>0?0:1);return}B.x=Math.sign(B.x)*30;B.vx*=-.6}
+  if(Math.abs(B.z)>19.8){B.z=Math.sign(B.z)*19.8;B.vz*=-.6}
+  const sp=Math.hypot(B.vx,B.vz);
+  for(const p of ps)if(p.kcd<=0&&p.sl<=0&&sp<15&&B.y<1.4&&dist(p)<1.05){B.o=p.id;break}}
+ // keepers
+ kp.forEach(k=>{const tz=Math.max(-3,Math.min(3,B.z));k.z+=Math.max(-3.4*dt,Math.min(3.4*dt,tz-k.z));k.j=Math.max(0,k.j-dt);
+  if(B.o<0&&Math.abs(B.x-k.x)<1.3&&Math.abs(B.z-k.z)<1.7&&B.y<2.5&&Math.abs(B.vx)>1){const d=k.t?-1:1;
+   B.vx=d*Math.max(8,Math.abs(B.vx)*.6);B.vz=(Math.random()-.5)*12;B.vy=3;B.x=k.x+d*1.4;B.lt=k.t;k.j=.4;flash('SAVE!',500)}});
+ // active switching
+ for(let t=0;t<2;t++){if(lock[t]>0){lock[t]-=dt;continue}
+  if(B.o>=0&&ps[B.o].t==t)act[t]=B.o;
+  else if(!ps[act[t]].ch){const c=ps[act[t]],q=ps[act[t]^1];if(dist(q)+1.5<dist(c))act[t]=q.id}}
+}
+function draw(dt){tm+=dt;
+ ps.forEach(p=>{const m=p.m;m.position.set(p.x,p.sl>0?.25:0,p.z);m.rotation.y=Math.atan2(p.fx,p.fz);m.rotation.x=p.sl>0?-1.2:0;
+  const sp=Math.hypot(p.vx,p.vz),w=Math.sin(tm*12)*.8*Math.min(1,sp/6);m.legs[0].rotation.x=w;m.legs[1].rotation.x=-w;
+  const on=act.includes(p.id);m.ring.visible=on;m.ring.position.set(p.x,.04,p.z);m.lab.visible=on});
+ bm.position.set(B.x,B.y,B.z);bm.rotation.x+=B.vz*dt*2;bm.rotation.z-=B.vx*dt*2;
+ kp.forEach(k=>{k.m.position.set(k.x,k.j>0?.5:0,k.z);k.m.rotation.y=k.t?-Math.PI/2:Math.PI/2});
+ for(let t=0;t<2;t++){const p=ps[act[t]];$('k'+t).style.left=(p.ch?p.mt*100:0)+'%'}
+ const cx=Math.max(-13,Math.min(13,B.x*.6));C.position.lerp(new T.Vector3(cx,22,31),.08);C.lookAt(cx*.9,0,1.5)}
+let last=performance.now();
+function loop(n){const dt=Math.min(.033,(n-last)/1000);last=n;
+ if(st=='play')step(dt);else if(st=='goal'){gt-=dt;if(gt<=0){flash('',0);reset(B.x>0?1:0);st='play'}}
+ draw(dt);R.render(S,C);requestAnimationFrame(loop)}
+reset(0);hud();requestAnimationFrame(loop);
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

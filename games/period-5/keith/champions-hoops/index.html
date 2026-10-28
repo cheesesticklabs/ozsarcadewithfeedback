@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Champions Hoops 1v1</title>
+<style>
+:root{--bg:#f3f1ec;--fg:#1b1b1f;--card:#fff;--line:#d8d4ca;--mut:#666;--acc:#e8742a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121317;--fg:#f1f1f3;--card:#1c1e25;--line:#33363f;--mut:#9a9da8}}
+:root[data-theme="dark"]{--bg:#121317;--fg:#f1f1f3;--card:#1c1e25;--line:#33363f;--mut:#9a9da8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{max-width:960px;margin:0 auto;padding:10px;position:relative}
+canvas{width:100%;display:block;border-radius:12px;background:#111;touch-action:none}
+#ctl{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;justify-content:center}
+#ctl button{flex:1;min-width:64px;padding:14px 6px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none}
+#ctl button:active{background:var(--acc);color:#fff}
+.hint{color:var(--mut);font-size:12.5px;text-align:center;margin:8px 0 0}
+#menu{position:absolute;inset:10px;background:var(--bg);border-radius:12px;overflow:auto;padding:14px;z-index:5;border:1px solid var(--line)}
+#menu h1{margin:0 0 2px;font-size:24px}
+#res{font-size:20px;font-weight:800;color:var(--acc);margin:4px 0}
+.slots{display:flex;gap:8px;margin:10px 0}
+.slot{flex:1;border:2px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;padding:8px;text-align:left;cursor:pointer}
+.slot.on{border-color:var(--acc)}
+.slot small{display:block;color:var(--mut)}
+.yr{display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.y{font-weight:800;width:42px}.tm{flex:1 1 150px;color:var(--mut);font-size:13px;border-left:4px solid var(--c);padding-left:6px}
+.ch{border:1px solid var(--line);border-left:4px solid var(--c);background:var(--card);color:var(--fg);border-radius:8px;padding:7px 9px;cursor:pointer;font-size:13px}
+.ch.s0{outline:2px solid var(--acc)}.ch.s1{outline:2px dashed #3b82f6}
+.go{padding:12px 18px;border:0;border-radius:10px;background:var(--acc);color:#fff;font-weight:800;font-size:15px;cursor:pointer}
+.go:disabled{opacity:.4;cursor:not-allowed}.go.alt{background:var(--card);color:var(--fg);border:1px solid var(--line)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;position:sticky;top:-14px;background:var(--bg);padding:6px 0;z-index:2}
+</style></head><body>
+<div id="app">
+<canvas id="c" width="900" height="450"></canvas>
+<div id="ctl">
+<button data-k="KeyA">◀</button><button data-k="KeyD">▶</button><button data-k="KeyW">JUMP</button>
+<button data-k="Space">SHOOT</button><button data-k="KeyE">DUNK</button><button data-k="KeyQ">STEAL</button></div>
+<p class="hint" id="hint">A/D or ←/→ move · W/↑ jump · HOLD Space to shoot, release in the GREEN zone · E/Shift dunk (near rim) · Q/↓ steal · Jump to block a dunk or shot</p>
+<div id="menu">
+<h1>🏀 Champions Hoops 1v1</h1>
+<div id="res"></div>
+<div style="color:var(--mut)">Pick from NBA champions of the last 30 seasons (1996–2025). First to 21 wins.</div>
+<div class="slots"><button class="slot on" id="s0"><small id="t0">YOU (attack right)</small><b id="n0">Pick a player</b></button>
+<button class="slot" id="s1"><small id="t1">CPU (attack left)</small><b id="n1">Pick a player</b></button></div>
+<label style="display:flex;gap:8px;align-items:center;font-weight:700;margin:0 0 8px"><input type="checkbox" id="two" style="width:20px;height:20px"> 2 players on this computer (no CPU)</label>
+<div class="bar"><button class="go" id="go" disabled>Tip off</button><button class="go alt" id="rnd">Random matchup</button></div>
+<div id="grid"></div></div></div>
+<script>
+const T={CHI:['Chicago Bulls','#ce1141'],SAS:['San Antonio Spurs','#8a8d8f'],LAL:['Los Angeles Lakers','#7a4bc4'],DET:['Detroit Pistons','#1d6fe0'],MIA:['Miami Heat','#c8102e'],BOS:['Boston Celtics','#1a9a4c'],DAL:['Dallas Mavericks','#2a7fd0'],GSW:['Golden State Warriors','#f2b705'],CLE:['Cleveland Cavaliers','#a0204a'],TOR:['Toronto Raptors','#d8203c'],MIL:['Milwaukee Bucks','#2e8b57'],DEN:['Denver Nuggets','#fec524'],OKC:['Oklahoma City Thunder','#1e90e0']};
+const R={'Michael Jordan':[94,92,97,93],'Scottie Pippen':[88,78,88,92],'Dennis Rodman':[80,40,70,95],'Tim Duncan':[70,76,82,94],'David Robinson':[82,70,90,90],"Shaquille O'Neal":[62,45,99,85],'Kobe Bryant':[90,90,92,86],'Tony Parker':[94,80,60,70],'Chauncey Billups':[72,86,55,80],'Ben Wallace':[70,35,78,95],'Manu Ginobili':[85,84,80,80],'Dwyane Wade':[93,80,92,86],'Paul Pierce':[74,88,70,76],'Kevin Garnett':[80,76,84,94],'Pau Gasol':[66,76,76,76],'Dirk Nowitzki':[66,96,66,66],'Jason Kidd':[82,70,55,86],'LeBron James':[92,84,98,90],'Kawhi Leonard':[84,88,82,97],'Stephen Curry':[90,99,50,66],'Klay Thompson':[78,96,60,80],'Kyrie Irving':[94,90,66,60],'Kevin Durant':[82,95,86,78],'Kyle Lowry':[80,80,50,82],'Anthony Davis':[80,74,92,94],'Giannis Antetokounmpo':[92,70,99,92],'Khris Middleton':[74,86,66,72],'Nikola Jokic':[60,88,62,70],'Jamal Murray':[82,88,64,66],'Jayson Tatum':[84,88,86,80],'Jaylen Brown':[88,82,90,82],'Shai Gilgeous-Alexander':[92,88,76,84],'Jalen Williams':[84,82,78,86]};
+const CH=`1996 CHI Michael Jordan|Scottie Pippen
+1997 CHI Michael Jordan|Dennis Rodman
+1998 CHI Michael Jordan|Scottie Pippen
+1999 SAS Tim Duncan|David Robinson
+2000 LAL Shaquille O'Neal|Kobe Bryant
+2001 LAL Shaquille O'Neal|Kobe Bryant
+2002 LAL Shaquille O'Neal|Kobe Bryant
+2003 SAS Tim Duncan|Tony Parker
+2004 DET Chauncey Billups|Ben Wallace
+2005 SAS Tim Duncan|Manu Ginobili
+2006 MIA Dwyane Wade|Shaquille O'Neal
+2007 SAS Tony Parker|Tim Duncan
+2008 BOS Paul Pierce|Kevin Garnett
+2009 LAL Kobe Bryant|Pau Gasol
+2010 LAL Kobe Bryant|Pau Gasol
+2011 DAL Dirk Nowitzki|Jason Kidd
+2012 MIA LeBron James|Dwyane Wade
+2013 MIA LeBron James|Dwyane Wade
+2014 SAS Kawhi Leonard|Tim Duncan
+2015 GSW Stephen Curry|Klay Thompson
+2016 CLE LeBron James|Kyrie Irving
+2017 GSW Kevin Durant|Stephen Curry
+2018 GSW Kevin Durant|Stephen Curry
+2019 TOR Kawhi Leonard|Kyle Lowry
+2020 LAL LeBron James|Anthony Davis
+2021 MIL Giannis Antetokounmpo|Khris Middleton
+2022 GSW Stephen Curry|Klay Thompson
+2023 DEN Nikola Jokic|Jamal Murray
+2024 BOS Jayson Tatum|Jaylen Brown
+2025 OKC Shai Gilgeous-Alexander|Jalen Williams`.split('\n').map(l=>{const[y,t,...r]=l.split(' ');return[+y,t,...r.join(' ').split('|')]});
+const $=id=>document.getElementById(id),cv=$('c'),cx=cv.getContext('2d');
+const W=900,H=450,FL=370,RX=[790,110],RY=FL-165,GR=1400,K={};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),sm=x=>{x=clamp(x,0,1);return x*x*(3-2*x)};
+let S=null,playing=false,sel=[null,null],cur=0,two=false;
+/* ---------- menu ---------- */
+$('grid').innerHTML=CH.map(([y,t,a,b])=>`<div class="yr"><span class="y">${y}</span><span class="tm" style="--c:${T[t][1]}">${T[t][0]}</span>`+[a,b].map(n=>`<button class="ch" style="--c:${T[t][1]}" data-y="${y}" data-t="${t}" data-n="${n}">${n}</button>`).join('')+`</div>`).join('');
+function mkPl(y,t,n){return{name:n,year:y,team:T[t][0],color:T[t][1],r:R[n]||[80,80,80,80]}}
+function refresh(){const tw=$('two').checked;$('t0').textContent=tw?'PLAYER 1 (attack right)':'YOU (attack right)';$('t1').textContent=tw?'PLAYER 2 (attack left)':'CPU (attack left)';[0,1].forEach(i=>{const p=sel[i];$('n'+i).textContent=p?`${p.name} (${p.year} ${p.team})`:'Pick a player';$('s'+i).classList.toggle('on',cur==i)});
+ document.querySelectorAll('.ch').forEach(b=>{b.classList.remove('s0','s1');[0,1].forEach(i=>{const p=sel[i];if(p&&p.name==b.dataset.n&&p.year==b.dataset.y)b.classList.add('s'+i)})});
+ $('go').disabled=!(sel[0]&&sel[1])}
+$('grid').onclick=e=>{const b=e.target.closest('.ch');if(!b)return;sel[cur]=mkPl(+b.dataset.y,b.dataset.t,b.dataset.n);cur=cur==0?1:0;refresh()};
+$('s0').onclick=()=>{cur=0;refresh()};$('s1').onclick=()=>{cur=1;refresh()};
+$('rnd').onclick=()=>{[0,1].forEach(i=>{const c=CH[Math.random()*CH.length|0];sel[i]=mkPl(c[0],c[1],c[2+(Math.random()*2|0)])});refresh()};
+$('two').onchange=refresh;
+$('go').onclick=()=>{two=$('two').checked;$('hint').textContent=two?'PLAYER 1: A/D move · W jump · F hold & release to shoot · G dunk · H steal     |     PLAYER 2: ←/→ move · ↑ jump · . hold & release to shoot · / dunk · , steal     (jump to block!)':'A/D or ←/→ move · W/↑ jump · HOLD Space to shoot, release in the GREEN zone · E/Shift dunk (near rim) · Q/↓ steal · Jump to block a dunk or shot';$('menu').hidden=true;startGame()};
+/* ---------- game ---------- */
+function newP(pl,side){return{pl,side,x:0,y:0,vy:0,d:side?-1:1,sp:150+pl.r[0]*1.5,dunk:null,shoot:0,rel:0,m:0,mt:0,auto:false,tgt:.5,q:'',cd:0,stl:0,run:0,ai:0,sd:200,mv:0,hx:0,hy:0}}
+function startGame(){S={p:[newP(sel[0],0),newP(sel[1],1)],sc:[0,0],b:{x:0,y:0,vx:0,vy:0,h:null,rim:0,pts:2,lock:0,py:0,shot:false,by:0},fx:[],shake:0,t:0,pause:0,over:false,next:0,net:[0,0]};reset(0);playing=true}
+function reset(po){const s=S,a=s.p[po],d=s.p[1-po],dir=po?-1:1;
+ a.x=450-dir*80;d.x=450+dir*40;a.d=dir;d.d=-dir;
+ s.p.forEach(p=>{p.y=0;p.vy=0;p.dunk=null;p.shoot=0;p.rel=0;p.mt=0;p.ai=.6;const r=p.pl.r;p.sd=r[2]>r[1]?110+Math.random()*60:170+Math.random()*140*r[1]/100});
+ s.b.h=a;s.b.shot=false;s.b.lock=0}
+function txt(s,x,y,c,big){S.fx.push({s,x,y,c,t:1.3,tot:1.3,big})}
+function jump(p){if(p.y==0&&!p.dunk&&!p.shoot)p.vy=480}
+function shoot(p,auto){const b=S.b;if(b.h!==p||p.dunk||p.shoot)return;p.d=Math.sign(RX[p.side]-p.x)||p.d;p.shoot=1;p.auto=!!auto;p.m=p.y>0?clamp((480-p.vy)/GR/.69,0,1):0;p.tgt=.5+(Math.random()*2-1)*(1.3-p.pl.r[1]/100)*.4;if(p.y==0)p.vy=480}
+function release(p){const b=S.b,o=S.p[1-p.side],rx=RX[p.side];p.shoot=0;if(b.h!==p)return;p.rel=.35;
+ const dist=Math.abs(p.x-rx);let err=(Math.random()*2-1)*(14+dist*.07)*(1.45-p.pl.r[1]/100);
+ p.m=Math.min(1,p.m);p.mt=.7;const gw=.045+.06*p.pl.r[1]/100,dm=Math.abs(p.m-.5),green=dm<=gw;
+ if(green)err*=.1;else err*=1+(dm-gw)*10;
+ p.q=green?'GREEN':(p.m<.5?'EARLY':'LATE');txt(green?'GREEN!':p.q,p.x,FL-p.y-135,green?'#3ddc5a':'#ffb020',green);
+ b.h=null;b.x=p.hx;b.y=p.hy;b.lock=.15;
+ if(o.y>15&&Math.abs(o.x-p.x)<75){if(Math.random()<.5*o.pl.r[3]/100){b.vx=o.d*260;b.vy=-250;b.shot=false;txt('BLOCKED!',p.x,FL-170,'#ff5470',1);return}err*=1.7}
+ const T2=.7+dist/1100,tx=rx+err;b.vx=(tx-b.x)/T2;b.vy=(RY-b.y-.5*GR*T2*T2)/T2;b.rim=p.side;b.pts=dist>300?3:2;b.shot=true;b.by=p.side}
+function dunk(p){const b=S.b;if(b.h!==p||p.dunk||p.shoot)return;const rx=RX[p.side];if(Math.abs(p.x-rx)>190)return;
+ const ty=['TOMAHAWK','WINDMILL','360 SPIN','DOUBLE PUMP'][Math.random()*4|0];
+ p.dunk={t:0,sx:p.x,sy:p.y,tx:rx-Math.sign(rx-p.x)*22,ty,chk:0,blk:0,sc:0};p.d=Math.sign(rx-p.x)||1;p.vy=0}
+function steal(p){if(p.cd>0||p.dunk)return;p.cd=.9;p.stl=.25;const o=S.p[1-p.side],b=S.b;
+ if(b.h===o&&Math.abs(o.x-p.x)<62&&!o.dunk&&!o.shoot&&Math.random()<.18+p.pl.r[3]/220){b.h=p;b.lock=.2;txt('STOLEN!',p.x,FL-150,'#ffd23f',1)}}
+function dunkStep(p){}
+function dunkUpd(p,dt){const k=p.dunk,b=S.b,o=S.p[1-p.side];k.t+=dt;const u=Math.min(1,k.t/.7),e=Math.sin(u*Math.PI/2);
+ p.x=k.sx+(k.tx-k.sx)*e;p.y=k.sy+(190-k.sy)*e;
+ if(!k.chk&&u>=.65){k.chk=1;if(o.y>30&&Math.abs(o.x-p.x)<95&&Math.random()<.35+o.pl.r[3]/160){k.blk=1;b.h=null;b.x=p.hx;b.y=p.hy;b.vx=-p.d*320;b.vy=-200;b.lock=.5;b.shot=false;txt('REJECTED!',p.x,FL-200,'#ff5470',1);S.shake=.2}}
+ if(k.blk){if(k.t>.8){p.dunk=null;p.vy=0}return}
+ if(u>=1&&!k.sc){k.sc=1;b.h=null;b.x=RX[p.side];b.y=RY-8;b.vx=0;b.vy=220;b.shot=false;b.lock=.6;score(p.side,2,k.ty+' JAM!',true)}
+ if(k.t>1.05){p.dunk=null;p.vy=0}}
+function score(side,pts,msg,big){const s=S;s.sc[side]+=pts;s.net[side]=1;if(big)s.shake=.4;s.pause=1.6;s.next=1-side;
+ txt(msg||(pts+' POINTS'),clamp(RX[side]+(side?160:-160),150,750),FL-190,'#ffd23f',1);if(s.sc[side]>=21)s.over=true}
+function step(p,dt,mx){p.cd-=dt;p.rel-=dt;p.stl-=dt;p.mt-=dt;p.mv=0;
+ if(p.dunk){dunkUpd(p,dt);return}
+ if(mx){p.d=mx;p.run+=dt*11;p.mv=1}
+ p.x=clamp(p.x+mx*p.sp*dt*(p.y>0?.75:1)*(S.b.h===p?.93:1),35,W-35);
+ if(p.y>0||p.vy>0){p.vy-=GR*dt;p.y+=p.vy*dt;if(p.y<=0){p.y=0;p.vy=0}}
+ if(p.shoot){p.m+=dt/.69;if(p.m>=1||(p.auto&&p.m>=p.tgt))release(p)}}
+function ai(p,dt){const b=S.b,o=S.p[1-p.side],rx=RX[p.side],r=p.pl.r;let mx=0;p.ai-=dt;
+ if(b.h===p){const dist=Math.abs(p.x-rx),dir=Math.sign(rx-p.x);if(dist>p.sd)mx=dir;
+  if(p.ai<=0&&!p.dunk&&!p.shoot){p.ai=.25;if(dist<175&&Math.random()<.35+r[2]/200)dunk(p);else if(dist<=p.sd+10&&Math.random()<.5)shoot(p,1)}}
+ else if(b.h===o){const tx=o.x+Math.sign(RX[o.side]-o.x)*58;if(Math.abs(p.x-tx)>10)mx=Math.sign(tx-p.x);
+  if(Math.abs(p.x-o.x)<70&&p.ai<=0){p.ai=.5;if(Math.random()<.35*r[3]/100)steal(p)}
+  if((o.dunk||o.shoot)&&Math.abs(p.x-o.x)<110&&p.y==0&&Math.random()<dt*6*r[3]/100)p.vy=480}
+ else if(Math.abs(b.x-p.x)>12)mx=Math.sign(b.x-p.x);
+ return mx}
+function ballUpd(dt){const s=S,b=s.b;b.lock-=dt;
+ if(b.h){const p=b.h;if(p.dunk||p.shoot||p.rel>0||p.y>0){b.x=p.hx;b.y=p.hy}else{b.x=p.x+p.d*30;b.y=FL-12-Math.abs(Math.sin(s.t*7))*45}b.vx=b.vy=0;return}
+ b.py=b.y;b.vy+=GR*dt;b.x+=b.vx*dt;b.y+=b.vy*dt;
+ if(b.y>FL-12){b.y=FL-12;b.vy*=-.62;b.vx*=.8;if(Math.abs(b.vy)<60)b.vy=0;b.shot=false}
+ if(b.x<15||b.x>W-15){b.x=clamp(b.x,15,W-15);b.vx*=-.5}
+ if(b.shot){const rx=RX[b.rim];if(b.vy>0&&b.py<RY&&b.y>=RY){const dx=Math.abs(b.x-rx);
+  if(dx<21){b.shot=false;b.vx*=.1;const d=Math.abs(s.p[b.by].x-rx);score(b.by,b.pts,b.pts==3?'THREE POINTER!':(d<110?'LAYUP!':'BUCKET!'))}
+  else if(dx<40){b.vy=-Math.abs(b.vy)*.5;b.vx=(b.x>rx?1:-1)*(80+Math.random()*80);b.shot=false;s.net[b.rim]=.6}}}
+ if(s.pause<=0&&b.lock<=0&&!b.shot)for(const p of s.p.slice().sort((a,c)=>Math.abs(a.x-b.x)-Math.abs(c.x-b.x))){
+  if(!p.dunk&&Math.abs(p.x-b.x)<34&&b.y>FL-p.y-130&&b.y<FL-p.y+10){b.h=p;break}}}
+function upd(dt){const s=S;s.t+=dt;s.shake=Math.max(0,s.shake-dt);s.fx=s.fx.filter(f=>(f.t-=dt)>0);s.net=s.net.map(n=>Math.max(0,n-dt*1.5));
+ if(s.pause>0){s.pause-=dt;if(s.pause<=0){if(s.over){endGame();return}reset(s.next)}}
+ const live=s.pause<=0,h=s.p[0],c=s.p[1];
+ step(h,dt,live?(two?(K.KeyD?1:0)-(K.KeyA?1:0):(K.KeyD||K.ArrowRight?1:0)-(K.KeyA||K.ArrowLeft?1:0)):0);
+ step(c,dt,live?(two?(K.ArrowRight?1:0)-(K.ArrowLeft?1:0):ai(c,dt)):0);ballUpd(dt)}
+function endGame(){playing=false;const w=S.sc[0]>S.sc[1];$('res').textContent=(two?(w?'PLAYER 1 WINS! ':'PLAYER 2 WINS! '):(w?'YOU WIN! ':'CPU WINS. '))+S.sc[0]+' – '+S.sc[1];$('go').textContent='Rematch';$('menu').hidden=false;$('menu').scrollTop=0}
+function act(k){if(!playing||S.pause>0)return;
+ if(two){const q=S.p[1],a=S.p[0];if(k=='ArrowUp')jump(q);else if(k=='Period')shoot(q);else if(k=='Slash')dunk(q);else if(k=='Comma')steal(q);
+  else if(k=='KeyW')jump(a);else if(k=='KeyF'||k=='Space')shoot(a);else if(k=='KeyG'||k=='KeyE')dunk(a);else if(k=='KeyH'||k=='KeyQ')steal(a);return}
+ const p=S.p[0];
+ if(k=='Space')shoot(p);else if(k=='KeyE'||k.startsWith('Shift'))dunk(p);else if(k=='KeyQ'||k=='ArrowDown')steal(p);else if(k=='KeyW'||k=='ArrowUp')jump(p)}
+addEventListener('keydown',e=>{if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Slash','Period','Comma'].includes(e.code))e.preventDefault();if(!K[e.code])act(e.code);K[e.code]=true});
+function relKey(k){if(!playing)return;const a=S.p[0],q=S.p[1];let p=null;
+ if(two){if(k=='Period')p=q;else if(k=='KeyF'||k=='Space')p=a}else if(k=='Space')p=a;
+ if(p&&p.shoot&&!p.auto)release(p)}
+addEventListener('keyup',e=>{relKey(e.code);K[e.code]=false});
+document.querySelectorAll('#ctl button').forEach(b=>{const k=b.dataset.k;
+ b.addEventListener('pointerdown',e=>{e.preventDefault();K[k]=true;act(k)});
+ ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>{if(K[k])relKey(k);K[k]=false}))});
+/* ---------- render ---------- */
+function ln(x1,y1,x2,y2,w,c){cx.strokeStyle=c;cx.lineWidth=w;cx.lineCap='round';cx.beginPath();cx.moveTo(x1,y1);cx.lineTo(x2,y2);cx.stroke()}
+function court(){const g=cx.createLinearGradient(0,0,0,FL);g.addColorStop(0,'#141833');g.addColorStop(1,'#3a2358');cx.fillStyle=g;cx.fillRect(0,0,W,FL);
+ for(let i=0;i<150;i++){cx.fillStyle=`hsla(${(i*47)%360},60%,60%,.35)`;cx.beginPath();cx.arc((i*73)%W,40+((i*31)%110),3,0,7);cx.fill()}
+ cx.fillStyle='#b8793e';cx.fillRect(0,FL,W,H-FL);cx.fillStyle='#a2672f';cx.fillRect(0,FL,W,6);
+ cx.fillStyle='#8a5526';cx.fillRect(0,FL,170,H-FL);cx.fillRect(W-170,FL,170,H-FL);
+ [410,490,450].forEach((x,i)=>ln(x,FL+4,x,H-6,3,i==2?'#fff8':'#fffc'));cx.fillStyle='#fff';cx.font='bold 11px sans-serif';cx.textAlign='center';cx.fillText('3PT',410,H-12);cx.fillText('3PT',490,H-12)}
+function hoop(i,front){const rx=RX[i],sg=i==0?1:-1,bx=rx+24*sg;
+ if(!front){ln(bx+8*sg,RY-60,bx+8*sg,FL,6,'#555');cx.fillStyle='#eee';cx.fillRect(bx-(sg>0?0:5),RY-62,5,82);ln(rx+18*sg,RY,bx,RY,4,'#ff6a2b')}
+ else{ln(rx-20,RY,rx+20,RY,5,'#ff6a2b');const w=S?S.net[i]*Math.sin((S.t||0)*35)*5:0;cx.strokeStyle='#fffc';cx.lineWidth=1.5;
+  for(let j=-2;j<=2;j++){cx.beginPath();cx.moveTo(rx+j*9,RY+2);cx.lineTo(rx+j*5+w,RY+38);cx.stroke()}ln(rx-10+w,RY+20,rx+10+w,RY+20,1.5,'#fffc')}}
+function drawP(p){const k=p.dunk,b=S.b,fy=FL-p.y,d=p.d,col=p.pl.color,sk='#d9b08c',air=p.y>1;let sc=1,a1,a2,l1,l2;
+ if(k){const u=Math.min(1,k.t/.7);l1=u<1?.7:.15;l2=u<1?-.5:-.15;a2=2.2;
+  if(k.ty=='TOMAHAWK')a1=2.9-2*sm((u-.4)/.5);else if(k.ty=='WINDMILL'){a1=.9+(1-u)*6.28;a2=a1-.9}
+  else if(k.ty=='360 SPIN'){sc=Math.cos(u*6.283);a1=2.7-1.8*u}else a1=.9+(1-u)*(1.2+1.5*Math.cos(u*12.57));
+  if(k.blk&&u>=.65){a1=1.5;a2=1}}
+ else if(p.shoot||p.rel>0){a1=2.9;a2=2.5;l1=.4;l2=-.2}
+ else{if(air){l1=.5;l2=-.3}else if(p.mv){l1=Math.sin(p.run)*.8;l2=-l1}else{l1=.15;l2=-.15}
+  const ho=b.h===p;a1=ho?.9+.25*Math.sin(S.t*14):(p.stl>0?2:1.5);a2=ho?-.3:-1.3;if(!ho&&air){a1=2.6;a2=2.2}}
+ cx.fillStyle='#0004';cx.beginPath();cx.ellipse(p.x,FL+8,Math.max(8,24-p.y*.08),5,0,0,7);cx.fill();
+ cx.save();cx.translate(p.x,fy);cx.scale(sc,1);
+ const arm=(a,c)=>ln(0,-78,d*34*Math.sin(a),-78+34*Math.cos(a),7,c);
+ arm(a2,sk);ln(0,-42,d*42*Math.sin(l2),-42+42*Math.cos(l2),8,sk);ln(0,-42,d*42*Math.sin(l1),-42+42*Math.cos(l1),8,sk);
+ ln(0,-40,0,-80,17,col);ln(-8,-47,8,-47,3,'#fff6');
+ cx.fillStyle=sk;cx.beginPath();cx.arc(d*2,-94,11,0,7);cx.fill();ln(-9,-99,13,-99,3,col);
+ arm(a1,sk);cx.restore();
+ p.hx=p.x+sc*d*34*Math.sin(a1);p.hy=fy-78+34*Math.cos(a1)-6;
+ cx.textAlign='center';cx.font='bold 12px sans-serif';cx.fillStyle=p.side?'#8ab4ff':'#ffd23f';
+ cx.fillText((two?(p.side?'P2 · ':'P1 · '):(p.side?'CPU · ':'YOU · '))+p.pl.name.split(' ').pop(),p.x,fy-120)}
+function meter(p){if(!(p.shoot||p.mt>0))return;const x=clamp(p.x+(p.d>0?-40:40),30,W-30),h=110,t=FL-215,gw=.045+.06*p.pl.r[1]/100,m=Math.min(1,p.m);
+ cx.fillStyle='#000b';cx.fillRect(x-8,t-2,16,h+4);
+ cx.fillStyle='#3ddc5a';cx.fillRect(x-7,t+h*(.5-gw),14,h*gw*2);
+ const my=t+h*(1-m);cx.fillStyle='#ffffff66';cx.fillRect(x-7,my,14,t+h-my);
+ cx.fillStyle=p.shoot?'#fff':(p.q=='GREEN'?'#3ddc5a':'#ff5470');cx.fillRect(x-11,my-2,22,4)}
+function drawBall(){const b=S.b;cx.fillStyle='#e8742a';cx.beginPath();cx.arc(b.x,b.y,12,0,7);cx.fill();
+ cx.strokeStyle='#4a1e08';cx.lineWidth=1.5;cx.beginPath();cx.arc(b.x,b.y,12,0,7);cx.moveTo(b.x-12,b.y);cx.lineTo(b.x+12,b.y);cx.moveTo(b.x,b.y-12);cx.lineTo(b.x,b.y+12);cx.stroke()}
+function hud(){cx.fillStyle='#000a';cx.fillRect(0,0,W,40);cx.font='bold 15px sans-serif';
+ [0,1].forEach(i=>{const p=S.p[i];cx.textAlign=i?'right':'left';cx.fillStyle=p.pl.color;cx.fillText(p.pl.name,i?W-70:70,18);cx.fillStyle='#bbb';cx.font='11px sans-serif';cx.fillText(p.pl.year+' '+p.pl.team,i?W-70:70,33);cx.font='bold 15px sans-serif';
+  cx.fillStyle='#fff';cx.font='bold 26px sans-serif';cx.fillText(S.sc[i],i?W-20:20,30);cx.font='bold 15px sans-serif'});
+ cx.textAlign='center';cx.fillStyle='#fff';cx.font='bold 12px sans-serif';cx.fillText('FIRST TO 21',W/2,24)}
+function render(){cx.save();cx.clearRect(0,0,W,H);
+ if(S&&S.shake>0)cx.translate((Math.random()-.5)*S.shake*22,(Math.random()-.5)*S.shake*22);
+ court();hoop(0);hoop(1);
+ if(S){S.p.forEach(drawP);S.p.forEach(meter);drawBall();}
+ hoop(0,1);hoop(1,1);
+ if(S){hud();S.fx.forEach(f=>{cx.globalAlpha=Math.min(1,f.t/.4);cx.fillStyle=f.c;cx.font=`900 ${f.big?30:20}px sans-serif`;cx.textAlign='center';cx.strokeStyle='#000';cx.lineWidth=4;
+  const y=f.y-(f.tot-f.t)*30;cx.strokeText(f.s,f.x,y);cx.fillText(f.s,f.x,y);cx.globalAlpha=1})}
+ cx.restore()}
+let last=0;function loop(ts){const dt=Math.min(.033,(ts-last)/1000||0);last=ts;if(S&&playing)upd(dt);render();requestAnimationFrame(loop)}
+refresh();requestAnimationFrame(loop);
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

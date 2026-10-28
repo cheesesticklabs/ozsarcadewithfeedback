@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DUEL — Two Player Shooter</title>
+<style>
+  :root { color-scheme: dark; --bg:#101522; --panel:#1a2233; --line:#34415a; --cyan:#54e6ff; --pink:#ff5f9e; --gold:#ffd166; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:radial-gradient(ellipse at top,#202d47,#0d111b 65%); color:#f4f7ff; font:16px/1.4 system-ui, sans-serif; min-height:100vh; display:flex; justify-content:center; padding:16px; }
+  main { width:min(100%,1000px); }
+  h1 { margin:0; letter-spacing:.16em; font-size:clamp(1.7rem,5vw,2.6rem); text-align:center; }
+  .sub { text-align:center; color:#aab6ce; margin:0 0 14px; }
+  .hud { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+  .player { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+  .player.p1 { box-shadow:inset 4px 0 var(--cyan); }
+  .player.p2 { box-shadow:inset -4px 0 var(--pink); text-align:right; }
+  .name { font-weight:800; letter-spacing:.08em; }
+  .p1 .name { color:var(--cyan); } .p2 .name { color:var(--pink); }
+  .health { height:10px; background:#080b12; border-radius:99px; overflow:hidden; margin-top:7px; border:1px solid #30394b; }
+  .fill { height:100%; width:100%; transition:width .12s; }
+  #hp1 { background:var(--cyan); } #hp2 { background:var(--pink); }
+  .stats { font-size:.88rem; color:#c2cce0; margin-top:4px; }
+  canvas { display:block; width:100%; aspect-ratio:16/9; background:#0b1220; border:1px solid #34415a; border-radius:14px; box-shadow:0 16px 40px #0006; touch-action:manipulation; }
+  .controls { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+  .card { background:#151c2a; border:1px solid var(--line); border-radius:12px; padding:12px; color:#c4cee2; font-size:.92rem; }
+  .card strong { display:block; margin-bottom:4px; }
+  .p1c strong { color:var(--cyan); } .p2c strong { color:var(--pink); }
+  kbd { background:#273247; border:1px solid #45536c; border-radius:5px; padding:1px 5px; color:#fff; font:inherit; font-size:.85em; white-space:nowrap; }
+  .actions { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin:12px 0; }
+  button { background:#273650; color:#fff; border:1px solid #526783; padding:10px 16px; border-radius:9px; font-weight:750; cursor:pointer; }
+  button:hover { background:#344866; } button.primary { background:#087d96; border-color:#3dd8f2; }
+  .note { color:#94a3bb; text-align:center; font-size:.82rem; margin:8px 0 0; }
+  @media(max-width:580px) { body{padding:8px}.controls{grid-template-columns:1fr}.card{padding:10px}.hud{gap:6px}.player{padding:8px} }
+</style>
+</head>
+<body>
+<main>
+  <h1>DUEL</h1>
+  <p class="sub">LOCAL 1v1 · FIRST TO ELIMINATE THE OTHER PLAYER WINS</p>
+  <section class="hud">
+    <div class="player p1"><div class="name">PLAYER 1</div><div class="health"><div class="fill" id="hp1"></div></div><div class="stats" id="stats1">Health 100 · Sidearm</div></div>
+    <div class="player p2"><div class="name">PLAYER 2</div><div class="health"><div class="fill" id="hp2"></div></div><div class="stats" id="stats2">Health 100 · Sidearm</div></div>
+  </section>
+  <canvas id="game" width="960" height="540" aria-label="Two player shooter game"></canvas>
+  <div class="actions">
+    <button class="primary" id="start">Start / Restart Match</button>
+    <button id="upgrade1">P1 Upgrade: Rapid Fire (3)</button>
+    <button id="upgrade2">P2 Upgrade: Rapid Fire (3)</button>
+  </div>
+  <section class="controls">
+    <div class="card p1c"><strong>PLAYER 1 — CYAN</strong>Move: <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd><br>Aim: mouse · Shoot: click or <kbd>F</kbd> · Reload: <kbd>R</kbd> · Shift+mouse/right-click controls P2 aim/shoot</div>
+    <div class="card p2c"><strong>PLAYER 2 — PINK</strong>Move: <kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd><br>Shoot: <kbd>Enter</kbd> · Reload: <kbd>Shift</kbd> · Upgrade: click P2 upgrade button</div>
+  </section>
+  <p class="note">Soldiers now have tactical gear, helmets, boots, vests, backpacks, and rifles. Tip: Player 1 aims toward the mouse and can shoot by clicking or pressing F. Player 2 moves with the arrow keys; hold Shift while moving the mouse to aim P2, or right-click to aim and shoot P2. Use Enter to shoot in P2's current aim direction. Press R to reload Player 1 or Shift to reload Player 2. Each magazine holds 12 shots; reloading takes about one second. Spend 3 upgrade points per player to unlock Rapid Fire.</p>
+</main>
+<script>
+(() => {
+  const canvas = document.getElementById('game'), ctx = canvas.getContext('2d');
+  const W=960,H=540;
+  const keys = new Set();
+  const walls = [
+    {x:420,y:105,w:120,h:24},{x:420,y:411,w:120,h:24},
+    {x:280,y:235,w:55,h:70},{x:625,y:235,w:55,h:70}
+  ];
+  const players = [
+    {x:115,y:270,r:17,color:'#54e6ff',hp:100,dir:{x:1,y:0},speed:3.25,cool:0,rapid:false,points:3,shot:0,ammo:12,maxAmmo:12,reload:0,aim:{x:1,y:0}},
+    {x:845,y:270,r:17,color:'#ff5f9e',hp:100,dir:{x:-1,y:0},speed:3.25,cool:0,rapid:false,points:3,shot:0,ammo:12,maxAmmo:12,reload:0,aim:{x:-1,y:0}}
+  ];
+  let bullets=[], running=false, winner='', frame=0;
+  let mousePos={x:480,y:270};
+  const hpEls=[document.getElementById('hp1'),document.getElementById('hp2')];
+  const statEls=[document.getElementById('stats1'),document.getElementById('stats2')];
+  const startBtn=document.getElementById('start');
+  function reset() {
+    players[0].x=115; players[0].y=270; players[0].hp=100; players[0].dir={x:1,y:0}; players[0].aim={x:1,y:0}; players[0].cool=0; players[0].rapid=false; players[0].points=3; players[0].ammo=12; players[0].reload=0;
+    players[1].x=845; players[1].y=270; players[1].hp=100; players[1].dir={x:-1,y:0}; players[1].aim={x:-1,y:0}; players[1].cool=0; players[1].rapid=false; players[1].points=3; players[1].ammo=12; players[1].reload=0;
+    bullets=[]; winner=''; running=true; frame=0; updateHud();
+  }
+  function updateHud() {
+    players.forEach((p,i)=> {
+      hpEls[i].style.width=Math.max(0,p.hp)+'%';
+      statEls[i].textContent=`Health ${Math.max(0,p.hp)} · Ammo ${p.ammo}/12${p.reload>0?' · Reloading…':''} · ${p.rapid?'Rapid Fire':'Sidearm'} · Upgrade points ${p.points}`;
+      document.getElementById('upgrade'+(i+1)).textContent=`P${i+1} Upgrade: Rapid Fire (${p.points})`;
+      document.getElementById('upgrade'+(i+1)).disabled=p.rapid || p.points<3 || !running;
+    });
+  }
+  function upgrade(i) {
+    const p=players[i]; if(running && !p.rapid && p.points>=3) { p.points-=3; p.rapid=true; updateHud(); }
+  }
+  document.getElementById('upgrade1').addEventListener('click',()=>upgrade(0));
+  document.getElementById('upgrade2').addEventListener('click',()=>upgrade(1));
+  startBtn.addEventListener('click',reset);
+  window.addEventListener('keydown',e=>{
+    const k=e.key.toLowerCase();
+    if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k)) e.preventDefault();
+    keys.add(k);
+    if(!running && (k==='enter'||k===' ')) reset();
+  });
+  window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+  window.addEventListener('blur',()=>keys.clear());
+  function blocked(x,y,r) {
+    if(x-r<18||x+r>W-18||y-r<18||y+r>H-18) return true;
+    return walls.some(w=>x+r>w.x&&x-r<w.x+w.w&&y+r>w.y&&y-r<w.y+w.h);
+  }
+  function move(p,dx,dy) {
+    if(dx && !blocked(p.x+dx,p.y,p.r)) p.x+=dx;
+    if(dy && !blocked(p.x,p.y+dy,p.r)) p.y+=dy;
+  }
+  function reloadPlayer(p) {
+    if(running && p.ammo<12 && p.reload<=0) p.reload=60;
+  }
+  function shoot(p,owner) {
+    if(p.cool>0 || p.reload>0 || p.ammo<=0) return;
+    const d=p.aim;
+    bullets.push({x:p.x+d.x*24,y:p.y+d.y*24,vx:d.x*(p.rapid?8.3:7.1),vy:d.y*(p.rapid?8.3:7.1),r:5,owner,life:100,damage:p.rapid?12:17});
+    p.ammo--;
+    p.cool=p.rapid?8:19;
+  }
+  function getMousePos(e) {
+    const rect=canvas.getBoundingClientRect();
+    mousePos={x:(e.clientX-rect.left)*W/rect.width,y:(e.clientY-rect.top)*H/rect.height};
+  }
+  function aimPlayerAtMouse(e, playerIndex=0) {
+    getMousePos(e);
+    const p=players[playerIndex];
+    const dx=mousePos.x-p.x,dy=mousePos.y-p.y,len=Math.hypot(dx,dy);
+    if(len>0) p.aim={x:dx/len,y:dy/len};
+  }
+  canvas.addEventListener('mousemove', e=>{
+    aimPlayerAtMouse(e,0);
+    // Hold Shift to steer Player 2's aim with the same mouse.
+    if(e.shiftKey) aimPlayerAtMouse(e,1);
+  });
+  canvas.addEventListener('click', e=>{
+    aimPlayerAtMouse(e, e.shiftKey ? 1 : 0);
+    if(running) shoot(players[e.shiftKey ? 1 : 0],e.shiftKey ? 1 : 0);
+  });
+  canvas.addEventListener('contextmenu', e=>{
+    e.preventDefault();
+    aimPlayerAtMouse(e,1);
+    if(running) shoot(players[1],1);
+  });
+  function circleRect(b,w) {
+    const x=Math.max(w.x,Math.min(b.x,w.x+w.w)), y=Math.max(w.y,Math.min(b.y,w.y+w.h));
+    return (b.x-x)**2+(b.y-y)**2 < b.r*b.r;
+  }
+  function tick() {
+    frame++;
+    if(running) {
+      players.forEach((p,i)=>{
+        if(p.cool>0)p.cool--;
+        if(p.reload>0){p.reload--;if(p.reload===0)p.ammo=12;}
+        let dx=0,dy=0;
+        if(i===0) {
+          dx=(keys.has('d')?1:0)-(keys.has('a')?1:0); dy=(keys.has('s')?1:0)-(keys.has('w')?1:0);
+          if(keys.has('f'))shoot(p,i);
+          if(keys.has('r'))reloadPlayer(p);
+        } else {
+          dx=(keys.has('arrowright')?1:0)-(keys.has('arrowleft')?1:0); dy=(keys.has('arrowdown')?1:0)-(keys.has('arrowup')?1:0);
+          if(keys.has('enter'))shoot(p,i);
+          if(keys.has('shift'))reloadPlayer(p);
+        }
+        if(dx||dy) {
+          const len=Math.hypot(dx,dy); dx/=len;dy/=len;
+          p.dir={x:dx,y:dy}; move(p,dx*p.speed,dy*p.speed);
+        }
+      });
+      bullets=bullets.filter(b=>{
+        b.x+=b.vx;b.y+=b.vy;b.life--;
+        if(b.life<=0||b.x<0||b.x>W||b.y<0||b.y>H||walls.some(w=>circleRect(b,w)))return false;
+        const target=players[1-b.owner];
+        if(Math.hypot(b.x-target.x,b.y-target.y)<b.r+target.r) {
+          target.hp=Math.max(0,target.hp-b.damage);
+          if(target.hp<=0){running=false;winner=`PLAYER ${b.owner+1} WINS!`;keys.clear();}
+          updateHud(); return false;
+        }
+        return true;
+      });
+      updateHud();
+    }
+    draw(); requestAnimationFrame(tick);
+  }
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle='#0b1220';ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#17253a';ctx.lineWidth=1;
+    for(let x=20;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=20;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    // arena edge
+    ctx.strokeStyle='#41516c';ctx.lineWidth=3;ctx.strokeRect(18,18,W-36,H-36);
+    walls.forEach(w=>{
+      ctx.fillStyle='#25344c';ctx.fillRect(w.x,w.y,w.w,w.h);
+      ctx.strokeStyle='#536782';ctx.lineWidth=2;ctx.strokeRect(w.x,w.y,w.w,w.h);
+      ctx.fillStyle='#344660';ctx.fillRect(w.x+5,w.y+5,w.w-10,4);
+    });
+    // center divider motif
+    ctx.setLineDash([5,10]);ctx.strokeStyle='#273650';ctx.beginPath();ctx.moveTo(W/2,30);ctx.lineTo(W/2,H-30);ctx.stroke();ctx.setLineDash([]);
+    bullets.forEach(b=>{
+      ctx.fillStyle=b.owner===0?'#baf7ff':'#ffc0d8';ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=13;
+      ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+    });
+    players.forEach((p,i)=>{
+      if(p.hp<=0)return;
+      // Stylized top-down soldier: boots, camo trousers, tactical vest, helmet, backpack and rifle.
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(Math.atan2(p.aim.y,p.aim.x));
+      ctx.shadowColor='#000';ctx.shadowBlur=5;
+      // Backpack
+      ctx.fillStyle='#252d2a';ctx.strokeStyle='#080c10';ctx.lineWidth=2;
+      ctx.beginPath();ctx.roundRect(-12,-10,16,20,4);ctx.fill();ctx.stroke();
+      // Legs and boots
+      ctx.fillStyle='#4a5140';
+      ctx.beginPath();ctx.roundRect(-10,-10,13,8,3);ctx.fill();
+      ctx.beginPath();ctx.roundRect(-10,2,13,8,3);ctx.fill();
+      ctx.fillStyle='#171c20';
+      ctx.beginPath();ctx.roundRect(-12,-10,7,7,2);ctx.fill();
+      ctx.beginPath();ctx.roundRect(-12,3,7,7,2);ctx.fill();
+      // Body and shoulder pads
+      ctx.fillStyle=i===0?'#244b64':'#71343b';
+      ctx.beginPath();ctx.roundRect(-7,-12,24,24,6);ctx.fill();ctx.stroke();
+      // Tactical vest plates and pouches
+      ctx.fillStyle=i===0?'#344d56':'#4e3c3d';
+      ctx.beginPath();ctx.roundRect(0,-9,13,18,3);ctx.fill();
+      ctx.fillStyle='#111820';
+      for(let yy=-7;yy<=5;yy+=6){ctx.beginPath();ctx.roundRect(3,yy,7,4,1);ctx.fill();}
+      // Arms reaching toward weapon
+      ctx.fillStyle='#b58b69';ctx.strokeStyle='#25292b';ctx.lineWidth=2;
+      ctx.beginPath();ctx.roundRect(4,-13,14,6,3);ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.roundRect(4,7,14,6,3);ctx.fill();ctx.stroke();
+      // Helmet/head, with dark rim and face
+      ctx.fillStyle='#151b20';ctx.beginPath();ctx.ellipse(13,0,10,9,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#c29a76';ctx.beginPath();ctx.ellipse(15,0,7,6,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=i===0?'#304b39':'#333844';
+      ctx.beginPath();ctx.ellipse(12,-1,10,9,0,Math.PI,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#111820';ctx.fillRect(17,-2,5,4);
+      // Rifle held forward, with stock, receiver and barrel
+      ctx.fillStyle='#171c22';ctx.strokeStyle='#05080b';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.roundRect(12,-3,12,6,1);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#454d54';ctx.fillRect(20,-2,17,4);
+      ctx.fillStyle='#0b1015';ctx.fillRect(35,-1.5,8,3);
+      ctx.fillRect(24,2,3,5);
+      ctx.shadowBlur=0;ctx.restore();
+      // Team ring and label make players easy to distinguish from the arena.
+      ctx.strokeStyle=p.color;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(p.x,p.y+8,21,10,0,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle=p.color;ctx.fillRect(p.x-15,p.y-34,30,15);
+      ctx.fillStyle='#07101a';ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.fillText('P'+(i+1),p.x,p.y-23);
+    });
+    if(!running) {
+      ctx.fillStyle='#070b14cc';ctx.fillRect(0,0,W,H);
+      ctx.textAlign='center';ctx.fillStyle=winner?'#ffd166':'#f4f7ff';ctx.font='800 42px system-ui';
+      ctx.fillText(winner||'READY TO DUEL?',W/2,H/2-10);
+      ctx.fillStyle='#d1daeb';ctx.font='20px system-ui';
+      ctx.fillText(winner?'Click Start / Restart Match to play again':'Click Start / Restart Match to begin',W/2,H/2+32);
+    }
+  }
+  running=false; updateHud(); draw(); requestAnimationFrame(tick);
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chroma Snap</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #121218;
+    --panel: #1c1c25;
+    --panel-2: #23232e;
+    --text: #f1efe9;
+    --text-dim: #8b8a97;
+    --line: #33333f;
+
+    --c-crimson: #ef4a45;
+    --c-amber:   #f6b83e;
+    --c-emerald: #35d68c;
+    --c-azure:   #4d9bf6;
+    --c-violet:  #b078f0;
+  }
+  :root:not([data-theme="light"]){ }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){
+      --bg: #eeece5;
+      --panel: #ffffff;
+      --panel-2: #f6f4ee;
+      --text: #17171c;
+      --text-dim: #6b6a75;
+      --line: #d8d6cc;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg: #eeece5;
+    --panel: #ffffff;
+    --panel-2: #f6f4ee;
+    --text: #17171c;
+    --text-dim: #6b6a75;
+    --line: #d8d6cc;
+  }
+
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body{
+    display:flex; align-items:center; justify-content:center;
+    min-height:100vh;
+    padding: 24px 16px;
+  }
+
+  .stage{
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .topbar{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    margin-bottom: 14px;
+  }
+  .title{
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+  .stat{
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .statval{
+    color: var(--text);
+    font-weight: 600;
+  }
+  .stats-row{ display:flex; gap: 16px; }
+
+  .timerwrap{
+    height: 6px;
+    width: 100%;
+    background: var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 18px;
+  }
+  #timerbar{
+    height: 100%;
+    width: 100%;
+    background: var(--c-emerald);
+    transform-origin: left;
+    border-radius: 999px;
+  }
+
+  .orbwrap{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 36px 20px 30px;
+    display:flex; flex-direction:column; align-items:center;
+    gap: 14px;
+    margin-bottom: 18px;
+    position: relative;
+    overflow:hidden;
+  }
+  .prompt{
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align:center;
+    min-height: 16px;
+  }
+  .orb{
+    width: 108px; height: 108px;
+    border-radius: 50%;
+    background: var(--c-emerald);
+    box-shadow: 0 0 0 0 rgba(0,0,0,0);
+    transition: transform 60ms ease-out;
+  }
+  .orb.pulse{ animation: pop 220ms ease-out; }
+  @keyframes pop{
+    0%{ transform: scale(0.7); }
+    60%{ transform: scale(1.08); }
+    100%{ transform: scale(1); }
+  }
+  .shake{ animation: shakeit 260ms ease; }
+  @keyframes shakeit{
+    0%,100%{ transform: translateX(0); }
+    20%{ transform: translateX(-8px); }
+    40%{ transform: translateX(7px); }
+    60%{ transform: translateX(-5px); }
+    80%{ transform: translateX(4px); }
+  }
+
+  .grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .swatch{
+    border: none;
+    border-radius: 14px;
+    padding: 18px 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    color: #14141a;
+    cursor: pointer;
+    letter-spacing: 0.01em;
+    transition: transform 70ms ease-out, filter 100ms ease;
+  }
+  .swatch:active{ transform: scale(0.96); }
+  .swatch:focus-visible{ outline: 3px solid var(--text); outline-offset: 2px; }
+  .swatch.wrong-flash{ filter: brightness(0.6); }
+
+  .msg{
+    text-align:center;
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 14px;
+    min-height: 18px;
+  }
+
+  .overlay{
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    display:flex; align-items:center; justify-content:center;
+    padding: 20px;
+  }
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 340px;
+    text-align:center;
+  }
+  .card h1{
+    font-size: 22px;
+    margin: 0 0 6px;
+  }
+  .card p{
+    color: var(--text-dim);
+    font-size: 14px;
+    margin: 0 0 20px;
+    line-height: 1.5;
+  }
+  .bignum{
+    font-size: 42px;
+    font-weight: 700;
+    margin: 4px 0 2px;
+  }
+  .sub{
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 22px;
+  }
+  .btn{
+    width: 100%;
+    padding: 13px;
+    border-radius: 12px;
+    border: none;
+    background: var(--text);
+    color: var(--bg);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn:active{ transform: scale(0.98); }
+
+  .hidden{ display:none; }
+
+  .footer-hint{
+    text-align:center;
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-top: 14px;
+  }
+  kbd{
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-family: inherit;
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="topbar">
+    <div class="title">Chroma Snap</div>
+    <div class="stats-row">
+      <div class="stat">Score <span class="statval" id="score">0</span></div>
+      <div class="stat">Lives <span class="statval" id="lives">●●●</span></div>
+    </div>
+  </div>
+
+  <div class="timerwrap"><div id="timerbar"></div></div>
+
+  <div class="orbwrap">
+    <div class="prompt" id="prompt">tap the button that matches this color</div>
+    <div class="orb" id="orb"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="msg" id="msg">&nbsp;</div>
+  <div class="footer-hint">keys <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> <kbd>4</kbd> also work</div>
+</div>
+
+<div class="overlay" id="startOverlay">
+  <div class="card">
+    <h1>Chroma Snap</h1>
+    <p>A color flashes in the middle. Hit the matching button before the bar runs out. Three misses and it's over.</p>
+    <button class="btn" id="startBtn">Start</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="endOverlay">
+  <div class="card">
+    <h1>Game over</h1>
+    <div class="bignum" id="finalScore">0</div>
+    <div class="sub" id="bestLine">best: 0</div>
+    <button class="btn" id="retryBtn">Play again</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const COLORS = [
+    { name: "Crimson", value: "var(--c-crimson)" },
+    { name: "Amber",   value: "var(--c-amber)" },
+    { name: "Emerald", value: "var(--c-emerald)" },
+    { name: "Azure",   value: "var(--c-azure)" },
+    { name: "Violet",  value: "var(--c-violet)" }
+  ];
+
+  // ---- Tunable feel parameters ----
+  const CONFIG = {
+    startTimeMs: 1600,     // time allowed per round at the start
+    minTimeMs: 550,        // fastest the timer ever gets
+    timeStepMs: 55,        // how much faster each successive round gets
+    speedUpEvery: 1,       // rounds between difficulty increases
+    lives: 3,
+    optionCount: 4,        // buttons on screen (max 5)
+  };
+
+  const el = {
+    orb: document.getElementById('orb'),
+    grid: document.getElementById('grid'),
+    timerbar: document.getElementById('timerbar'),
+    score: document.getElementById('score'),
+    lives: document.getElementById('lives'),
+    msg: document.getElementById('msg'),
+    prompt: document.getElementById('prompt'),
+    startOverlay: document.getElementById('startOverlay'),
+    endOverlay: document.getElementById('endOverlay'),
+    startBtn: document.getElementById('startBtn'),
+    retryBtn: document.getElementById('retryBtn'),
+    finalScore: document.getElementById('finalScore'),
+    bestLine: document.getElementById('bestLine'),
+  };
+
+  let state = {
+    score: 0,
+    livesLeft: CONFIG.lives,
+    round: 0,
+    target: null,
+    options: [],
+    timeMs: CONFIG.startTimeMs,
+    deadline: 0,
+    raf: null,
+    running: false,
+    locked: false,
+  };
+
+  function getBest(){
+    try{
+      const v = localStorage.getItem('chromaSnapBest');
+      return v ? parseInt(v,10) : 0;
+    }catch(e){ return 0; }
+  }
+  function setBest(v){
+    try{ localStorage.setItem('chromaSnapBest', String(v)); }catch(e){}
+  }
+
+  function pickOptions(){
+    const shuffled = [...COLORS].sort(()=>Math.random()-0.5);
+    const n = Math.min(CONFIG.optionCount, COLORS.length);
+    const chosen = shuffled.slice(0, n);
+    const target = chosen[Math.floor(Math.random()*chosen.length)];
+    return { target, options: chosen.sort(()=>Math.random()-0.5) };
+  }
+
+  function renderLives(){
+    el.lives.textContent = '●'.repeat(state.livesLeft) + '○'.repeat(CONFIG.lives - state.livesLeft);
+  }
+
+  function buildGrid(){
+    el.grid.innerHTML = '';
+    state.options.forEach((c, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'swatch';
+      btn.style.background = c.value;
+      btn.textContent = c.name;
+      btn.dataset.name = c.name;
+      btn.addEventListener('click', () => handleAnswer(c.name, btn));
+      el.grid.appendChild(btn);
+    });
+  }
+
+  function newRound(){
+    state.locked = false;
+    state.round += 1;
+    const { target, options } = pickOptions();
+    state.target = target;
+    state.options = options;
+    el.orb.style.background = target.value;
+    el.orb.classList.remove('pulse');
+    void el.orb.offsetWidth;
+    el.orb.classList.add('pulse');
+    buildGrid();
+
+    if (state.round > 1 && (state.round - 1) % CONFIG.speedUpEvery === 0) {
+      state.timeMs = Math.max(CONFIG.minTimeMs, state.timeMs - CONFIG.timeStepMs);
+    }
+
+    startTimer();
+  }
+
+  function startTimer(){
+    cancelAnimationFrame(state.raf);
+    const duration = state.timeMs;
+    const start = performance.now();
+    el.timerbar.style.transition = 'none';
+    el.timerbar.style.width = '100%';
+    el.timerbar.style.background = 'var(--c-emerald)';
+
+    function tick(now){
+      const elapsed = now - start;
+      const frac = Math.max(0, 1 - elapsed / duration);
+      el.timerbar.style.width = (frac * 100) + '%';
+      if (frac < 0.35) el.timerbar.style.background = 'var(--c-crimson)';
+      else if (frac < 0.65) el.timerbar.style.background = 'var(--c-amber)';
+
+      if (elapsed >= duration) {
+        timeExpired();
+        return;
+      }
+      state.raf = requestAnimationFrame(tick);
+    }
+    state.raf = requestAnimationFrame(tick);
+  }
+
+  function timeExpired(){
+    if (state.locked) return;
+    state.locked = true;
+    loseLife();
+  }
+
+  function handleAnswer(name, btnEl){
+    if (state.locked || !state.running) return;
+    state.locked = true;
+    cancelAnimationFrame(state.raf);
+
+    if (name === state.target.name) {
+      state.score += 1;
+      el.score.textContent = state.score;
+      el.msg.textContent = pickPraise();
+      setTimeout(() => { if(state.running) newRound(); }, 160);
+    } else {
+      if (btnEl) btnEl.classList.add('wrong-flash');
+      loseLife();
+    }
+  }
+
+  function pickPraise(){
+    const p = ["nice.", "fast.", "clean hit.", "good eye.", "keep going."];
+    return p[Math.floor(Math.random()*p.length)];
+  }
+
+  function loseLife(){
+    state.livesLeft -= 1;
+    renderLives();
+    document.querySelector('.orbwrap').classList.add('shake');
+    setTimeout(()=> document.querySelector('.orbwrap').classList.remove('shake'), 260);
+
+    if (state.livesLeft <= 0) {
+      endGame();
+    } else {
+      el.msg.textContent = 'missed — bar refills.';
+      setTimeout(() => { if(state.running) newRound(); }, 400);
+    }
+  }
+
+  function endGame(){
+    state.running = false;
+    cancelAnimationFrame(state.raf);
+    const best = Math.max(getBest(), state.score);
+    setBest(best);
+    el.finalScore.textContent = state.score;
+    el.bestLine.textContent = 'best: ' + best;
+    el.endOverlay.classList.remove('hidden');
+  }
+
+  function startGame(){
+    state.score = 0;
+    state.livesLeft = CONFIG.lives;
+    state.round = 0;
+    state.timeMs = CONFIG.startTimeMs;
+    state.running = true;
+    el.score.textContent = '0';
+    renderLives();
+    el.msg.textContent = '\u00a0';
+    el.startOverlay.classList.add('hidden');
+    el.endOverlay.classList.add('hidden');
+    newRound();
+  }
+
+  el.startBtn.addEventListener('click', startGame);
+  el.retryBtn.addEventListener('click', startGame);
+
+  window.addEventListener('keydown', (e) => {
+    if (!state.running) return;
+    const idx = parseInt(e.key, 10) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= state.options.length) return;
+    const btn = el.grid.children[idx];
+    if (btn) handleAnswer(state.options[idx].name, btn);
+  });
+})();
+</script>
+
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

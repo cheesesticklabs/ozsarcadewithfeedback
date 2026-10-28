@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Overlord Whiskers 2187</title>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0a22;--bg2:#241046;--ink:#f1ecff;--dim:#9a8fc4;--pink:#ff3d9a;--cyan:#3de8ff;--gold:#ffd23d;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:linear-gradient(#0d0a22,#2a1050 70%,#4a1458);color:var(--ink);font-family:"Chakra Petch",system-ui,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+#app{height:100%;display:flex;flex-direction:column;max-width:1280px;margin:0 auto;padding:8px 10px}
+h1{font-size:1.15rem;margin:0;letter-spacing:.04em}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.top span{color:var(--dim);font-size:.8rem}
+.meters{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:6px 0 8px}
+.m label{display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:3px}
+.bar{height:12px;border:1px solid var(--dim);background:#0006;border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;width:100%;transition:width .15s}
+#hpb{background:var(--cyan)}#domb{background:var(--pink);width:0}
+#arena{position:relative;flex:1;min-height:0;border:1px solid #5b3fa0;border-radius:6px;overflow:hidden;background:radial-gradient(circle at 50% 110%,#ff3d9a55,transparent 60%)}
+#sky{position:absolute;inset:auto 0 0 0;width:100%;height:45%;opacity:.55}
+#cat{position:absolute;width:124px;height:124px;margin:-62px 0 0 -62px;cursor:crosshair;transition:left .35s cubic-bezier(.5,0,.2,1),top .35s cubic-bezier(.5,0,.2,1);filter:drop-shadow(0 0 12px var(--pink))}
+#cat.shield{filter:drop-shadow(0 0 16px var(--gold))}
+#cat.shield .ring{opacity:1}
+#cat.stun{animation:spin 1s linear infinite;filter:drop-shadow(0 0 14px var(--cyan))}
+#cat.hit{transform:scale(.88)}
+.ring{opacity:0;transition:opacity .1s}
+@keyframes spin{to{rotate:360deg}}
+#fx{position:absolute;left:0;right:0;top:8px;text-align:center;font-weight:700;pointer-events:none;color:var(--gold);min-height:1.2em}
+.row{display:flex;gap:10px;margin-top:8px;align-items:center}
+button{font:inherit;font-weight:700;background:var(--cyan);color:#0d0a22;border:0;border-radius:4px;padding:12px 16px;cursor:pointer}
+button:disabled{background:#3b3466;color:var(--dim);cursor:default}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.hint{font-size:.78rem;color:var(--dim);line-height:1.35}
+#veil{position:absolute;inset:0;background:#0d0a22ee;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:12px}
+#veil h2{margin:0;font-size:1.5rem}
+#veil p{margin:0;max-width:44ch;line-height:1.45;color:var(--dim)}
+#veil[hidden]{display:none}
+@media (prefers-reduced-motion:reduce){#cat.stun{animation:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top"><h1>Overlord Whiskers</h1><span>Neo-Meridian, 2187</span></div>
+  <div class="meters">
+    <div class="m"><label><span>Whiskers’ power core</span><span id="hpt">100</span></label><div class="bar"><i id="hpb"></i></div></div>
+    <div class="m"><label><span>Humankind subjugated</span><span id="domt">0%</span></label><div class="bar"><i id="domb"></i></div></div>
+  </div>
+  <div id="arena">
+    <svg id="sky" viewBox="0 0 400 100" preserveAspectRatio="none" aria-hidden="true"></svg>
+    <div id="fx"></div>
+    <div id="cat" role="button" aria-label="Overlord Whiskers">
+      <svg viewBox="0 0 100 100">
+        <path d="M12 50 L18 8 L40 26 Q50 23 60 26 L82 8 L88 50 Q90 88 50 90 Q10 88 12 50Z" fill="#1a1236" stroke="#ff3d9a" stroke-width="3"/>
+        <rect x="24" y="42" width="52" height="14" rx="7" fill="#3de8ff"/>
+        <rect x="24" y="42" width="52" height="14" rx="7" fill="none" stroke="#fff" stroke-opacity=".6"/>
+        <circle cx="38" cy="49" r="3" fill="#0d0a22"/><circle cx="62" cy="49" r="3" fill="#0d0a22"/>
+        <path d="M44 68 L50 74 L56 68Z" fill="#ff3d9a"/>
+        <path d="M30 72 L8 68M30 77 L10 82M70 72 L92 68M70 77 L90 82" stroke="#f1ecff" stroke-width="2"/>
+        <circle class="ring" cx="50" cy="50" r="48" fill="none" stroke="#ffd23d" stroke-width="3" stroke-dasharray="8 5"/>
+      </svg>
+    </div>
+    <div id="veil">
+      <h2 id="vt">Stop the cat.</h2>
+      <p id="vp">In 2187, Overlord Whiskers runs the city’s robot grid and wants every human to serve. Tap the cat to drain its core. When it raises golden claws, hold off or it will rule faster. Use the laser pointer to freeze it.</p>
+      <button id="go">Start the uprising</button>
+    </div>
+  </div>
+  <div class="row">
+    <button id="laser">Laser pointer</button>
+    <div class="hint" id="lh">Ready. Freezes the cat for 3 seconds.</div>
+  </div>
+</div>
+<script>
+(function(){
+  var $=function(i){return document.getElementById(i)};
+  var cat=$('cat'),arena=$('arena'),fx=$('fx'),veil=$('veil'),laser=$('laser');
+  // skyline
+  var sky=$('sky'),h='';
+  for(var x=0;x<400;x+=22){var bh=20+Math.random()*70;h+='<rect x="'+x+'" y="'+(100-bh)+'" width="18" height="'+bh+'" fill="#1a0f3d" stroke="#3de8ff" stroke-opacity=".5"/>';
+    for(var y=100-bh+6;y<96;y+=10){if(Math.random()>.5)h+='<rect x="'+(x+4)+'" y="'+y+'" width="3" height="3" fill="#ffd23d"/>';}}
+  sky.innerHTML=h;
+
+  var hp,dom,shield,stunned,cd,run,tMove,tShield,tTick,fxT;
+  function say(t){fx.textContent=t;clearTimeout(fxT);fxT=setTimeout(function(){fx.textContent=''},900)}
+  function draw(){
+    $('hpb').style.width=Math.max(hp,0)+'%';$('hpt').textContent=Math.max(Math.ceil(hp),0);
+    $('domb').style.width=Math.min(dom,100)+'%';$('domt').textContent=Math.min(Math.floor(dom),100)+'%';
+  }
+  function place(){
+    var pad=12;
+    cat.style.left=(pad+Math.random()*(100-2*pad))+'%';
+    cat.style.top=(pad+Math.random()*(100-2*pad))+'%';
+  }
+  function moveLoop(){
+    if(!run)return;
+    if(!stunned){place();
+      if(Math.random()<.35){shield=true;cat.classList.add('shield');
+        clearTimeout(tShield);tShield=setTimeout(function(){shield=false;cat.classList.remove('shield')},750)}}
+    var delay=Math.max(450,1200-(100-hp)*8);
+    tMove=setTimeout(moveLoop,delay);
+  }
+  function tick(){
+    if(!run)return;
+    dom+=stunned?0:.14+(100-hp)*.0012;
+    if(cd>0){cd-=.1;laser.disabled=true;$('lh').textContent='Recharging… '+Math.ceil(cd)+'s'}
+    else if(laser.disabled&&!stunned){laser.disabled=false;$('lh').textContent='Ready. Freezes the cat for 3 seconds.'}
+    draw();
+    if(dom>=100)end(false);
+  }
+  function hit(e){
+    if(!run)return;e.preventDefault();
+    cat.classList.add('hit');setTimeout(function(){cat.classList.remove('hit')},90);
+    if(shield&&!stunned){dom+=7;say('Claws up! +7% takeover');}
+    else{hp-=stunned?9:6;say(stunned?'Direct hit! -9':'Hit! -6');}
+    draw();
+    if(hp<=0)end(true);else if(dom>=100)end(false);
+  }
+  function useLaser(){
+    if(!run||cd>0)return;
+    stunned=true;shield=false;cat.classList.remove('shield');cat.classList.add('stun');
+    cd=10;laser.disabled=true;say('The cat chases the red dot!');
+    setTimeout(function(){stunned=false;cat.classList.remove('stun')},3000);
+  }
+  function end(win){
+    run=false;clearTimeout(tMove);clearTimeout(tShield);clearInterval(tTick);
+    cat.classList.remove('stun','shield');
+    $('vt').textContent=win?'Humanity is free.':'Hail Whiskers.';
+    $('vp').textContent=win?'The overlord’s core goes dark and it curls up for a nap. Neo-Meridian is yours again.':'The grid falls silent and every screen shows one smug cat. The city belongs to Whiskers now.';
+    $('go').textContent='Try again';veil.hidden=false;
+  }
+  function start(){
+    hp=100;dom=0;shield=false;stunned=false;cd=0;run=true;
+    laser.disabled=false;$('lh').textContent='Ready. Freezes the cat for 3 seconds.';
+    veil.hidden=true;cat.style.left='50%';cat.style.top='50%';draw();
+    tMove=setTimeout(moveLoop,700);tTick=setInterval(tick,100);
+  }
+  cat.addEventListener('pointerdown',hit);
+  laser.addEventListener('click',useLaser);
+  $('go').addEventListener('click',start);
+  cat.style.left='50%';cat.style.top='50%';draw();
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

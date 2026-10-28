@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE FUNHOUSE IS WATCHING — Horror Prototype</title>
+<style>
+:root{--pink:#ff287f;--cyan:#54f7ef;--purple:#9a52ff;--paper:#f7e9ff}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#05030a;color:var(--paper);font-family:system-ui,Arial,sans-serif}
+#game{display:block;width:100vw;height:100vh;background:#08050d;cursor:crosshair}
+#hud{position:fixed;inset:0;pointer-events:none;text-shadow:0 2px 5px #000}
+.top{position:absolute;left:22px;right:22px;top:16px;display:flex;justify-content:space-between;gap:15px;font-size:13px;letter-spacing:2px;text-transform:uppercase}
+.badge{background:#09050dbb;border:1px solid #d85ba766;padding:10px 13px;box-shadow:0 0 18px #ff287f18}
+#objective{position:absolute;left:50%;top:72px;transform:translateX(-50%);text-align:center;font-size:12px;letter-spacing:2px;color:#f8d9ff;max-width:90vw}
+#crosshair{position:absolute;left:50%;top:50%;width:5px;height:5px;background:#fff;border-radius:50%;box-shadow:0 0 8px #ff287f}
+#message{position:absolute;left:50%;bottom:15%;transform:translateX(-50%);text-align:center;font-size:clamp(13px,2vw,18px);letter-spacing:2px;color:#fff;max-width:90vw}
+#vignette{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 28%,#0008 68%,#000 125%);pointer-events:none}
+.turnpad{position:fixed;bottom:24px;display:flex;gap:10px;z-index:3;pointer-events:auto}
+.turnpad.left{left:calc(25% - 74px)}.turnpad.right{left:calc(75% - 74px)}
+.turnbtn{width:62px;height:54px;margin:0;padding:0;border:1px solid #ffffff66;border-radius:13px;background:#100a20cc;color:#fff;font-size:24px;box-shadow:0 0 18px #ff287f22;touch-action:none;user-select:none;-webkit-user-select:none}
+.turnbtn:active{background:#ff287f;color:white;transform:scale(.96)}
+@media(max-width:600px){.turnpad{bottom:12px;gap:7px}.turnbtn{width:54px;height:48px}.turnpad.left{left:calc(25% - 64px)}.turnpad.right{left:calc(75% - 64px)}}
+#jumpscare{position:fixed;inset:0;z-index:4;display:none;align-items:center;justify-content:center;pointer-events:none;background:#100008}
+#jumpscare.jump{display:flex;animation:jumpflash .85s steps(2,end) forwards}
+.scare-face{position:relative;width:min(80vw,680px);height:min(88vh,720px);border-radius:48% 48% 42% 42%;background:radial-gradient(ellipse at 50% 35%,#6c0b27 0,#16030d 50%,#000 78%);border:8px solid #24020e;box-shadow:0 0 70px #ff003f, inset 0 0 50px #000;transform:scale(.7);animation:faceRush .85s cubic-bezier(.15,.7,.1,1) forwards}
+.scare-eyes{display:flex;justify-content:space-around;margin:19% 10% 0}.scare-eyes i{width:18%;height:10vh;background:#fff;border-radius:50%;box-shadow:0 0 35px #ff003f;position:relative}.scare-eyes i:after{content:'';position:absolute;width:35%;height:70%;background:#ff003f;border-radius:50%;left:34%;top:15%}
+.scare-mouth{position:absolute;left:12%;right:12%;top:48%;height:32%;background:#050004;border:8px solid #a3002d;border-radius:48% 48% 38% 38%;box-shadow:0 0 30px #ff003f}
+.scare-mouth:after{content:'▼ ▼ ▼ ▼ ▼ ▼ ▼';position:absolute;left:2%;right:2%;top:0;color:#fff;font-size:clamp(17px,4vw,40px);letter-spacing:1px;white-space:nowrap;overflow:hidden;text-align:center;text-shadow:0 0 9px white}
+.scare-caption{position:absolute;bottom:5%;width:100%;text-align:center;color:#fff;font-weight:1000;font-size:clamp(28px,6vw,72px);letter-spacing:12px;text-shadow:0 0 18px #ff003f}
+@keyframes jumpflash{0%{opacity:1}8%{opacity:.1}16%{opacity:1}65%{opacity:1}100%{opacity:0;display:none}}
+@keyframes faceRush{0%{transform:scale(.08) rotate(-8deg)}45%{transform:scale(1.18) rotate(3deg)}100%{transform:scale(1)}}
+#static{position:absolute;inset:0;opacity:0;pointer-events:none;background:repeating-linear-gradient(0deg,#fff0 0px,#fff0 2px,#fff1 3px,#fff0 4px);mix-blend-mode:screen}
+#overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse,#271033eF,#05030af7 70%);z-index:5}
+.panel{width:min(680px,92vw);padding:clamp(22px,5vw,48px);border:1px solid #ff287f88;background:#0b0615eF;box-shadow:0 0 70px #ff287f18;text-align:center}
+h1{font-size:clamp(29px,6vw,64px);line-height:.98;letter-spacing:3px;margin:0 0 14px;color:#fff;text-shadow:3px 0 #ff287f,-3px 0 #54f7ef}
+.kicker{color:var(--cyan);letter-spacing:4px;font-size:12px;font-weight:800}
+.panel p{color:#d4c4e2;line-height:1.65}
+button{pointer-events:auto;border:0;background:linear-gradient(100deg,#ff287f,#a64dff);color:white;font-weight:900;letter-spacing:2px;padding:14px 25px;cursor:pointer;margin-top:10px}
+.small{font-size:12px;color:#9887aa!important}
+#endTitle{font-size:clamp(32px,6vw,60px);color:#ff438c}
+@media(max-width:600px){.top{left:8px;right:8px;top:8px;font-size:10px}.badge{padding:7px}.hide-mobile{display:none}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="jumpscare" aria-hidden="true"><div class="scare-face"><div class="scare-eyes"><i></i><i></i></div><div class="scare-mouth"></div><div class="scare-caption">SMILE.</div></div></div>\n<div id="hud">
+  <div class="top">
+    <div class="badge">PLAYER 1 <span style="color:var(--pink)">●</span> W/S + A/D TURN</div>
+    <div class="badge" id="sanity">NERVES ▰▰▰▰▰</div>
+    <div class="badge">PLAYER 2 <span style="color:var(--cyan)">●</span> ↑/↓ + ←/→ TURN</div>
+  </div>
+  <div id="objective">OBJECTIVE: EXPLORE THE CIRCUS • FIND 3 FUSES • ESCAPE</div>
+  <div id="crosshair"></div><div id="message">THE AUDIENCE IS WAITING.</div>
+  <div class="turnpad left" aria-label="Player 1 turning buttons"><button class="turnbtn" data-player="0" data-turn="-1" aria-label="Player 1 turn left">◀</button><button class="turnbtn" data-player="0" data-turn="1" aria-label="Player 1 turn right">▶</button></div>
+  <div class="turnpad right" aria-label="Player 2 turning buttons"><button class="turnbtn" data-player="1" data-turn="-1" aria-label="Player 2 turn left">◀</button><button class="turnbtn" data-player="1" data-turn="1" aria-label="Player 2 turn right">▶</button></div>
+  <div id="vignette"></div><div id="static"></div>
+</div>
+<div id="overlay">
+ <div class="panel">
+  <div class="kicker">AN UNOFFICIAL FAN-INSPIRED HORROR PROTOTYPE</div>
+  <h1 id="title">THE FUNHOUSE<br>IS WATCHING</h1>
+  <p id="intro">Welcome to the abandoned Wonderwheel Circus. Explore the Big Top, the mirror gallery, the concession stand, the animal cages and the backstage dressing rooms. The show has been closed for years—but the attractions are still running.<br><br><b>Find 3 power fuses and escape.</b> Stay alert: sounds can come from behind you. The creatures can appear without warning.</p>
+  <p><b>PLAYER 1:</b> W/S move, A/D turn &nbsp; <b>PLAYER 2:</b> ↑/↓ move, ←/→ turn<br><b>SHIFT:</b> sprint • <b>E:</b> interact • <b>ESC:</b> pause</p>
+  <button id="start">ENTER THE FUNHOUSE</button>
+  <p class="small">Headphones recommended. Keep the volume comfortable. This is a browser-made horror prototype; visuals and scares are stylized, not realistic gore.</p>
+ </div>
+</div>
+<script>
+(()=>{
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+let W=innerWidth,H=innerHeight,dpr=Math.min(devicePixelRatio||1,1.5);
+function resize(){W=innerWidth;H=innerHeight;canvas.width=Math.floor(W*dpr);canvas.height=Math.floor(H*dpr);canvas.style.width=W+'px';canvas.style.height=H+'px';ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',resize);resize();
+const TAU=Math.PI*2;
+const map=[
+"########################",
+"#S.....................#",
+"#......................#",
+"#..####..........####..#",
+"#......................#",
+"#......................#",
+"#..####..........####..#",
+"#......................#",
+"#......#.###...........#",
+"#......#......#........#",
+"#......................#",
+"#......#......#........#",
+"#.....................E#",
+"#......................#",
+"########################"
+];
+const ts=2, mw=map[0].length,mh=map.length;
+function wall(x,y){let tx=Math.floor(x),ty=Math.floor(y);return tx<0||ty<0||tx>=mw||ty>=mh||map[ty][tx]==='#'}
+function clearMove(p,dx,dy){const r=.18;if(!wall(p.x+dx+Math.sign(dx)*r,p.y)||!wall(p.x+dx+Math.sign(dx)*r,p.y+r)||!wall(p.x+dx+Math.sign(dx)*r,p.y-r))p.x+=dx;if(!wall(p.x,p.y+dy+Math.sign(dy)*r)||!wall(p.x+r,p.y+dy+Math.sign(dy)*r)||!wall(p.x-r,p.y+dy+Math.sign(dy)*r))p.y+=dy}
+const keys={};const turnHeld=[0,0];let active=false,paused=false,ended=false,won=false,last=0,elapsed=0,scare=0,scareType=0,shake=0,flash=0,blackout=0,subtitleTimer=0,subtitle='',fuses=[],fuseCount=0,exitOn=false,monster={x:12.5,y:7.5,dir:0,mode:'stalk',timer:0},creatures=[],players=[],nearFuse=null,doorPulse=0;
+const sounds={ctx:null,master:null,ambient:null,ambientGain:null,lastScare:0};
+const props=[
+ {x:10.5,y:2.5,type:'banner'},{x:13.5,y:2.5,type:'banner'},
+ {x:4.5,y:2.5,type:'ticket'},{x:19.5,y:2.5,type:'concession'},
+ {x:2.5,y:8.5,type:'mirror'},{x:4.5,y:8.5,type:'mirror'},
+ {x:10.5,y:7.5,type:'carousel'},{x:13.5,y:7.5,type:'carousel'},
+ {x:19.5,y:8.5,type:'cage'},{x:21.5,y:9.5,type:'cage'},
+ {x:9.5,y:12.5,type:'balloons'},{x:14.5,y:12.5,type:'balloons'},
+ {x:17.5,y:12.5,type:'stage'},{x:5.5,y:12.5,type:'ringmaster'},
+ {x:8.5,y:2.5,type:'banner'},{x:15.5,y:2.5,type:'banner'},
+ {x:2.5,y:5.5,type:'balloons'},{x:21.5,y:5.5,type:'balloons'},
+ {x:3.5,y:10.5,type:'ticket'},{x:20.5,y:10.5,type:'concession'},
+ {x:10.5,y:13.5,type:'mirror'},{x:12.5,y:13.5,type:'cage'},
+ {x:18.5,y:1.5,type:'carousel'},{x:5.5,y:1.5,type:'ringmaster'}
+];
+function startAudio(){
+ try{
+  if(!sounds.ctx)sounds.ctx=new(window.AudioContext||window.webkitAudioContext)();
+  const a=sounds.ctx;
+  if(a.state==='suspended')a.resume();
+  if(!sounds.ambient){
+   const osc=a.createOscillator(),osc2=a.createOscillator(),g=a.createGain(),filter=a.createBiquadFilter();
+   osc.type='sawtooth';osc.frequency.value=42;osc2.type='sine';osc2.frequency.value=57;
+   filter.type='lowpass';filter.frequency.value=130;g.gain.value=.018;
+   osc.connect(filter);osc2.connect(filter);filter.connect(g);g.connect(a.destination);
+   osc.start();osc2.start();sounds.ambient={osc,osc2,g,filter};
+   // A slow, uneasy carnival-organ chord that subtly shifts.
+   setInterval(()=>{if(!sounds.ctx||!sounds.ambient)return;let t=sounds.ctx.currentTime;sounds.ambient.osc.frequency.setTargetAtTime(38+Math.random()*13,t,.8);sounds.ambient.osc2.frequency.setTargetAtTime(51+Math.random()*15,t,1.1);},4200);
+  }
+ }catch(e){}
+}
+function noiseBurst(duration=.4,volume=.08){
+ try{
+  if(!sounds.ctx)startAudio();const a=sounds.ctx;if(!a)return;
+  const n=Math.floor(a.sampleRate*duration),buf=a.createBuffer(1,n,a.sampleRate),data=buf.getChannelData(0);
+  for(let i=0;i<n;i++)data[i]=(Math.random()*2-1)*(1-i/n);
+  const src=a.createBufferSource(),g=a.createGain(),f=a.createBiquadFilter();
+  f.type='bandpass';f.frequency.value=650+Math.random()*1600;g.gain.value=volume;
+  src.buffer=buf;src.connect(f);f.connect(g);g.connect(a.destination);src.start();
+ }catch(e){}
+}
+function jumpscare(){
+ if(!active||ended||elapsed-sounds.lastScare<14)return;
+ sounds.lastScare=elapsed;scare=1.3;shake=.9;flash=.2;blackout=.12;
+ const el=document.getElementById('jumpscare');if(el){el.classList.remove('jump');void el.offsetWidth;el.classList.add('jump');}
+ sound('sting');noiseBurst(.75,.16);say('IT WAS RIGHT THERE.',1.4);
+}
+function sound(type){try{if(!sounds.ctx)startAudio();let a=sounds.ctx,osc=a.createOscillator(),gain=a.createGain();osc.connect(gain);gain.connect(a.destination);let now=a.currentTime;let freq=type==='sting'?90:type==='thump'?48:type==='whisper'?430:70;osc.type=type==='whisper'?'sawtooth':'sine';osc.frequency.setValueAtTime(freq,now);if(type==='sting'){osc.frequency.exponentialRampToValueAtTime(950,now+.12);noiseBurst(.3,.12)}if(type==='thump')osc.frequency.exponentialRampToValueAtTime(28,now+.3);if(type==='whisper')osc.frequency.exponentialRampToValueAtTime(90,now+.4);gain.gain.setValueAtTime(.0001,now);gain.gain.exponentialRampToValueAtTime(type==='sting'?.17:.07,now+.02);gain.gain.exponentialRampToValueAtTime(.0001,now+(type==='sting'?.45:.6));osc.start(now);osc.stop(now+.65)}catch(e){}}
+function say(s,d=3){subtitle=s;subtitleTimer=d;document.getElementById('message').textContent=s}
+function reset(){
+ players=[{x:1.6,y:1.6,angle:0,color:'#ff438f',name:'P1',lives:3,atExit:false},{x:22.3,y:1.6,angle:Math.PI,color:'#56fff2',name:'P2',lives:3,atExit:false}];
+ let candidates=[];for(let y=1;y<mh-1;y++)for(let x=1;x<mw-1;x++)if(!wall(x+.5,y+.5)&&!(x<4&&y<4)&&!(x>19&&y<4)&&!(x>19&&y>10))candidates.push({x:x+.5,y:y+.5});
+ for(let i=candidates.length-1;i>0;i--){let j=Math.random()*(i+1)|0;[candidates[i],candidates[j]]=[candidates[j],candidates[i]]}
+ fuses=candidates.slice(0,3).map(p=>({...p,got:false}));fuseCount=0;exitOn=false;monster={x:12.5,y:7.5,dir:0,mode:'stalk',timer:7};creatures=[{x:5.5,y:9.5,type:'tall',timer:4,mode:'stalk'},{x:18.5,y:5.5,type:'grin',timer:6,mode:'stalk'}];elapsed=0;scare=0;shake=0;flash=0;blackout=0;sounds.lastScare=0;ended=false;won=false;paused=false;active=false;
+ document.getElementById('overlay').style.display='flex';document.getElementById('title').innerHTML='THE FUNHOUSE<br>IS WATCHING';document.getElementById('intro').innerHTML='The show has crashed. The lights are dead. Somewhere inside this impossible circus, something is smiling in the dark.<br><br><b>Find 3 power fuses.</b> Both players share one screen. Use the turn buttons at the bottom OR keyboard turning: A/D for Player 1, ←/→ for Player 2. Explore the open circus grounds and its attractions. Listen carefully. The game uses creepy procedural audio and sudden visual scares; click to enable sound.';document.getElementById('start').textContent='ENTER THE FUNHOUSE';say('THE AUDIENCE IS WAITING.');updateHud()
+}
+function updateHud(){document.getElementById('objective').textContent=exitOn?'OBJECTIVE: BOTH PLAYERS MUST REACH THE EXIT':'OBJECTIVE: EXPLORE THE CIRCUS • FIND 3 FUSES • ESCAPE';document.getElementById('sanity').textContent='NERVES '+(scare>0?'▰▰▱▱▱':'▰▰▰▰▰')+' • FUSES '+fuseCount+'/3'}
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function update(dt){
+ if(!active||paused||ended)return;elapsed+=dt;scare=Math.max(0,scare-dt);shake=Math.max(0,shake-dt*2);flash=Math.max(0,flash-dt*2);blackout=Math.max(0,blackout-dt);doorPulse+=dt;
+ for(let i=0;i<2;i++){
+  let p=players[i];
+  // Classic FPS controls: forward/back move; left/right rotate the camera.
+  const forward=i===0?(keys['w']?1:0)-(keys['s']?1:0):(keys['arrowup']?1:0)-(keys['arrowdown']?1:0);
+  const turnKey=i===0?((keys['d']?1:0)-(keys['a']?1:0)):((keys['arrowright']?1:0)-(keys['arrowleft']?1:0));
+  const turn=turnHeld[i]||turnKey;
+  p.angle+=turn*1.85*dt;
+  if(forward){const speed=(keys['shift']?3.0:2.0)*dt;clearMove(p,Math.cos(p.angle)*forward*speed,Math.sin(p.angle)*forward*speed)}
+  for(const f of fuses)if(!f.got&&dist(p,f)<.65&&keys['e']){f.got=true;fuseCount++;say(['THE LIGHTS REMEMBER YOU.','ONE PIECE OF THE SHOW IS BACK.','IT HEARD THAT. KEEP MOVING.'][fuseCount-1],3);sound('whisper');if(fuseCount===3){exitOn=true;say('THE EXIT IS OPEN. IT KNOWS WHERE YOU ARE.',4);sound('sting')}updateHud()}
+ }
+ // monster behavior: lurks, then hunts nearest player. Speed ramps.
+ let target=players.reduce((a,b)=>dist(monster,a)<dist(monster,b)?a:b);
+ let d=dist(monster,target);monster.timer-=dt;
+ if(monster.timer<=0){monster.mode=monster.mode==='stalk'?'hunt':'stalk';monster.timer=monster.mode==='hunt'?5+Math.random()*3:3+Math.random()*4;if(monster.mode==='hunt'){say('RUN. RUN. RUN.',2);sound('thump')}}
+ if(monster.mode==='hunt'||d<3.4){
+  let dx=target.x-monster.x,dy=target.y-monster.y,n=Math.hypot(dx,dy)||1,speed=(monster.mode==='hunt'?1.65:0.65)*dt;
+  const nx=monster.x+dx/n*speed,ny=monster.y+dy/n*speed;
+  if(!wall(nx,monster.y))monster.x=nx;if(!wall(monster.x,ny))monster.y=ny;
+  monster.dir=Math.atan2(dy,dx);
+ }
+ for(const p of players)if(dist(p,monster)<.48){ended=true;won=false;scare=1;shake=1;flash=1;sound('sting');showEnd(false);return}
+ // Other threats: the Tall One stalks the player farthest from the exit; the Grin drifts, then lunges.
+ for(const c of creatures){
+  const t=c.type==='tall' ? players.reduce((a,b)=>dist(c,a)>dist(c,b)?a:b) : target;
+  const cd=dist(c,t);c.timer-=dt;
+  if(c.timer<=0){c.mode=c.mode==='stalk'?'hunt':'stalk';c.timer=c.mode==='hunt'?2.8+Math.random()*2:4+Math.random()*5;if(c.mode==='hunt'&&cd<7){say(c.type==='tall'?'DON’T LOOK UP.':'SMILE FOR THE SHOW.',2);sound('whisper');}}
+  if(c.mode==='hunt'||cd<2.5){
+   let dx=t.x-c.x,dy=t.y-c.y,n=Math.hypot(dx,dy)||1,spd=(c.type==='tall'?.55:.82)*dt;
+   let nx=c.x+dx/n*spd,ny=c.y+dy/n*spd;if(!wall(nx,c.y))c.x=nx;if(!wall(c.x,ny))c.y=ny;
+  }
+  if(cd<4&&Math.random()<dt*.08){scare=Math.max(scare,.8);shake=Math.max(shake,.35);sound('thump')}
+  if(players.some(p=>dist(p,c)<.38)){ended=true;won=false;scare=1;shake=1;flash=1;sound('sting');showEnd(false);return}
+ }
+ if(exitOn){for(const p of players)if(Math.floor(p.x)===22&&Math.floor(p.y)===12)p.atExit=true;if(players.every(p=>p.atExit)){ended=true;won=true;showEnd(true);return}}
+ if(d<4.5&&Math.random()<dt*.22){scare=Math.max(scare,.7);document.getElementById('static').style.opacity='.25';}
+ if(elapsed>7&&Math.random()<dt*.022)jumpscare();
+ if(d<2.2&&Math.random()<dt*.25)jumpscare();
+ // Ambient off-screen whispers and distant carnival impacts.
+ if(Math.random()<dt*.035){sound(Math.random()<.55?'whisper':'thump');if(Math.random()<.35)say(Math.random()<.5?'THE MUSIC NEVER STOPS.':'DON’T TURN AROUND.',1.8);}
+ else document.getElementById('static').style.opacity=String(Math.random()<.03?.1:0);
+ if(elapsed>12&&Math.floor(elapsed)%17===0&&Math.random()<dt*.2){blackout=.5;sound('thump')}
+ if(subtitleTimer>0){subtitleTimer-=dt;if(subtitleTimer<=0)document.getElementById('message').textContent='';}
+ updateHud()
+}
+function showEnd(win){document.getElementById('overlay').style.display='flex';document.getElementById('title').id='endTitle';let title=document.getElementById('endTitle');title.innerHTML=win?'YOU LEFT THE SHOW':'SHE FOUND YOU';document.getElementById('intro').innerHTML=win?'The door slams behind you. In the silence, you hear applause from somewhere underground. You escaped… this time.':'The teeth fill the darkness. The last thing you hear is the sound of a crowd cheering from an empty tent.';document.getElementById('start').textContent='PLAY AGAIN';}
+function castRay(px,py,ang,max=24){let sin=Math.sin(ang),cos=Math.cos(ang);for(let d=.02;d<max;d+=.025){let x=px+cos*d,y=py+sin*d;if(wall(x,y))return {d,x,y,side:Math.abs((x%1)-.5)>Math.abs((y%1)-.5)?0:1};}return {d:max,x:px+cos*max,y:py+sin*max,side:0}}
+function wallColor(x,y){
+ let tx=Math.floor(x),ty=Math.floor(y),v=(tx+ty)%6;
+ // circus stripe panels and aged velvet
+ if(tx%3===0)return '#713047';
+ return ['#402044','#2c1d3d','#59223f','#243341','#37234f','#63314b','#7b3a50','#31254e'][((Math.floor(x*2)+Math.floor(y*3))%8+8)%8];
+}
+function drawProp(ctx,x,y,size,type){
+ ctx.save();ctx.translate(x,y);
+ if(type==='banner'){
+  ctx.fillStyle='#f5d8ef';ctx.fillRect(-size*.42,-size*.48,size*.84,size*.1);
+  for(let i=0;i<7;i++){ctx.fillStyle=i%2?'#ff287f':'#54f7ef';ctx.beginPath();ctx.moveTo(-size*.42+i*size*.12,-size*.38);ctx.lineTo(-size*.3+i*size*.12,-size*.38);ctx.lineTo(-size*.36+i*size*.12,-size*.12);ctx.fill()}
+ }else if(type==='ticket'||type==='concession'){
+  ctx.fillStyle=type==='ticket'?'#3b173b':'#4d1c2b';ctx.fillRect(-size*.48,-size*.45,size*.96,size*.9);
+  ctx.fillStyle='#ffcf5a';ctx.fillRect(-size*.43,-size*.36,size*.86,size*.07);
+  ctx.fillStyle='#ff287f';ctx.fillRect(-size*.38,-size*.15,size*.76,size*.12);
+  ctx.fillStyle='#fcecff';ctx.font='bold '+Math.max(8,size*.13)+'px system-ui';ctx.textAlign='center';ctx.fillText(type==='ticket'?'TICKETS':'SNACKS',0,-size*.23);
+  ctx.fillStyle='#10070d';ctx.fillRect(-size*.12,size*.05,size*.24,size*.25);
+ }else if(type==='carousel'){
+  ctx.fillStyle='#2b163c';ctx.fillRect(-size*.45,-size*.45,size*.9,size*.9);
+  ctx.strokeStyle='#ffcf5a';ctx.lineWidth=Math.max(2,size*.035);ctx.beginPath();ctx.arc(0,0,size*.34,0,TAU);ctx.stroke();
+  for(let i=0;i<5;i++){let a=elapsed*.15+i*TAU/5;ctx.fillStyle=['#ff287f','#54f7ef','#ffcf5a','#a86bff'][i%4];ctx.beginPath();ctx.ellipse(Math.cos(a)*size*.24,Math.sin(a)*size*.24,size*.11,size*.2,a,0,TAU);ctx.fill()}
+ }else if(type==='mirror'){
+  ctx.fillStyle='#170e24';ctx.fillRect(-size*.36,-size*.5,size*.72,size);
+  ctx.strokeStyle='#bdefff';ctx.lineWidth=Math.max(2,size*.04);ctx.strokeRect(-size*.36,-size*.5,size*.72,size);
+  ctx.fillStyle='#8be9ff44';ctx.fillRect(-size*.27,-size*.42,size*.54,size*.84);
+  ctx.strokeStyle='#fff';ctx.beginPath();ctx.moveTo(-size*.2,size*.3);ctx.lineTo(size*.2,-size*.25);ctx.stroke();
+ }else if(type==='cage'){
+  ctx.fillStyle='#08070c';ctx.fillRect(-size*.42,-size*.4,size*.84,size*.8);
+  ctx.strokeStyle='#8b7b91';ctx.lineWidth=Math.max(2,size*.025);for(let i=-3;i<=3;i++){ctx.beginPath();ctx.moveTo(i*size*.1,-size*.4);ctx.lineTo(i*size*.1,size*.4);ctx.stroke()}
+  ctx.fillStyle='#ff174f';ctx.beginPath();ctx.arc(size*.12,0,size*.045,0,TAU);ctx.arc(-size*.12,0,size*.045,0,TAU);ctx.fill();
+ }else if(type==='balloons'){
+  for(let i=0;i<4;i++){let bx=(i-1.5)*size*.18,by=-size*(.25+(i%2)*.13);ctx.strokeStyle='#c9b9cf';ctx.beginPath();ctx.moveTo(bx,by+size*.09);ctx.lineTo(bx,size*.35);ctx.stroke();ctx.fillStyle=['#ff287f','#54f7ef','#ffcf5a','#a86bff'][i];ctx.beginPath();ctx.ellipse(bx,by,size*.1,size*.14,0,0,TAU);ctx.fill()}
+ }else if(type==='stage'){
+  ctx.fillStyle='#200c1e';ctx.fillRect(-size*.48,-size*.25,size*.96,size*.5);ctx.fillStyle='#ff287f';ctx.fillRect(-size*.48,-size*.25,size*.1,size*.5);ctx.fillRect(size*.38,-size*.25,size*.1,size*.5);ctx.fillStyle='#ffcf5a';ctx.beginPath();ctx.arc(0,-size*.05,size*.1,0,TAU);ctx.fill();
+ }else if(type==='ringmaster'){
+  ctx.fillStyle='#08050b';ctx.fillRect(-size*.12,-size*.25,size*.24,size*.65);ctx.fillStyle='#e8dff0';ctx.beginPath();ctx.arc(0,-size*.32,size*.17,0,TAU);ctx.fill();ctx.fillStyle='#ff174f';ctx.fillRect(-size*.22,-size*.47,size*.44,size*.08);ctx.fillStyle='#ff174f';ctx.beginPath();ctx.arc(-size*.06,-size*.34,size*.025,0,TAU);ctx.arc(size*.06,-size*.34,size*.025,0,TAU);ctx.fill();
+ }
+ ctx.restore();
+}
+function drawWorld(p,viewAngle){
+ const fov=Math.PI/2.65, cols=Math.ceil(W/2), cw=W/cols;
+ // Paint the ceiling first; painting it after the walls hid the top half of the view.
+ let grad=ctx.createLinearGradient(0,0,0,H/2);grad.addColorStop(0,'#05030b');grad.addColorStop(1,'#25112d');ctx.fillStyle=grad;ctx.fillRect(0,0,W,H/2);
+ // Circus roof ribs and strings of tiny carnival bulbs.
+ for(let r=0;r<9;r++){ctx.strokeStyle=r%2?'#5a1c43':'#6e294f';ctx.globalAlpha=.32;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(r*W/8,0);ctx.lineTo(W/2+(r-4)*W/10,H/2);ctx.stroke();ctx.globalAlpha=1;}
+ for(let i=0;i<14;i++){let x=(i/14)*W+((elapsed*8)%30)-15,y=H*.09+Math.sin(i*1.7+elapsed*.7)*H*.035;ctx.fillStyle=i%2?'#ff287f':'#54f7ef';ctx.shadowColor=ctx.fillStyle;ctx.shadowBlur=8;ctx.beginPath();ctx.arc(x,y,2.5,0,TAU);ctx.fill();}ctx.shadowBlur=0;
+ for(let i=0;i<cols;i++){
+  let rayAng=viewAngle-fov/2+(i/cols)*fov,hit=castRay(p.x,p.y,rayAng),correct=hit.d*Math.cos(rayAng-viewAngle),wallH=Math.min(H*1.6,H/(correct+.001)*.82),top=H/2-wallH/2;
+  let c=wallColor(hit.x,hit.y),shade=Math.max(.07,1-correct/12);ctx.fillStyle=c;ctx.globalAlpha=shade;ctx.fillRect(i*cw,top,cw+1,wallH);ctx.globalAlpha=1;
+  ctx.fillStyle='#ff3f9b';ctx.globalAlpha=Math.max(0,.18-correct*.012);ctx.fillRect(i*cw,top,cw+1,2);ctx.globalAlpha=1;
+  let floorGrad=ctx.createLinearGradient(0,top+wallH,0,H);floorGrad.addColorStop(0,'#170d20');floorGrad.addColorStop(1,'#050308');ctx.fillStyle=floorGrad;ctx.fillRect(i*cw,top+wallH,cw+1,H-(top+wallH));
+  if(correct<9){ctx.strokeStyle='#6a294d';ctx.globalAlpha=Math.max(0,.22-correct*.02);ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(i*cw,top+wallH+5);ctx.lineTo(i*cw,H);ctx.stroke();ctx.globalAlpha=1;}
+  // perspective wall grime
+  if(i%19===0&&correct<7){ctx.fillStyle='#f7d4ff';ctx.globalAlpha=.1;ctx.fillRect(i*cw,top+wallH*.2,1,wallH*.55);ctx.globalAlpha=1}
+ }
+ // objects projected in 3d
+ const objects=[];
+ for(const prop of props)objects.push({...prop});
+ for(const f of fuses)if(!f.got)objects.push({...f,type:'fuse'});
+ if(exitOn)objects.push({x:22.5,y:12.5,type:'exit'});
+ objects.sort((a,b)=>dist(p,b)-dist(p,a));
+ for(const o of objects){let dx=o.x-p.x,dy=o.y-p.y,d=Math.hypot(dx,dy),ang=Math.atan2(dy,dx)-viewAngle;while(ang>Math.PI)ang-=TAU;while(ang<-Math.PI)ang+=TAU;if(Math.abs(ang)>fov/2+.15)continue;let sx=(.5+ang/fov)*W,size=Math.min(H*.8,H/(d+.1)*.3),sy=H/2+size*.15;
+ if(!['fuse','exit'].includes(o.type)){drawProp(ctx,sx,sy,size,o.type);continue;}
+ if(o.type==='fuse'){ctx.fillStyle='#54f7ef';ctx.shadowColor='#54f7ef';ctx.shadowBlur=25;ctx.save();ctx.translate(sx,sy);ctx.rotate(Math.sin(elapsed*3)*.15);ctx.fillRect(-size*.12,-size*.35,size*.24,size*.7);ctx.fillStyle='#fff';ctx.fillRect(-size*.05,-size*.23,size*.1,size*.46);ctx.restore();ctx.shadowBlur=0}
+ else{ctx.fillStyle='#ff287f';ctx.shadowColor='#ff287f';ctx.shadowBlur=30;ctx.fillRect(sx-size*.28,sy-size*.8,size*.56,size*1.6);ctx.fillStyle='#fff';ctx.fillRect(sx-size*.18,sy-size*.65,size*.36,size*.08);ctx.shadowBlur=0}
+ }
+ // Three distinct creatures rendered in perspective. The Teeth is the close-up mouth.
+ for(const c of creatures){
+  let cdx=c.x-p.x,cdy=c.y-p.y,cd=Math.hypot(cdx,cdy),ca=Math.atan2(cdy,cdx)-viewAngle;
+  while(ca>Math.PI)ca-=TAU;while(ca<-Math.PI)ca+=TAU;
+  if(Math.abs(ca)>fov/2+.3||cd>11)continue;
+  let csx=(.5+ca/fov)*W,csize=Math.min(H*.82,H/(cd+.12)*(c.type==='tall'?.92:.72));
+  ctx.save();ctx.translate(csx,H/2+csize*.08);
+  if(c.type==='tall'){
+   // The Tall One: impossibly narrow body, long arms, tiny mask.
+   ctx.shadowColor='#a86bff';ctx.shadowBlur=cd<5?28:12;ctx.fillStyle='#050309';
+   ctx.beginPath();ctx.ellipse(0,-csize*.05,csize*.12,csize*.43,0,0,TAU);ctx.fill();
+   ctx.lineWidth=Math.max(2,csize*.035);ctx.strokeStyle='#09050d';
+   ctx.beginPath();ctx.moveTo(-csize*.08,-csize*.18);ctx.lineTo(-csize*.32,csize*.26);ctx.moveTo(csize*.08,-csize*.18);ctx.lineTo(csize*.32,csize*.26);ctx.stroke();
+   ctx.fillStyle='#eee0ff';ctx.beginPath();ctx.ellipse(0,-csize*.39,csize*.15,csize*.12,0,0,TAU);ctx.fill();
+   ctx.fillStyle='#ff174f';ctx.beginPath();ctx.arc(-csize*.055,-csize*.4,csize*.025,0,TAU);ctx.arc(csize*.055,-csize*.4,csize*.025,0,TAU);ctx.fill();
+   ctx.strokeStyle='#ff174f';ctx.lineWidth=Math.max(1,csize*.012);ctx.beginPath();ctx.moveTo(-csize*.1,-csize*.32);ctx.lineTo(csize*.1,-csize*.32);ctx.stroke();
+  }else{
+   // The Grin: floating clown mask with too many eyes and a stretched smile.
+   ctx.shadowColor='#54f7ef';ctx.shadowBlur=cd<5?30:12;ctx.fillStyle='#d7c8d8';
+   ctx.beginPath();ctx.ellipse(0,0,csize*.32,csize*.34,Math.sin(elapsed)*.08,0,TAU);ctx.fill();
+   ctx.fillStyle='#09040b';for(let j=-1;j<=1;j++){ctx.beginPath();ctx.ellipse(j*csize*.14,-csize*.07,csize*.055,csize*.08,0,0,TAU);ctx.fill()}
+   ctx.fillStyle='#ff174f';ctx.beginPath();ctx.ellipse(0,csize*.13,csize*.23,csize*.12,0,0,TAU);ctx.fill();
+   ctx.fillStyle='#fff';for(let j=0;j<7;j++){let tx=-csize*.19+j*csize*.063;ctx.beginPath();ctx.moveTo(tx,csize*.04);ctx.lineTo(tx+csize*.045,csize*.04);ctx.lineTo(tx+csize*.02,csize*.13);ctx.fill()}
+   ctx.fillStyle='#ff174f';ctx.beginPath();ctx.arc(-csize*.22,-csize*.24,csize*.045,0,TAU);ctx.arc(csize*.22,-csize*.24,csize*.045,0,TAU);ctx.fill();
+  }
+  ctx.restore();
+ }
+ // The Teeth: rendered as a giant uncanny face; only appears when in sight
+ let dx=monster.x-p.x,dy=monster.y-p.y,md=Math.hypot(dx,dy),ma=Math.atan2(dy,dx)-viewAngle;while(ma>Math.PI)ma-=TAU;while(ma<-Math.PI)ma+=TAU;
+ if(Math.abs(ma)<fov/2+.35&&md<12){
+  let sx=(.5+ma/fov)*W,scale=Math.min(2.7,1.8/(md*.24+.1)),size=Math.min(H*.8,H/(md+.15)*.65)*scale;
+  // face silhouette
+  ctx.save();ctx.translate(sx,H/2+size*.08);ctx.rotate(Math.sin(elapsed*2)*.04);
+  ctx.shadowColor='#ff003f';ctx.shadowBlur=md<4?35:14;ctx.fillStyle='#09050b';ctx.beginPath();ctx.ellipse(0,0,size*.42,size*.53,0,0,TAU);ctx.fill();ctx.shadowBlur=0;
+  // eyes: too high, wrong angle
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(-size*.17,-size*.13,size*.09,size*.055,-.15,0,TAU);ctx.ellipse(size*.17,-size*.13,size*.09,size*.055,.15,0,TAU);ctx.fill();
+  ctx.fillStyle='#ff003f';ctx.beginPath();ctx.arc(-size*.17,-size*.13,size*.035,0,TAU);ctx.arc(size*.17,-size*.13,size*.035,0,TAU);ctx.fill();
+  // impossible stretched mouth
+  ctx.fillStyle='#a40036';ctx.beginPath();ctx.ellipse(0,size*.17,size*.3,size*.23,0,0,TAU);ctx.fill();
+  ctx.fillStyle='#fff8f0';for(let j=0;j<9;j++){let tx=-size*.25+j*size*.062;ctx.beginPath();ctx.moveTo(tx,size*.01);ctx.lineTo(tx+size*.04,size*.01);ctx.lineTo(tx+size*.02,size*.105);ctx.fill();ctx.beginPath();ctx.moveTo(tx,size*.32);ctx.lineTo(tx+size*.04,size*.32);ctx.lineTo(tx+size*.02,size*.23);ctx.fill()}
+  // long black cracks and smile corners
+  ctx.strokeStyle='#ff003f';ctx.lineWidth=Math.max(1,size*.012);ctx.beginPath();ctx.moveTo(-size*.28,size*.16);ctx.lineTo(-size*.4,size*.04);ctx.moveTo(size*.28,size*.16);ctx.lineTo(size*.4,size*.04);ctx.stroke();
+  ctx.restore();
+  if(md<4.3){ctx.fillStyle=`rgba(255,0,50,${Math.min(.55,(4.3-md)*.15)})`;ctx.fillRect(0,0,W,H);document.getElementById('static').style.opacity='.35';}
+ }
+ // horror lighting: flashlight cone + dark edges
+ const rad=ctx.createRadialGradient(W/2,H*.52,15,W/2,H*.52,Math.max(W,H)*.62);rad.addColorStop(0,'rgba(0,0,0,0)');rad.addColorStop(.4,'rgba(0,0,0,.12)');rad.addColorStop(1,'rgba(0,0,0,.92)');ctx.fillStyle=rad;ctx.fillRect(0,0,W,H);
+ // bloodless glitch / chase shake
+ if(shake>0){ctx.fillStyle='#ff174f';ctx.globalAlpha=shake*.18;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
+ if(flash>0){ctx.fillStyle='#fff';ctx.globalAlpha=flash*.7;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
+ if(blackout>0){ctx.fillStyle='#000';ctx.globalAlpha=blackout*1.7;ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
+}
+function render(){
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+ let p=players[0],q=players[1];
+ // shared split-screen first-person views for same Chromebook
+ ctx.save();ctx.beginPath();ctx.rect(0,0,W/2,H);ctx.clip();ctx.scale(.5,1);drawWorld(p,p.angle);ctx.restore();
+ ctx.save();ctx.beginPath();ctx.rect(W/2,0,W/2,H);ctx.clip();ctx.translate(W/2,0);ctx.scale(.5,1);drawWorld(q,q.angle);ctx.restore();
+ // split divider and labels
+ ctx.fillStyle='#ff287f';ctx.shadowColor='#ff287f';ctx.shadowBlur=12;ctx.fillRect(W/2-1,0,2,H);ctx.shadowBlur=0;
+ ctx.fillStyle='#ff9acb';ctx.font='bold 11px system-ui';ctx.fillText('P1 // YOUR VIEW',15,H-18);ctx.fillStyle='#8ffff9';ctx.fillText('P2 // YOUR VIEW',W/2+15,H-18);
+ // two distinct crosshairs
+ for(let x of [W/4,3*W/4]){ctx.strokeStyle='#fff9';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x-6,H/2);ctx.lineTo(x+6,H/2);ctx.moveTo(x,H/2-6);ctx.lineTo(x,H/2+6);ctx.stroke()}
+}
+function loop(now){let dt=Math.min(.04,(now-last)/1000||0);last=now;update(dt);render();requestAnimationFrame(loop)}
+document.addEventListener('keydown',e=>{let k=e.key.toLowerCase();keys[k]=true;if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(k))e.preventDefault();if(k==='escape'&&active&&!ended){paused=!paused;say(paused?'PAUSED — BREATHE QUIETLY':'KEEP MOVING.',2)}});
+document.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+document.querySelectorAll('.turnbtn').forEach(btn=>{
+ const i=Number(btn.dataset.player),dir=Number(btn.dataset.turn);
+ const stop=()=>{turnHeld[i]=0};
+ btn.addEventListener('pointerdown',e=>{e.preventDefault();turnHeld[i]=dir;try{btn.setPointerCapture(e.pointerId)}catch(_){}});
+ btn.addEventListener('pointerup',stop);btn.addEventListener('pointercancel',stop);btn.addEventListener('lostpointercapture',stop);
+ btn.addEventListener('contextmenu',e=>e.preventDefault());
+});
+document.getElementById('start').onclick=()=>{startAudio();if(ended){document.getElementById('endTitle').id='title';reset()}document.getElementById('overlay').style.display='none';active=true;paused=false;say('THE AUDIENCE IS WAITING.',3);sound('thump')};
+reset();requestAnimationFrame(loop);
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

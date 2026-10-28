@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Spike Dash</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{margin:0;background:#111;color:#fff;font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh}
+  #wrap{position:relative;width:960px;max-width:100vw}
+  canvas{width:100%;display:block;background:#000;border-radius:6px}
+  .overlay{position:absolute;inset:0;background:rgba(10,10,20,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;text-align:center;padding:10px;box-sizing:border-box}
+  .hidden{display:none}
+  h1{margin:0 0 6px;font-size:34px}
+  .row{display:flex;gap:30px;margin:10px 0}
+  .card{background:#222a;border:2px solid #444;border-radius:10px;padding:10px 16px;min-width:220px}
+  .card h3{margin:0 0 6px}
+  label{display:block;margin:6px 0;font-size:14px}
+  select,input[type=color]{margin-left:6px;vertical-align:middle}
+  input[type=color]{width:44px;height:28px;border:none;background:none;padding:0}
+  button{font-size:20px;padding:10px 28px;border-radius:8px;border:none;background:#4ade80;color:#042;cursor:pointer;font-weight:700;margin-top:8px}
+  canvas.prev{width:70px;height:70px;background:none;border-radius:0}
+  small{opacity:.75}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="960" height="540"></canvas>
+
+  <div id="menu" class="overlay">
+    <h1>SPIKE DASH</h1>
+    <small>Race to the flag. Spikes get nastier the farther you go. Two players, one keyboard.</small>
+    <div class="row">
+      <div class="card">
+        <h3>Player 1</h3>
+        <canvas class="prev" id="pv0" width="70" height="70"></canvas>
+        <label>Color <input type="color" id="col0" value="#38bdf8"></label>
+        <label>Shape <select id="shape0"><option value="square">Square</option><option value="round">Rounded</option><option value="outline">Outline</option></select></label>
+        <label>Face <select id="face0"><option value="smile">Smile</option><option value="cool">Sunglasses</option><option value="angry">Angry</option><option value="none">None</option></select></label>
+        <small>A / D move, W jump</small>
+      </div>
+      <div class="card">
+        <h3>Player 2</h3>
+        <canvas class="prev" id="pv1" width="70" height="70"></canvas>
+        <label>Color <input type="color" id="col1" value="#f472b6"></label>
+        <label>Shape <select id="shape1"><option value="square">Square</option><option value="round">Rounded</option><option value="outline">Outline</option></select></label>
+        <label>Face <select id="face1"><option value="cool">Sunglasses</option><option value="smile">Smile</option><option value="angry">Angry</option><option value="none">None</option></select></label>
+        <small>Left / Right arrows move, Space jumps</small>
+      </div>
+      <div class="card">
+        <h3>Background</h3>
+        <label>Color <input type="color" id="bg" value="#1e293b"></label>
+        <small>Spikes change color to stay visible.</small>
+      </div>
+    </div>
+    <button id="start">START</button>
+  </div>
+
+  <div id="end" class="overlay hidden">
+    <h1 id="endTitle"></h1>
+    <p id="endMsg"></p>
+    <button id="again">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script>
+const W=960, H=540, PH=270, GROUND=PH-50, SZ=30, LEVEL_END=7000;
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+
+// ---------- Customization ----------
+function opts(i){return {color:$('col'+i).value,shape:$('shape'+i).value,face:$('face'+i).value}}
+function drawSquare(g,x,y,s,o,alpha=1){
+  g.save();g.globalAlpha=alpha;
+  g.fillStyle=o.color;g.strokeStyle=o.color;g.lineWidth=4;
+  const r=o.shape==='round'?s*0.3:0;
+  g.beginPath();
+  if(g.roundRect)g.roundRect(x,y,s,s,r);else g.rect(x,y,s,s);
+  if(o.shape==='outline'){g.fillStyle='rgba(0,0,0,.25)';g.fill();g.stroke();}else g.fill();
+  g.fillStyle='#000';
+  const e=s*0.2;
+  if(o.face==='smile'){
+    g.fillRect(x+s*.28,y+s*.3,e*.6,e);g.fillRect(x+s*.62,y+s*.3,e*.6,e);
+    g.beginPath();g.arc(x+s/2,y+s*.55,s*.2,0.1*Math.PI,0.9*Math.PI);g.lineWidth=2;g.strokeStyle='#000';g.stroke();
+  }else if(o.face==='cool'){
+    g.fillRect(x+s*.15,y+s*.28,s*.7,s*.2);
+    g.fillRect(x+s*.38,y+s*.65,s*.24,s*.07);
+  }else if(o.face==='angry'){
+    g.beginPath();g.lineWidth=3;g.strokeStyle='#000';
+    g.moveTo(x+s*.2,y+s*.22);g.lineTo(x+s*.45,y+s*.38);
+    g.moveTo(x+s*.8,y+s*.22);g.lineTo(x+s*.55,y+s*.38);g.stroke();
+    g.fillRect(x+s*.3,y+s*.42,e*.6,e*.8);g.fillRect(x+s*.6,y+s*.42,e*.6,e*.8);
+    g.fillRect(x+s*.35,y+s*.72,s*.3,s*.06);
+  }
+  g.restore();
+}
+function updatePreviews(){
+  for(let i=0;i<2;i++){
+    const g=$('pv'+i).getContext('2d');
+    g.clearRect(0,0,70,70);
+    g.fillStyle=$('bg').value;g.fillRect(0,0,70,70);
+    drawSquare(g,17,17,36,opts(i));
+  }
+}
+document.querySelectorAll('select,input').forEach(e=>e.addEventListener('input',updatePreviews));
+updatePreviews();
+
+// ---------- Level ----------
+let spikes=[];
+function makeLevel(){
+  spikes=[];
+  let x=700, seed=12345;
+  const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+  while(x<LEVEL_END-400){
+    const t=x/LEVEL_END;                      // 0 -> 1 difficulty
+    const count=1+Math.floor(rnd()*(1+t*3.2)); // bigger clusters later
+    const h=24+Math.floor(t*14);               // taller spikes later
+    for(let k=0;k<count;k++){
+      spikes.push({x:x+k*28,w:28,h:h,bob:t>0.55&&rnd()<0.3?rnd()*6:0});
+    }
+    const gap=330-t*170+rnd()*(120-t*50);      // tighter gaps later
+    x+=count*28+Math.max(gap,150);
+  }
+}
+
+// ---------- Game state ----------
+let players=[],state='menu',frame=0,bgColor='#1e293b',winner=-1;
+const keys={};
+addEventListener('keydown',e=>{keys[e.code]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault()});
+addEventListener('keyup',e=>keys[e.code]=false);
+
+const CTRL=[{l:'KeyA',r:'KeyD',j:'KeyW'},{l:'ArrowLeft',r:'ArrowRight',j:'Space'}];
+
+function startGame(){
+  bgColor=$('bg').value;makeLevel();frame=0;winner=-1;
+  players=[0,1].map(i=>({i,x:100,y:GROUND-SZ,vy:0,ground:true,lives:3,inv:0,out:false,done:false,opt:opts(i),cp:100}));
+  state='play';
+  $('menu').classList.add('hidden');$('end').classList.add('hidden');
+}
+$('start').onclick=startGame;
+$('again').onclick=()=>{state='menu';$('end').classList.add('hidden');$('menu').classList.remove('hidden');updatePreviews()};
+
+function hit(p){
+  const px=p.x+3,py=p.y+3,pw=SZ-6,ph=SZ-3;
+  for(const s of spikes){
+    if(s.x>p.x+80||s.x+s.w<p.x-80)continue;
+    const sy=GROUND-s.h+(s.bob?Math.sin(frame/25+s.x)*s.bob:0);
+    const sx=s.x+6,sw=s.w-12,sh=s.h-8, sTop=sy+8;
+    if(px<sx+sw&&px+pw>sx&&py<sTop+sh&&py+ph>sTop)return true;
+  }
+  return false;
+}
+
+function update(){
+  frame++;
+  // difficulty over time: a little extra speed the longer you play
+  const speed=4.6+Math.min(1.6,frame/3600*1.6);
+  for(const p of players){
+    if(p.out||p.done)continue;
+    const c=CTRL[p.i];
+    let dx=0;if(keys[c.l])dx-=1;if(keys[c.r])dx+=1;
+    p.x=Math.max(0,p.x+dx*speed);
+    if(keys[c.j]&&p.ground){p.vy=-11.5;p.ground=false}
+    p.vy+=0.62;p.y+=p.vy;
+    if(p.y>=GROUND-SZ){p.y=GROUND-SZ;p.vy=0;p.ground=true}
+    if(p.inv>0)p.inv--;
+    p.cp=Math.max(p.cp,Math.floor(p.x/1000)*1000+100);
+    if(p.inv===0&&hit(p)){
+      p.lives--;
+      if(p.lives<=0){p.out=true}
+      else{p.x=p.cp;p.y=GROUND-SZ;p.vy=0;p.inv=100}
+    }
+    if(p.x>=LEVEL_END){p.done=true;if(winner<0)winner=p.i}
+  }
+  if(winner>=0)endGame();
+  else if(players.every(p=>p.out))endGame();
+}
+
+function endGame(){
+  state='end';
+  const names=['Player 1','Player 2'];
+  if(winner>=0){
+    $('endTitle').textContent=names[winner]+' wins!';
+    $('endMsg').textContent=names[winner]+' reached the flag first.';
+  }else{
+    $('endTitle').textContent='Game over';
+    $('endMsg').textContent='Both players ran out of lives.';
+  }
+  $('end').classList.remove('hidden');
+}
+
+// ---------- Drawing ----------
+function lum(hex){const n=parseInt(hex.slice(1),16);return (0.299*(n>>16)+0.587*((n>>8)&255)+0.114*(n&255))/255}
+// Background scenery (random but fixed, so it doesn't flicker)
+let _s=777;const R=()=>{_s=(_s*16807)%2147483647;return _s/2147483647};
+const stars=Array.from({length:70},()=>({x:R()*W,y:R()*(PH-90),r:0.6+R()*1.8,t:R()*6}));
+const clouds=Array.from({length:7},()=>({x:R()*W*1.5,y:15+R()*90,s:0.6+R()*1.1,v:0.25+R()*0.35}));
+const motes=Array.from({length:28},()=>({x:R()*W,y:R()*PH,r:1+R()*2.5,v:0.4+R()*0.9,a:R()*6}));
+const shapes=Array.from({length:9},()=>({x:R()*W*1.3,y:30+R()*120,s:14+R()*26,v:0.15+R()*0.3,rot:R()*6,kind:Math.floor(R()*3)}));
+const wrap=(v,m)=>((v%m)+m)%m;
+
+function drawBackground(cx,light){
+  const f=frame;
+  const ink=a=>light?`rgba(0,0,0,${a})`:`rgba(255,255,255,${a})`;
+  // soft gradient: lighter near horizon
+  const g=ctx.createLinearGradient(0,0,0,PH);
+  g.addColorStop(0,light?'rgba(255,255,255,.0)':'rgba(0,0,0,.35)');
+  g.addColorStop(1,light?'rgba(0,0,0,.18)':'rgba(255,255,255,.10)');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,PH);
+  // twinkling stars / dust (slow parallax + drift)
+  for(const s of stars){
+    const x=wrap(s.x-cx*0.05-f*0.15,W);
+    ctx.fillStyle=ink(0.25+0.3*Math.sin(f/30+s.t));
+    ctx.beginPath();ctx.arc(x,s.y,s.r,0,6.3);ctx.fill();
+  }
+  // spinning geometric shapes drifting by
+  for(const s of shapes){
+    const x=wrap(s.x-cx*0.12-f*s.v*2,W*1.3)-60;
+    const rot=s.rot+f/120;
+    ctx.save();ctx.translate(x,s.y+Math.sin(f/50+s.rot)*8);ctx.rotate(rot);
+    ctx.strokeStyle=ink(0.18);ctx.lineWidth=2;ctx.beginPath();
+    if(s.kind===0)ctx.rect(-s.s/2,-s.s/2,s.s,s.s);
+    else if(s.kind===1){ctx.moveTo(0,-s.s/2);ctx.lineTo(s.s/2,s.s/2);ctx.lineTo(-s.s/2,s.s/2);ctx.closePath()}
+    else ctx.arc(0,0,s.s/2,0,6.3);
+    ctx.stroke();ctx.restore();
+  }
+  // clouds
+  for(const c of clouds){
+    const x=wrap(c.x-cx*0.18-f*c.v*2,W*1.5)-120;
+    ctx.fillStyle=ink(0.10);
+    ctx.beginPath();
+    ctx.ellipse(x,c.y,46*c.s,16*c.s,0,0,6.3);
+    ctx.ellipse(x+30*c.s,c.y-8*c.s,34*c.s,14*c.s,0,0,6.3);
+    ctx.ellipse(x-28*c.s,c.y-4*c.s,30*c.s,12*c.s,0,0,6.3);
+    ctx.fill();
+  }
+  // layered hills (far -> near), each scrolling at its own speed
+  const layers=[{par:0.25,drift:0.5,base:PH-110,a1:26,a2:12,f1:0.006,f2:0.015,al:0.10},
+                {par:0.45,drift:1.0,base:PH-80,a1:20,a2:9,f1:0.009,f2:0.021,al:0.14},
+                {par:0.7,drift:1.8,base:PH-58,a1:12,a2:6,f1:0.013,f2:0.03,al:0.18}];
+  for(const L of layers){
+    const off=cx*L.par+f*L.drift;
+    ctx.fillStyle=ink(L.al);ctx.beginPath();ctx.moveTo(0,PH);
+    for(let x=0;x<=W;x+=8){
+      const y=L.base+Math.sin((x+off)*L.f1)*L.a1+Math.sin((x+off)*L.f2+2)*L.a2;
+      ctx.lineTo(x,y);
+    }
+    ctx.lineTo(W,PH);ctx.closePath();ctx.fill();
+  }
+  // floating motes rushing past
+  for(const m of motes){
+    const x=wrap(m.x-cx*0.5-f*m.v*3,W);
+    const y=m.y+Math.sin(f/40+m.a)*10;
+    ctx.fillStyle=ink(0.22);ctx.beginPath();ctx.arc(x,y,m.r,0,6.3);ctx.fill();
+  }
+}
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  const light=lum(bgColor)>0.5;
+  const spikeCol=light?'#7f1d1d':'#e5e7eb';
+  const groundCol=light?'rgba(0,0,0,.35)':'rgba(255,255,255,.15)';
+  for(const p of players){
+    ctx.save();
+    ctx.translate(0,p.i*PH);
+    ctx.beginPath();ctx.rect(0,0,W,PH);ctx.clip();
+    ctx.fillStyle=bgColor;ctx.fillRect(0,0,W,PH);
+    const cx=Math.max(0,p.x-250);
+    drawBackground(cx,light);
+    ctx.translate(-cx,0);
+    // ground
+    ctx.fillStyle=groundCol;ctx.fillRect(cx,GROUND,W,PH-GROUND);
+    // checkpoints
+    for(let x=1000;x<LEVEL_END;x+=1000){
+      ctx.fillStyle=groundCol;ctx.fillRect(x-1,GROUND-60,3,60);
+    }
+    // finish flag
+    ctx.fillStyle=light?'#111':'#fff';ctx.fillRect(LEVEL_END,GROUND-120,5,120);
+    for(let r=0;r<4;r++)for(let c=0;c<4;c++){
+      ctx.fillStyle=(r+c)%2?'#fff':'#000';ctx.fillRect(LEVEL_END+5+c*14,GROUND-120+r*14,14,14);
+    }
+    // spikes
+    ctx.fillStyle=spikeCol;
+    for(const s of spikes){
+      if(s.x<cx-40||s.x>cx+W+40)continue;
+      const sy=GROUND-s.h+(s.bob?Math.sin(frame/25+s.x)*s.bob:0);
+      ctx.beginPath();ctx.moveTo(s.x,GROUND);ctx.lineTo(s.x+s.w/2,sy);ctx.lineTo(s.x+s.w,GROUND);ctx.closePath();ctx.fill();
+    }
+    // both players (so you can see your rival if they are near)
+    for(const q of players){
+      if(q.out)continue;
+      const blink=q.inv>0&&Math.floor(q.inv/5)%2===0;
+      drawSquare(ctx,q.x,q.y,SZ,q.opt,blink?0.3:(q===p?1:0.45));
+    }
+    ctx.restore();
+    // HUD
+    ctx.save();ctx.translate(0,p.i*PH);
+    ctx.fillStyle=light?'#111':'#fff';ctx.font='bold 16px system-ui';
+    ctx.fillText('Player '+(p.i+1),12,24);
+    ctx.fillText('♥'.repeat(Math.max(0,p.lives))+'♡'.repeat(3-Math.max(0,p.lives)),12,46);
+    // progress bar
+    ctx.fillStyle='rgba(128,128,128,.4)';ctx.fillRect(W-232,14,220,10);
+    ctx.fillStyle=p.opt.color;ctx.fillRect(W-232,14,220*Math.min(1,p.x/LEVEL_END),10);
+    if(p.out){ctx.font='bold 28px system-ui';ctx.fillText('OUT',W/2-30,PH/2)}
+    ctx.restore();
+    // divider
+    ctx.fillStyle='#000';ctx.fillRect(0,PH-2+(p.i?0:0),W,p.i===0?4:0);
+  }
+}
+
+// ---------- Loop ----------
+let last=0,acc=0;
+function loop(t){
+  const dt=Math.min(100,t-last);last=t;acc+=dt;
+  while(acc>=1000/60){ if(state==='play')update(); acc-=1000/60 }
+  if(players.length)render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

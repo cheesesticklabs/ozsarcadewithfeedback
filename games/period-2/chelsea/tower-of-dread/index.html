@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tower of Dread 3D</title>
+<style>
+:root{--bg:#0b0a0d;--ink:#ece6e6;--muted:#a49a9c;--red:#c4161c;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif}
+canvas{display:block}
+.mid{position:fixed;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:#000;z-index:2}
+.hud{position:fixed;top:8px;width:50%;text-align:center;font-weight:700;z-index:3;text-shadow:0 1px 3px #000}
+#h1{left:0}#h2{left:50%}
+.scare{position:fixed;top:0;bottom:0;width:50%;display:none;align-items:center;justify-content:center;background:#000;z-index:5}
+#s1{left:0}#s2{left:50%}
+.scare.on{display:flex;animation:fl .9s}
+.scare svg{height:90%;animation:sh .08s infinite}
+.scare.safe{background:rgba(0,0,0,.8);animation:none}
+.scare.safe svg{animation:none;opacity:.7;height:70%}
+@keyframes fl{0%{background:#fff}10%{background:#000}}
+@keyframes sh{0%{transform:translate(-8px,4px) scale(1.1)}50%{transform:translate(8px,-4px) scale(1.2)}100%{transform:translate(-4px,-8px) scale(1.15)}}
+.ov{position:fixed;inset:0;background:rgba(8,6,10,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:12px;z-index:9}
+.ov.hide{display:none}
+.ov h1{margin:0;font-size:2.2rem;letter-spacing:.1em;color:var(--red)}
+.ov p{margin:0;color:var(--muted);line-height:1.5;max-width:44ch}
+.ov b{color:var(--ink)}
+button{font:inherit;font-weight:700;font-size:1.1rem;padding:12px 32px;border:2px solid var(--red);background:var(--red);color:#fff;border-radius:10px;cursor:pointer}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+select{font:inherit;margin-left:6px;background:#17131a;color:var(--ink);border:1px solid var(--red);border-radius:6px;padding:4px}
+</style>
+</head>
+<body>
+<div class="mid"></div>
+<div class="hud" id="h1"></div><div class="hud" id="h2"></div>
+<div class="scare" id="s1"></div><div class="scare" id="s2"></div>
+<div class="ov" id="ov">
+<h1 id="t">TOWER OF DREAD 3D</h1>
+<p id="d">Two players, one tower. Race to the golden platform at the top. Avoid <b>red tiles</b>, and don’t let your own rising darkness catch you.<br><br><b>Player 1:</b> W A S D to move<br><b>Player 2:</b> arrow keys to move<br>Pick your jump buttons below.<br><br>Needs a keyboard, and works best on a computer. Warning: sudden flashes and loud sound.</p>
+<label>🔵 P1 jump <select id="j1"><option value="Space">Space</option><option value="ShiftLeft">Left Shift</option><option value="KeyE">E</option><option value="KeyF">F</option></select></label>
+<label>🟠 P2 jump <select id="j2"><option value="Enter">Enter</option><option value="ShiftRight">Right Shift</option><option value="Numpad0">Numpad 0</option><option value="Slash">/</option></select></label>
+<label><input type="checkbox" id="sf"> Reduce flashing &amp; sound</label>
+<button id="go">Start race</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+var N=40,$=function(i){return document.getElementById(i)};
+var R=new THREE.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(R.domElement);
+var S=new THREE.Scene();S.background=new THREE.Color(0x0b0a0d);S.fog=new THREE.FogExp2(0x0b0a0d,.04);
+S.add(new THREE.AmbientLight(0x6a6070,.6));
+var FACE='<svg viewBox="-130 -180 260 360"><ellipse rx="120" ry="170" fill="#d9d4c8"/><ellipse cx="-48" cy="-45" rx="28" ry="40" fill="#000"/><ellipse cx="48" cy="-45" rx="28" ry="40" fill="#000"/><circle cx="-48" cy="-40" r="7" fill="#e01010"/><circle cx="48" cy="-40" r="7" fill="#e01010"/><ellipse cy="95" rx="60" ry="75" fill="#000"/><g fill="#d9d4c8"><rect x="-53" y="32" width="10" height="24"/><rect x="-37" y="32" width="10" height="24"/><rect x="-21" y="32" width="10" height="24"/><rect x="-5" y="32" width="10" height="24"/><rect x="11" y="32" width="10" height="24"/><rect x="27" y="32" width="10" height="24"/><rect x="43" y="32" width="10" height="24"/></g></svg>';
+$('s1').innerHTML=FACE;$('s2').innerHTML=FACE;
+var K={},safe=false,run=false,tm=0,AC,drone,Pl=[],Pf=[],last=0;
+var KEYS=[{f:'KeyW',b:'KeyS',l:'KeyA',r:'KeyD',j:'Space'},{f:'ArrowUp',b:'ArrowDown',l:'ArrowLeft',r:'ArrowRight',j:'Enter'}];
+function mkPlayer(i,col){
+var g=new THREE.Group(),SP=function(r){return new THREE.SphereGeometry(r,14,12)},add=function(geo,c,x,y,z,sx,sy,sz){var m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:c,roughness:.6}));m.position.set(x,y,z);m.scale.set(sx||1,sy||1,sz||1);g.add(m);return m};
+add(SP(.4),col,0,.4,0);add(SP(.58),col,0,1.1,0);
+add(new THREE.TorusGeometry(.07,.018,6,12,Math.PI),0x1a1218,0,.98,.56).rotation.z=Math.PI;
+[-1,1].forEach(function(s){add(SP(.1),0x1a1218,s*.22,1.15,.5);add(SP(.035),0xffffff,s*.22+.03,1.19,.58);add(SP(.1),0xff8fb0,s*.38,.98,.45,1,.55,.4);add(SP(.13),col,s*.2,.08,.12,1,.6,1.3);
+if(i){add(new THREE.CylinderGeometry(.1,.12,.7,8),col,s*.22,1.95,0).rotation.z=-s*.12}else{add(new THREE.ConeGeometry(.2,.38,4),col,s*.34,1.7,0).rotation.z=-s*.35}});
+
+var L=new THREE.PointLight(0xfff0d0,1.5,20);L.position.set(0,3,2);g.add(L);S.add(g);
+var dk=new THREE.Mesh(new THREE.PlaneGeometry(60,500),new THREE.MeshBasicMaterial({color:0x2a0000,transparent:true,opacity:.92,fog:false,side:THREE.DoubleSide}));dk.rotation.x=-Math.PI/2;dk.position.z=-200;S.add(dk);
+return {i:i,g:g,dk:dk,cam:new THREE.PerspectiveCamera(60,1,.1,300),k:KEYS[i],sx:i?1.3:-1.3,el:$('s'+(i+1)),hud:$('h'+(i+1))};
+}
+Pl=[mkPlayer(0,0x5fe0f0),mkPlayer(1,0xffb04a)];
+function box(w,h,d,col,em){return new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color:col,emissive:em||0x1a1418}))}
+function build(){
+Pf.forEach(function(p){S.remove(p.m);if(p.rm)S.remove(p.rm)});Pf=[];
+var s=box(8,.6,6,0x5a4c58);s.position.set(0,-.3,0);S.add(s);Pf.push({m:s,x:0,y:0,z:0,w:8,d:6,k:0,mv:0,s:0,ph:0,dx:0});
+var x=0,y=0,z=0;
+for(var i=1;i<=N;i++){
+z-=(i===1?5.5:4.4+Math.random()*1.2);y+=.7+Math.random()*.5;x=Math.max(-5,Math.min(5,x+(Math.random()-.5)*6));
+var end=i===N,w=end?8:3.6-i*.015,d=end?6:2.8,r=Math.random(),k=0,mv=0;
+if(!end&&i>4){if(r<.25)k=Math.random()<.5?-1:1;else if(i>8&&r<.5)mv=3}
+var m=box(w,.6,d,end?0xe8d08a:mv?0x6a5580:0x5a4c58,end?0x6a5a20:0x1a1418);m.position.set(x,y-.3,z);S.add(m);
+var p={m:m,x:x,cx:x,y:y,z:z,w:w,d:d,k:k,mv:mv,s:1+Math.random()*1.2,ph:Math.random()*6,dx:0};
+if(k){var o=box(w/2,.04,d,0xc4161c,0x7a0a0a);o.position.set(x+k*w/4,y+.02,z);S.add(o);p.rm=o}
+Pf.push(p)}}
+function respawn(p){p.x=p.sx;p.y=0;p.z=0;p.vy=0;p.on=null;p.dark=-12;p.sc=0;p.fat=0;p.el.className='scare'}
+function reset(){build();tm=0;Pl.forEach(function(p){respawn(p);p.fl=0;p.seen={};p.c=0;p.cam.position.set(p.sx,4.5,8)})}
+function scream(){if(!AC)return;var t=AC.currentTime,v=safe?.04:.5,n=AC.sampleRate*.8,b=AC.createBuffer(1,n,AC.sampleRate),d=b.getChannelData(0);
+for(var i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);
+var s=AC.createBufferSource();s.buffer=b;var g=AC.createGain();g.gain.value=v;s.connect(g);g.connect(AC.destination);s.start(t);
+var o=AC.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(900,t);o.frequency.exponentialRampToValueAtTime(120,t+.7);
+var g2=AC.createGain();g2.gain.value=v*.6;o.connect(g2);g2.connect(AC.destination);o.start(t);o.stop(t+.7)}
+function scare(p,f){p.sc=safe?1.2:.85;p.fat=f;p.el.className='scare on'+(safe?' safe':'');scream()}
+function win(p){run=false;var m=Math.floor(tm/60),s=Math.floor(tm%60);$('t').textContent='PLAYER '+(p.i+1)+' WINS';$('d').innerHTML='Reached the top in '+m+':'+(s<10?'0':'')+s+'.<br>The tower is still hungry. Rematch?';$('go').textContent='Rematch';$('ov').classList.remove('hide');$('go').focus()}
+function step(p,dt){
+if(p.sc>0){p.sc-=dt;if(p.sc<=0){p.el.className='scare';if(p.fat)respawn(p)}return}
+var k=p.k,ix=(K[k.r]?1:0)-(K[k.l]?1:0),iz=(K[k.b]?1:0)-(K[k.f]?1:0),n=Math.hypot(ix,iz)||1;
+p.x+=ix/n*7*dt;p.z+=iz/n*7*dt;if(p.on){p.x+=p.on.dx}
+var oy=p.y;p.vy-=30*dt;p.y+=p.vy*dt;p.c-=dt;
+var land=null;
+if(p.vy<=0)for(var i=0;i<Pf.length;i++){var q=Pf[i];if(oy>=q.y-.05&&p.y<=q.y&&Math.abs(p.x-q.x)<q.w/2+.3&&Math.abs(p.z-q.z)<q.d/2+.3){land=q;if(i>p.fl)p.fl=i;break}}
+if(land){p.y=land.y;p.vy=0;p.c=.1;p.on=land;var idx=Pf.indexOf(land);
+if((idx===12||idx===26)&&!p.seen[idx]){p.seen[idx]=1;scare(p,0)}
+if(land.k&&(p.x-land.x)*land.k>0){respawn(p);return}
+if(idx===N){win(p);return}}else p.on=null;
+if(K[k.j]&&p.c>0){p.vy=11;p.c=0;p.on=null}
+p.dark+=(.3+Math.min(.7,tm*.0025))*dt;
+if(p.y<p.dark){scare(p,1)}}
+function frame(n){
+var dt=Math.min(.033,(n-last)/1000);last=n;
+if(run){tm+=dt;
+Pf.forEach(function(q){if(q.mv){var nx=q.cx+Math.sin(tm*q.s+q.ph)*q.mv;q.dx=nx-q.x;q.x=nx;q.m.position.x=nx}});
+Pl.forEach(function(p){step(p,dt)})}
+var w=innerWidth,h=innerHeight;
+Pl.forEach(function(p,i){
+p.g.position.set(p.x,p.y,p.z);p.dk.position.y=p.dark;
+p.cam.position.lerp(new THREE.Vector3(p.x*.7,p.y+4.2,p.z+8),Math.min(1,dt*5));p.cam.lookAt(p.x,p.y+1,p.z-4);
+p.hud.textContent='P'+(i+1)+' · floor '+p.fl+'/'+N;
+var x0=i*w/2;R.setViewport(x0,0,w/2,h);R.setScissor(x0,0,w/2,h);R.setScissorTest(true);p.cam.aspect=(w/2)/h;p.cam.updateProjectionMatrix();R.render(S,p.cam)});
+requestAnimationFrame(frame)}
+function size(){R.setSize(innerWidth,innerHeight)}
+addEventListener('resize',size);size();
+addEventListener('keydown',function(e){K[e.code]=true;if(run&&/^(Arrow|Space|Enter|Slash|Numpad)/.test(e.code))e.preventDefault()});
+addEventListener('keyup',function(e){K[e.code]=false});
+$('go').onclick=function(){safe=$('sf').checked;KEYS[0].j=$('j1').value;KEYS[1].j=$('j2').value;AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();
+if(!drone){drone=AC.createOscillator();drone.frequency.value=48;var g=AC.createGain();g.gain.value=safe?.015:.05;drone.connect(g);g.connect(AC.destination);drone.start()}
+reset();run=true;$('go').blur();$('ov').classList.add('hide')};
+reset();requestAnimationFrame(frame);
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

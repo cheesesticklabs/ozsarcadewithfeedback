@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dress Up Dash: Don’t Turn Zombie</title>
+<style>
+:root{--bg:#f4f1ea;--card:#fff;--tx:#1d1b18;--mut:#777;--acc:#e4572e;--line:#ddd6c8;--track:#e9e3d3;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#17181c;--card:#23252b;--tx:#f0eee8;--mut:#9a9a9a;--line:#3a3d45;--track:#2c2f36}}
+:root[data-theme="dark"]{--bg:#17181c;--card:#23252b;--tx:#f0eee8;--mut:#9a9a9a;--line:#3a3d45;--track:#2c2f36}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:0 0 4px}p.s{color:var(--mut);margin:0 0 14px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:14px;flex-wrap:wrap}.prev{flex:0 0 150px;text-align:center}
+.prev svg{width:130px;height:220px}.ctl{flex:1;min-width:220px}
+.g{margin-bottom:10px}.g b{display:block;font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:2px solid var(--line);background:var(--card);color:var(--tx);border-radius:999px;padding:6px 12px;font-size:14px;cursor:pointer}
+.chip.on{border-color:var(--acc);background:var(--acc);color:#fff}
+.sw{width:30px;height:30px;border-radius:50%;border:3px solid var(--line);cursor:pointer;padding:0}.sw.on{border-color:var(--acc);transform:scale(1.12)}
+.btn{background:var(--acc);color:#fff;border:0;border-radius:12px;padding:14px 22px;font-size:18px;font-weight:700;cursor:pointer;width:100%}
+.btn.big{padding:26px;font-size:24px;touch-action:manipulation;user-select:none}
+.lane{display:flex;align-items:center;gap:8px;margin-bottom:6px}.nm{width:64px;font-size:12px;color:var(--mut);flex:none;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.nm.me{color:var(--acc);font-weight:700}
+.track{position:relative;flex:1;height:58px;background:var(--track);border-radius:8px;overflow:hidden}
+.track:after{content:"";position:absolute;right:6px;top:0;bottom:0;width:6px;background:repeating-linear-gradient(var(--tx) 0 6px,transparent 6px 12px);opacity:.6}
+.run{position:absolute;top:2px;width:30px;height:54px;transition:left .05s linear}.run svg{width:100%;height:100%}
+.run svg{overflow:visible}
+.run.go svg{animation:rb var(--d,.4s) ease-in-out infinite alternate}
+@keyframes rb{from{transform:translateY(0) rotate(2deg)}to{transform:translateY(-5px) rotate(7deg)}}
+.run.go .aL{transform-origin:13px 31px;animation:sw var(--d,.4s) ease-in-out infinite alternate}
+.run.go .aR{transform-origin:47px 31px;animation:sw var(--d,.4s) ease-in-out infinite alternate-reverse}
+.run.go .lL{transform-origin:24px 58px;animation:sl var(--d,.4s) ease-in-out infinite alternate-reverse}
+.run.go .lR{transform-origin:36px 58px;animation:sl var(--d,.4s) ease-in-out infinite alternate}
+@keyframes sw{from{transform:rotate(-45deg)}to{transform:rotate(45deg)}}
+@keyframes sl{from{transform:rotate(-22deg)}to{transform:rotate(22deg)}}
+.run.go .cp{transform-origin:30px 29px;animation:fl .25s ease-in-out infinite alternate}
+@keyframes fl{from{transform:skewX(-5deg)}to{transform:skewX(9deg) scaleY(.95)}}
+.run.zb.go svg{animation:zl var(--d,.6s) ease-in-out infinite alternate}
+@keyframes zl{from{transform:translateY(0) rotate(-6deg)}to{transform:translateY(-2px) rotate(8deg)}}
+.run.zb.go .aL{animation:zL var(--d,.6s) ease-in-out infinite alternate}
+.run.zb.go .aR{animation:zR var(--d,.6s) ease-in-out infinite alternate}
+@keyframes zL{from{transform:rotate(92deg)}to{transform:rotate(116deg)}}
+@keyframes zR{from{transform:rotate(-92deg)}to{transform:rotate(-116deg)}}
+#pv svg{animation:idle 1.6s ease-in-out infinite alternate}@keyframes idle{to{transform:translateY(-4px)}}
+.parts{display:flex;gap:6px;margin:8px 0}.pt{flex:1;text-align:center;font-size:11px;padding:6px 2px;border-radius:8px;border:1px solid var(--line)}
+.pt.z{background:#8dc063;color:#102008;border-color:#8dc063;font-weight:700}
+.big-msg{font-size:26px;font-weight:800;text-align:center;margin:6px 0}.cd{font-size:56px;font-weight:800;text-align:center}
+.stat{display:flex;justify-content:space-between;font-size:14px;color:var(--mut);margin-bottom:8px}
+.hide{display:none}
+</style></head><body><div class="wrap">
+<h1>👑 Royal Dress Up Dash</h1>
+<p class="s">Dress your racer, then tap to run. Finish 1st to win. Finish 4th or 5th and a body part turns zombie!</p>
+
+<div id="dress">
+ <div class="card row">
+  <div class="prev"><div id="pv"></div><div class="parts" style="flex-wrap:wrap" id="pp0"></div></div>
+  <div class="ctl" id="ctl"></div>
+ </div>
+ <button class="btn" id="start">Start Racing</button>
+</div>
+
+<div id="race" class="hide">
+ <div class="stat"><span id="rn"></span><span id="rec"></span></div>
+ <div class="card" id="lanes"></div>
+ <div class="parts" id="pp1"></div>
+ <div id="cd" class="cd"></div>
+ <button class="btn big hide" id="tap">TAP! (or press Space)</button>
+ <div id="res" class="card hide"></div>
+</div>
+</div>
+<script>
+const Z='#8dc063',SK=['#f6d5b8','#e0ac84','#b97a50','#7a4a2c'],COL=['#d62f6b','#f4a261','#f1c40f','#2a9d8f','#3a86ff','#6a3fc9','#ff9ecb','#1c2541','#f5f5f5','#b22234'],HC=['#2b1b10','#6b3f1d','#d9a441','#c0392b','#222222','#8e44ad','#3a86ff'];
+const HS={boy:['short','sidepart','wavy','curly','spiky','buzz'],girl:['long','braid','curls','pigtails','bob','ponytail','bun']},TS={boy:['coat','vest','tunic'],girl:['bodice','puff','strapless']},BS={boy:['trousers','breeches'],girl:['gown','skirt','leggings']},HAT={girl:['tiara','crown','none'],boy:['crown','circlet','none']};
+const PARTS=[['head','Head'],['armL','L arm'],['armR','R arm'],['torso','Body'],['legL','L leg'],['legR','R leg']];
+function char(o,z){const s=p=>z.has(p)?Z:o.skin,G='#f1c40f',D='#c99a00',hc=o.hairc,T=o.top,gl=o.g=='girl';let h='';
+ const sl={bodice:8,puff:16,strapless:0,coat:28,vest:28,tunic:12}[T],sc=T=='vest'?'#f5f5f5':o.topc;
+ if(o.cape=='cape')h+=`<path class="cp" d="M20 29L6 86 54 86 40 29Z" fill="${o.topc}" stroke="${G}" stroke-width="1.5" opacity=".92"/>`;
+ const bk={long:`<rect x="14" y="8" width="32" height="38" rx="14" fill="${hc}"/>`,bob:`<rect x="14" y="6" width="32" height="24" rx="11" fill="${hc}"/>`,curls:`<circle cx="17" cy="18" r="7" fill="${hc}"/><circle cx="43" cy="18" r="7" fill="${hc}"/><circle cx="16" cy="30" r="6" fill="${hc}"/><circle cx="44" cy="30" r="6" fill="${hc}"/><circle cx="18" cy="41" r="5" fill="${hc}"/><circle cx="42" cy="41" r="5" fill="${hc}"/>`};
+ h+=bk[o.hair]||'';
+ h+=`<rect x="20" y="60" width="8" height="28" fill="${s('legL')}"/><rect x="32" y="60" width="8" height="28" fill="${s('legR')}"/>`;
+ h+=`<rect x="9" y="30" width="8" height="28" rx="4" fill="${s('armL')}"/><rect x="43" y="30" width="8" height="28" rx="4" fill="${s('armR')}"/>`;
+ h+=`<rect x="18" y="28" width="24" height="34" rx="5" fill="${T=='strapless'?s('torso'):T=='vest'?'#f5f5f5':o.topc}"/>`;
+ if(T=='strapless')h+=`<rect x="18" y="40" width="24" height="22" rx="4" fill="${o.topc}"/><path d="M18 41Q24 46 30 41Q36 46 42 41" fill="none" stroke="${G}" stroke-width="2"/>`;
+ if(T=='vest')h+=`<path d="M18 28h8l4 14 4-14h8v34H18z" fill="${o.topc}"/>`;
+ if(sl){const w=T=='puff'?12:8,x=T=='puff'?7:9;h+=`<rect x="${x}" y="30" width="${w}" height="${sl}" rx="4" fill="${sc}"/><rect x="${T=='puff'?41:43}" y="30" width="${w}" height="${sl}" rx="4" fill="${sc}"/>`;if(T=='coat')h+=`<rect x="9" y="55" width="8" height="3" fill="${G}"/><rect x="43" y="55" width="8" height="3" fill="${G}"/>`}
+ if(T=='coat')h+=`<rect x="18" y="28" width="24" height="3" fill="${G}"/><circle cx="30" cy="37" r="1.6" fill="${G}"/><circle cx="30" cy="45" r="1.6" fill="${G}"/><circle cx="30" cy="53" r="1.6" fill="${G}"/>`;
+ if(T=='bodice')h+=`<path d="M21 28Q30 36 39 28" fill="none" stroke="${G}" stroke-width="2"/><circle cx="30" cy="37" r="1.5" fill="#fff"/>`;
+ h+=`<circle cx="13" cy="58" r="4.5" fill="${s('armL')}"/><circle cx="47" cy="58" r="4.5" fill="${s('armR')}"/>`;
+ if(z.has('armL'))h+=`<rect x="9" y="${27+sl}" width="8" height="${31-sl}" rx="3" fill="${Z}"/><circle cx="13" cy="58" r="4.5" fill="${Z}"/>`;
+ if(z.has('armR'))h+=`<rect x="43" y="${27+sl}" width="8" height="${31-sl}" rx="3" fill="${Z}"/><circle cx="47" cy="58" r="4.5" fill="${Z}"/>`;
+ if(z.has('torso'))h+=`<path d="M30 34l10 4-2 14-12 6-4-14z" fill="${Z}"/><path d="M26 42l8 4M28 48l8-3" stroke="#3b5a22" stroke-width="1.3"/>`;
+ const B=o.botc,b=o.bot;
+ if(b=='trousers')h+=`<rect x="19" y="58" width="10" height="22" fill="${B}"/><rect x="31" y="58" width="10" height="22" fill="${B}"/><rect x="18" y="56" width="24" height="3" fill="${G}"/>`;
+ if(b=='breeches')h+=`<rect x="19" y="58" width="10" height="15" rx="2" fill="${B}"/><rect x="31" y="58" width="10" height="15" rx="2" fill="${B}"/><rect x="20" y="73" width="8" height="8" fill="#f5f5f5"/><rect x="32" y="73" width="8" height="8" fill="#f5f5f5"/><rect x="18" y="56" width="24" height="3" fill="${G}"/>`;
+ if(b=='leggings')h+=`<rect x="20" y="58" width="8" height="28" fill="${B}"/><rect x="32" y="58" width="8" height="28" fill="${B}"/><path d="M14 58h32l5 14H9z" fill="${o.topc}"/>`;
+ if(b=='skirt')h+=`<polygon points="17,57 43,57 50,80 10,80" fill="${B}"/><path d="M10 79h40" stroke="${G}" stroke-width="2.5"/>`;
+ if(b=='gown')h+=`<polygon points="14,56 46,56 57,90 3,90" fill="${B}"/><path d="M4 88h52" stroke="${G}" stroke-width="3"/><circle cx="21" cy="72" r="1.4" fill="${G}"/><circle cx="39" cy="79" r="1.4" fill="${G}"/><circle cx="30" cy="66" r="1.4" fill="${G}"/><circle cx="30" cy="82" r="1.4" fill="${G}"/>`;
+ if(T=='puff'||T=='bodice')h+=`<rect x="18" y="55" width="24" height="3" fill="${G}"/>`;
+ if(T=='tunic')h+=`<rect x="18" y="53" width="24" height="4" fill="#6b3f1d"/><rect x="27" y="52" width="6" height="6" rx="1" fill="${G}"/>`;
+ if(gl)h+=`<ellipse cx="24" cy="92" rx="6" ry="3" fill="${o.shoe}"/><ellipse cx="36" cy="92" rx="6" ry="3" fill="${o.shoe}"/>`;
+ else h+=`<rect x="19" y="80" width="10" height="11" rx="3" fill="${o.shoe}"/><rect x="31" y="80" width="10" height="11" rx="3" fill="${o.shoe}"/><rect x="19" y="80" width="10" height="2" fill="${G}"/><rect x="31" y="80" width="10" height="2" fill="${G}"/>`;
+ if(z.has('legL'))h+=`<rect x="20" y="72" width="8" height="12" fill="${Z}"/><path d="M20 72l3 3 3-3 2 3" fill="none" stroke="#3b5a22"/>`;
+ if(z.has('legR'))h+=`<rect x="32" y="72" width="8" height="12" fill="${Z}"/><path d="M32 72l3 3 3-3 2 3" fill="none" stroke="#3b5a22"/>`;
+ h+=`<circle cx="30" cy="16" r="12" fill="${s('head')}"/>`;
+ if(z.has('head'))h+=`<path d="M22 10l6 4M38 10l-6 4" stroke="#3b5a22" stroke-width="1.5"/><path d="M24 12l4 4m0-4l-4 4M32 12l4 4m0-4l-4 4" stroke="#111" stroke-width="1.6"/><path d="M24 23q6 -3 12 0" stroke="#7a0f0f" stroke-width="2" fill="none"/>`;
+ else h+=`<circle cx="25.5" cy="16" r="1.8" fill="#111"/><circle cx="34.5" cy="16" r="1.8" fill="#111"/><circle cx="22.5" cy="20" r="2.2" fill="#ff8fa3" opacity=".5"/><circle cx="37.5" cy="20" r="2.2" fill="#ff8fa3" opacity=".5"/><path d="M26 21q4 3 8 0" stroke="#7a2a2a" stroke-width="1.5" fill="none"/>`;
+ const sh=`<path d="M17 15Q17 3 30 3Q43 3 43 15Q36 8 30 9Q24 8 17 15Z" fill="${hc}"/>`;
+ const fr={short:sh,buzz:`<path d="M18 13Q30 -1 42 13Q30 6 18 13Z" fill="${hc}"/>`,spiky:`<polygon points="17,15 18,4 23,9 27,1 32,8 38,2 41,9 43,15 36,8 24,8" fill="${hc}"/>`,
+ sidepart:`<path d="M17 17Q14 1 31 2Q45 4 43 16Q40 8 31 10Q22 9 17 17Z" fill="${hc}"/>`,
+ wavy:sh+`<circle cx="17" cy="15" r="4" fill="${hc}"/><circle cx="43" cy="15" r="4" fill="${hc}"/><circle cx="18" cy="21" r="3" fill="${hc}"/><circle cx="42" cy="21" r="3" fill="${hc}"/>`,
+ curly:[[19,10],[25,5],[32,4],[39,7],[43,13],[17,15]].map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="6" fill="${hc}"/>`).join(''),
+ ponytail:sh+`<ellipse cx="45" cy="19" rx="4" ry="10" fill="${hc}" transform="rotate(-18 45 19)"/>`,
+ long:sh,bob:sh,curls:sh,bun:sh+`<circle cx="30" cy="2" r="5.5" fill="${hc}"/>`,
+ braid:sh+`<rect x="38" y="16" width="7" height="36" rx="3.5" fill="${hc}"/><path d="M38 24l7 3M38 32l7 3M38 40l7 3" stroke="rgba(0,0,0,.35)"/><rect x="38" y="50" width="7" height="3" fill="#ff6fb5"/>`,
+ pigtails:sh+`<ellipse cx="15" cy="24" rx="4.5" ry="10" fill="${hc}"/><ellipse cx="45" cy="24" rx="4.5" ry="10" fill="${hc}"/><circle cx="16" cy="15" r="2.5" fill="#ff6fb5"/><circle cx="44" cy="15" r="2.5" fill="#ff6fb5"/>`};
+ h+=fr[o.hair]||sh;
+ const J='#ff4d6d',hats={tiara:`<polygon points="20,7 22,1 26,5 30,-2 34,5 38,1 40,7" fill="${G}" stroke="${D}"/><circle cx="30" cy="2" r="2" fill="${J}"/>`,
+ crown:`<path d="M19 8L18 -2 24 3 30 -5 36 3 42 -2 41 8Z" fill="${G}" stroke="${D}"/><circle cx="30" cy="1" r="2" fill="${J}"/><circle cx="22" cy="4" r="1.4" fill="#3a86ff"/><circle cx="38" cy="4" r="1.4" fill="#3a86ff"/>`,
+ circlet:`<rect x="18" y="5" width="24" height="3" rx="1.5" fill="${G}" stroke="${D}"/><circle cx="30" cy="6.5" r="2.2" fill="${J}"/>`};
+ h+=hats[o.hat]||'';
+ return `<svg viewBox="0 -6 60 100">${anim(h)}</svg>`}
+function anim(h){return h.replace(/<(rect|circle|ellipse) ([^>]*?)\/>/g,(m,t,a)=>{const n=k=>{const r=a.match(new RegExp('(^| )'+k+'="(-?[\\d.]+)"'));return r?+r[2]:NaN};
+ const x=t=='rect'?n('x'):n('cx'),y=t=='rect'?n('y'):n('cy');let c='';
+ if(t=='rect'){if(x<=9&&x>=7&&y>=27)c='aL';else if(x>=41&&x<=43&&y>=27)c='aR';else if((x==19||x==20)&&y>=58)c='lL';else if((x==31||x==32)&&y>=58)c='lR'}
+ else if(t=='circle'&&y==58){if(x==13)c='aL';else if(x==47)c='aR'}
+ else if(t=='ellipse'&&y==92){c=x==24?'lL':'lR'}
+ return c?m.replace(t+' ',t+' class="'+c+'" '):m})}
+function charOld(o,z){const s=p=>z.has(p)?Z:o.skin,all=z.size>=6;let h='';
+ h+=`<rect x="20" y="60" width="8" height="28" fill="${s('legL')}"/><rect x="32" y="60" width="8" height="28" fill="${s('legR')}"/>`;
+ h+=`<rect x="18" y="85" width="11" height="7" rx="3" fill="${o.shoe}"/><rect x="31" y="85" width="11" height="7" rx="3" fill="${o.shoe}"/>`;
+ if(o.top=='hoodie')h+=`<circle cx="30" cy="27" r="9" fill="${o.topc}"/>`;
+ const sl=o.top=='hoodie'?26:o.top=='tee'?10:0;
+ h+=`<rect x="9" y="30" width="8" height="28" rx="4" fill="${s('armL')}"/><rect x="43" y="30" width="8" height="28" rx="4" fill="${s('armR')}"/>`;
+ h+=`<rect x="18" y="28" width="24" height="34" rx="5" fill="${o.top=='tank'?s('torso'):o.topc}"/>`;
+ if(o.top=='tank')h+=`<rect x="18" y="38" width="24" height="24" rx="4" fill="${o.topc}"/><rect x="21" y="28" width="5" height="12" fill="${o.topc}"/><rect x="34" y="28" width="5" height="12" fill="${o.topc}"/>`;
+ if(sl)h+=`<rect x="9" y="30" width="8" height="${sl}" rx="3" fill="${o.topc}"/><rect x="43" y="30" width="8" height="${sl}" rx="3" fill="${o.topc}"/>`;
+ h+=`<circle cx="13" cy="58" r="4.5" fill="${s('armL')}"/><circle cx="47" cy="58" r="4.5" fill="${s('armR')}"/>`;
+ if(z.has('armL'))h+=`<rect x="9" y="${30+sl-3}" width="8" height="${28-sl+3}" rx="3" fill="${Z}"/><circle cx="13" cy="58" r="4.5" fill="${Z}"/>`;
+ if(z.has('armR'))h+=`<rect x="43" y="${30+sl-3}" width="8" height="${28-sl+3}" rx="3" fill="${Z}"/><circle cx="47" cy="58" r="4.5" fill="${Z}"/>`;
+ if(z.has('torso'))h+=`<path d="M30 34l10 4-2 14-12 6-4-14z" fill="${Z}"/><path d="M26 42l8 4M28 48l8-3" stroke="#3b5a22" stroke-width="1.3"/>`;
+ const B=o.botc;
+ if(o.bot=='pants')h+=`<rect x="19" y="58" width="10" height="27" fill="${B}"/><rect x="31" y="58" width="10" height="27" fill="${B}"/>`;
+ if(o.bot=='shorts')h+=`<rect x="19" y="58" width="10" height="14" fill="${B}"/><rect x="31" y="58" width="10" height="14" fill="${B}"/>`;
+ if(o.bot=='skirt')h+=`<polygon points="17,58 43,58 49,77 11,77" fill="${B}"/>`;
+ if(z.has('legL'))h+=`<rect x="20" y="72" width="8" height="13" fill="${Z}"/><path d="M20 72l3 3 3-3 2 3" fill="none" stroke="#3b5a22"/>`;
+ if(z.has('legR'))h+=`<rect x="32" y="72" width="8" height="13" fill="${Z}"/><path d="M32 72l3 3 3-3 2 3" fill="none" stroke="#3b5a22"/>`;
+ h+=`<circle cx="30" cy="16" r="12" fill="${s('head')}"/>`;
+ const hz=z.has('head');
+ if(hz)h+=`<path d="M22 10l6 4M38 10l-6 4" stroke="#3b5a22" stroke-width="1.5"/><path d="M24 12l4 4m0-4l-4 4M32 12l4 4m0-4l-4 4" stroke="#111" stroke-width="1.6"/><path d="M24 23q6 -3 12 0" stroke="#7a0f0f" stroke-width="2" fill="none"/>`;
+ else h+=`<circle cx="25.5" cy="16" r="1.8" fill="#111"/><circle cx="34.5" cy="16" r="1.8" fill="#111"/><path d="M26 21q4 3 8 0" stroke="#7a2a2a" stroke-width="1.5" fill="none"/>`;
+ const hc=o.hairc,H={short:`<path d="M17 15Q17 3 30 3Q43 3 43 15Q36 8 30 9Q24 8 17 15Z" fill="${hc}"/>`,
+ spiky:`<polygon points="17,15 18,4 23,9 27,1 32,8 38,2 41,9 43,15 36,8 24,8" fill="${hc}"/>`,
+ buzz:`<path d="M18 13Q30 -1 42 13Q30 6 18 13Z" fill="${hc}"/>`};
+ H.ponytail=H.short+`<ellipse cx="45" cy="19" rx="4" ry="10" fill="${hc}" transform="rotate(-18 45 19)"/>`;
+ H.long=H.short+`<rect x="15" y="10" width="6" height="28" rx="3" fill="${hc}"/><rect x="39" y="10" width="6" height="28" rx="3" fill="${hc}"/>`;
+ H.bun=H.short+`<circle cx="30" cy="2" r="5.5" fill="${hc}"/>`;
+ h+=H[o.hair];
+ return `<svg viewBox="0 0 60 100">${h}</svg>`}
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+function randOpt(){const g=rnd(['boy','girl']);return{g,skin:rnd(SK),hair:rnd(HS[g]),hairc:rnd(HC),top:rnd(TS[g]),topc:rnd(COL),bot:rnd(BS[g]),botc:rnd(COL),shoe:rnd(COL),hat:rnd(HAT[g]),cape:rnd(['cape','none'])}}
+let me={g:'girl',skin:SK[0],hair:'long',hairc:HC[2],top:'bodice',topc:COL[6],bot:'gown',botc:COL[5],shoe:COL[2],hat:'tiara',cape:'none'};
+let zomb=new Set(),roundN=1,wins=0,streak=0,racers=[],state='dress',cdT=null,loop=null;
+const $=id=>document.getElementById(id);
+function chips(label,key,list,gl){return `<div class="g"><b>${label}</b><div class="chips">`+list.map(v=>`<button class="chip ${me[key]==v?'on':''}" data-k="${key}" data-v="${v}">${v}</button>`).join('')+`</div></div>`}
+function sw(label,key,list){return `<div class="g"><b>${label}</b><div class="chips">`+list.map(v=>`<button class="sw ${me[key]==v?'on':''}" style="background:${v}" data-k="${key}" data-v="${v}" aria-label="${key}"></button>`).join('')+`</div></div>`}
+function partsBar(){return PARTS.map(([k,n])=>`<div class="pt ${zomb.has(k)?'z':''}">${n}${zomb.has(k)?' 🧟':''}</div>`).join('')}
+function renderDress(){
+ $('ctl').innerHTML=`<div class="g"><b>Style</b><div class="chips">`+['girl','boy'].map(g=>`<button class="chip ${me.g==g?'on':''}" data-g="${g}">${g=='girl'?'Girl’s':'Boy’s'} clothes</button>`).join('')+`</div></div>`+
+ sw('Skin','skin',SK)+chips('Hair','hair',HS[me.g])+sw('Hair color','hairc',HC)+chips('Top','top',TS[me.g])+chips('Headwear','hat',HAT[me.g])+sw('Top color','topc',COL)+chips('Bottom','bot',BS[me.g])+sw('Bottom color','botc',COL)+sw('Shoes','shoe',COL)+chips('Cape','cape',['cape','none']);
+ $('pv').innerHTML=char(me,zomb);$('pp0').innerHTML=partsBar();
+ $('pp0').style.cssText='display:flex;flex-wrap:wrap;margin-top:6px';
+}
+$('ctl').onclick=e=>{const t=e.target.closest('button');if(!t)return;
+ if(t.dataset.g){me.g=t.dataset.g;me.hair=HS[me.g][0];me.bot=BS[me.g][0];me.top=TS[me.g][0];me.hat=HAT[me.g][0]}else me[t.dataset.k]=t.dataset.v;renderDress()};
+$('start').onclick=()=>startRace();
+function startRace(){
+ state='cd';$('dress').classList.add('hide');$('race').classList.remove('hide');$('res').classList.add('hide');$('tap').classList.add('hide');
+ const diff=Math.min(1.6,roundN*0.12);
+ racers=[{n:'You',o:me,z:zomb,me:1,pos:0,v:0,fin:0}];
+ for(let i=1;i<5;i++)racers.push({n:'Rival '+i,o:randOpt(),z:new Set(),pos:0,v:0,fin:0,sk:5.2+Math.random()*1.9+diff,t:0});
+ $('rn').textContent='Race '+roundN;$('rec').textContent='Wins: '+wins+(zomb.size?' · Zombie parts: '+zomb.size+'/6':'');
+ $('lanes').innerHTML=racers.map((r,i)=>`<div class="lane"><span class="nm ${r.me?'me':''}">${r.n}</span><div class="track"><div class="run" id="r${i}">${char(r.o,r.z)}</div></div></div>`).join('');
+ $('pp1').innerHTML=partsBar();draw();
+ let c=3;$('cd').textContent=c;clearInterval(cdT);
+ cdT=setInterval(()=>{c--;if(c>0)$('cd').textContent=c;else{clearInterval(cdT);$('cd').textContent='GO!';setTimeout(()=>$('cd').textContent='',500);go()}},700)}
+function draw(){racers.forEach((r,i)=>{const e=$('r'+i);e.style.left=(r.pos*0.9)+'%';e.style.setProperty('--d',Math.max(.16,(.5-r.v*.035)*(r.z.size>=6?1.6:1))+'s');e.classList.toggle('zb',r.z.size>=6);e.classList.toggle('go',state=='run'&&!r.fin&&r.v>1)})}
+let order=0,t0=0;
+function go(){state='run';order=0;$('tap').classList.remove('hide');
+ loop=setInterval(()=>{racers.forEach(r=>{if(r.fin)return;
+  if(!r.me){r.t--;if(r.t<=0){r.t=8+Math.random()*10;r.tg=r.sk*(0.8+Math.random()*0.4)}r.v+=((r.tg||r.sk)-r.v)*0.08}
+  r.v*=0.96;r.pos+=r.v*0.05;
+  if(r.pos>=100){r.pos=100;r.fin=++order;if(r.me)finish()}});draw()},50)}
+function tap(){if(state!='run')return;const r=racers[0];if(r.fin)return;r.v+=1.0*(1-0.06*zomb.size)}
+$('tap').addEventListener('pointerdown',e=>{e.preventDefault();tap()});
+addEventListener('keydown',e=>{if(e.code=='Space'&&!e.repeat){e.preventDefault();tap()}});
+function finish(){state='done';clearInterval(loop);$('tap').classList.add('hide');const p=racers[0].fin;let h='';
+ const ord=['','1st','2nd','3rd','4th','5th'];
+ if(p==1){wins++;h=`<div class="big-msg">🏆 1st place — YOU WIN!</div><p class="s" style="text-align:center">${zomb.size?'You made it through as '+(zomb.size>=6?'a full zombie!':'a part-zombie!'):'Without a single zombie part!'}</p><button class="btn" id="again">Play Again (fresh start)</button>`;streak=0}
+ else if(p<=3){streak=0;roundN++;h=`<div class="big-msg">${ord[p]} place — Safe!</div><p class="s" style="text-align:center">Still human… for now. Only 1st place wins.</p><button class="btn" id="again">Next Race</button>`}
+ else{streak++;roundN++;const left=PARTS.filter(([k])=>!zomb.has(k));let msg='';
+  if(left.length){const [k,n]=rnd(left);zomb.add(k);msg=`Your <b>${n}</b> turned into a zombie! 🧟`;if(zomb.size>=6)msg+=`<br><b>You’re a full zombie now, for the rest of the game.</b> Zombies run slower… can you still win?`}
+  else msg='You’re already a full zombie. Keep shuffling!';
+  h=`<div class="big-msg">${ord[p]} place 😱</div><p style="text-align:center">${msg}</p><p class="s" style="text-align:center">Losses in a row: ${streak}</p><button class="btn" id="again">Race Again</button>`}
+ $('pp1').innerHTML=partsBar();$('rec').textContent='Wins: '+wins+(zomb.size?' · Zombie parts: '+zomb.size+'/6':'');
+ $('res').innerHTML=h;$('res').classList.remove('hide');
+ $('again').onclick=()=>{if(p==1){zomb=new Set();roundN=1;streak=0;$('race').classList.add('hide');$('dress').classList.remove('hide');renderDress()}else{$('race').classList.add('hide');$('dress').classList.remove('hide');renderDress()}}}
+renderDress();
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"){e.preventDefault();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

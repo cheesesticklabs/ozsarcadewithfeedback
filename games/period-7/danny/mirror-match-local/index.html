@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mirror Match</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center;
+    background: radial-gradient(circle at top, #20294a, #090d18 70%);
+    color: #f4f7ff; font-family: system-ui, Arial, sans-serif; padding: 16px;
+  }
+  .game { width: min(100%, 980px); }
+  header { text-align: center; margin-bottom: 14px; }
+  h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.5rem); letter-spacing: .12em; }
+  .subtitle { color: #aeb9dc; margin-top: 4px; }
+  .hud { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; margin-bottom: 10px; }
+  .player { background: #151d31; border: 1px solid #394767; border-radius: 12px; padding: 10px 12px; }
+  .player.right { text-align: right; }
+  .name { font-weight: 800; margin-bottom: 7px; }
+  .bar { height: 18px; background: #080c16; border-radius: 999px; overflow: hidden; border: 1px solid #4b5876; }
+  .fill { height: 100%; width: 100%; transition: width .12s linear; }
+  #hp1 { background: linear-gradient(90deg, #00e0b8, #7bffd9); }
+  #hp2 { background: linear-gradient(90deg, #ffb04d, #ff547d); float: right; }
+  .vs { font-weight: 900; color: #ffdf70; letter-spacing: .08em; }
+  canvas { display: block; width: 100%; height: auto; border-radius: 16px; border: 2px solid #43537b; background: #10182c; box-shadow: 0 18px 55px #0008; }
+  .under { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .controls { padding: 12px; border-radius: 12px; background: #151d31; border: 1px solid #394767; color: #c6d0ec; font-size: .92rem; line-height: 1.6; }
+  .controls b { color: white; }
+  kbd { display: inline-block; min-width: 24px; text-align: center; padding: 1px 5px; border: 1px solid #69789b; border-bottom-width: 3px; border-radius: 5px; background: #0a1020; color: #fff; font: inherit; }
+  .actions { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+  button { border: 0; border-radius: 9px; padding: 10px 16px; color: #08101d; background: #ffdf70; font-weight: 800; cursor: pointer; }
+  button.secondary { background: #aab8dc; }
+  #message { min-height: 1.5em; text-align: center; margin-top: 10px; font-weight: 700; color: #ffdf70; }
+  @media (max-width: 600px) { .hud { gap: 6px; } .player { padding: 8px; } .name { font-size: .85rem; } .under { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main class="game">
+  <header>
+    <h1>MIRROR MATCH</h1>
+    <div class="subtitle">Two fighters. One keyboard. Who knows their opponent best?</div>
+  </header>
+  <section class="hud" aria-label="Player health">
+    <div class="player">
+      <div class="name">PLAYER 1 <span style="color:#54f2d1">◆</span></div>
+      <div class="bar"><div id="hp1" class="fill"></div></div>
+    </div>
+    <div class="vs">VS</div>
+    <div class="player right">
+      <div class="name">PLAYER 2 <span style="color:#ff7894">◆</span></div>
+      <div class="bar"><div id="hp2" class="fill"></div></div>
+    </div>
+  </section>
+  <canvas id="arena" width="960" height="480" aria-label="Mirror Match fighting arena"></canvas>
+  <div class="under">
+    <div class="controls"><b style="color:#54f2d1">PLAYER 1 CONTROLS</b><br>
+      Move: <kbd>A</kbd> <kbd>D</kbd> &nbsp; Jump: <kbd>W</kbd><br>
+      Attack: <kbd>F</kbd> &nbsp; Block: <kbd>S</kbd>
+    </div>
+    <div class="controls"><b style="color:#ff7894">PLAYER 2 CONTROLS</b><br>
+      Move: <kbd>←</kbd> <kbd>→</kbd> &nbsp; Jump: <kbd>↑</kbd><br>
+      Attack: <kbd>/</kbd> (slash) &nbsp; Block: <kbd>↓</kbd>
+    </div>
+  </div>
+  <div class="actions">
+    <button id="start">Start / Restart Match</button>
+    <button id="pause" class="secondary">Pause</button>
+  </div>
+  <div id="message">Press Start / Restart Match to begin!</div>
+</main>
+<script>
+(() => {
+  const canvas = document.getElementById('arena');
+  const ctx = canvas.getContext('2d');
+  const hp1 = document.getElementById('hp1'), hp2 = document.getElementById('hp2');
+  const message = document.getElementById('message');
+  const keys = new Set();
+  const floor = 390;
+  let running = false, over = false, last = 0, particles = [];
+  const makeFighter = (x, color, accent, facing, controls) => ({
+    x, y: floor - 100, vx: 0, vy: 0, w: 48, h: 100, color, accent, facing,
+    hp: 100, controls, attack: 0, cooldown: 0, block: false, hurt: 0, wins: 0
+  });
+  let p1, p2;
+  function reset() {
+    p1 = makeFighter(220, '#10cdb0', '#aaffee', 1, {left:'a',right:'d',jump:'w',attack:'f',block:'s'});
+    p2 = makeFighter(692, '#ff587d', '#ffd1dc', -1, {left:'arrowleft',right:'arrowright',jump:'arrowup',attack:'/',block:'arrowdown'});
+    particles = []; over = false; running = true;
+    message.textContent = 'FIGHT! Reduce your opponent’s HP to zero.';
+    updateHud();
+  }
+  function updateHud() {
+    hp1.style.width = Math.max(0,p1.hp) + '%';
+    hp2.style.width = Math.max(0,p2.hp) + '%';
+  }
+  function hit(attacker, defender) {
+    if (attacker.cooldown > 0 || attacker.attack > 0 || over) return;
+    attacker.attack = 0.22; attacker.cooldown = 0.52;
+    const distance = Math.abs((attacker.x + attacker.w/2) - (defender.x + defender.w/2));
+    const inFront = (defender.x - attacker.x) * attacker.facing > -8;
+    if (distance < 105 && inFront && Math.abs(attacker.y - defender.y) < 65) {
+      const blocked = defender.block;
+      const damage = blocked ? 3 : 12;
+      defender.hp = Math.max(0, defender.hp - damage);
+      defender.hurt = 0.18;
+      defender.x += attacker.facing * (blocked ? 5 : 18);
+      for (let i=0;i<10;i++) particles.push({x:defender.x+defender.w/2,y:defender.y+35,vx:(Math.random()-.5)*220,vy:(Math.random()-.8)*190,life:.35,color:blocked?'#d4e0ff':attacker.accent});
+      updateHud();
+      if (defender.hp <= 0) {
+        over = true; running = false;
+        message.textContent = (attacker === p1 ? 'PLAYER 1' : 'PLAYER 2') + ' WINS! Press Start / Restart Match to play again.';
+      }
+    }
+  }
+  function updateFighter(f, opponent, dt) {
+    f.cooldown = Math.max(0, f.cooldown-dt);
+    f.attack = Math.max(0, f.attack-dt);
+    f.hurt = Math.max(0, f.hurt-dt);
+    f.block = keys.has(f.controls.block);
+    const speed = f.block ? 145 : 245;
+    f.vx = 0;
+    if (keys.has(f.controls.left)) f.vx -= speed;
+    if (keys.has(f.controls.right)) f.vx += speed;
+    if (f.block) f.vx *= .45;
+    if (keys.has(f.controls.jump) && f.y + f.h >= floor-1) f.vy = -510;
+    if (keys.has(f.controls.attack)) hit(f, opponent);
+    f.vy += 1250*dt;
+    f.x += f.vx*dt; f.y += f.vy*dt;
+    if (f.y+f.h >= floor) { f.y=floor-f.h; f.vy=0; }
+    f.x = Math.max(24, Math.min(canvas.width-f.w-24, f.x));
+    f.facing = (opponent.x + opponent.w/2) >= (f.x+f.w/2) ? 1 : -1;
+  }
+  function roundedRect(x,y,w,h,r,fill) {
+    ctx.fillStyle=fill; ctx.beginPath(); ctx.roundRect(x,y,w,h,r); ctx.fill();
+  }
+  function drawBackground() {
+    const g = ctx.createLinearGradient(0,0,0,480); g.addColorStop(0,'#172344'); g.addColorStop(1,'#0b1020');
+    ctx.fillStyle=g; ctx.fillRect(0,0,960,480);
+    ctx.strokeStyle='#34466f'; ctx.lineWidth=1;
+    for(let x=0;x<=960;x+=48){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,floor);ctx.stroke();}
+    for(let y=55;y<floor;y+=44){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(960,y);ctx.stroke();}
+    ctx.fillStyle='#283557'; ctx.fillRect(0,floor,960,90);
+    ctx.fillStyle='#50648d'; ctx.fillRect(0,floor,960,4);
+    ctx.strokeStyle='#52658e'; ctx.globalAlpha=.5;
+    for(let x=-300;x<1200;x+=70){ctx.beginPath();ctx.moveTo(480, floor);ctx.lineTo(x,480);ctx.stroke();}
+    ctx.globalAlpha=1;
+    ctx.fillStyle='#aab9df'; ctx.font='bold 13px system-ui'; ctx.textAlign='center';
+    ctx.fillText('M I R R O R   A R E N A',480,32);
+  }
+  function drawFighter(f, label) {
+    const center=f.x+f.w/2, top=f.y, crouch=f.block && f.y+f.h>=floor-1;
+    ctx.save();
+    ctx.globalAlpha=.28; ctx.fillStyle='#000'; ctx.beginPath();ctx.ellipse(center,floor+2,34,8,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    // legs
+    ctx.strokeStyle=f.color;ctx.lineWidth=13;ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(center-10,top+68);ctx.lineTo(center-15,top+91);ctx.moveTo(center+10,top+68);ctx.lineTo(center+16,top+91);ctx.stroke();
+    // body
+    roundedRect(center-22,top+34,44,43,10,f.hurt>0?'#ffffff':f.color);
+    // chest detail
+    ctx.fillStyle=f.accent;ctx.fillRect(center-12,top+43,24,5);
+    // head
+    ctx.fillStyle='#f0f4ff';ctx.beginPath();ctx.arc(center,top+19,17,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#1a2340';ctx.beginPath();ctx.arc(center+f.facing*5,top+18,3,0,Math.PI*2);ctx.fill();
+    // scarf / mirror crest
+    ctx.fillStyle=f.accent;ctx.beginPath();ctx.moveTo(center-15,top+5);ctx.lineTo(center+12,top+2);ctx.lineTo(center+f.facing*25,top+10);ctx.lineTo(center+10,top+12);ctx.closePath();ctx.fill();
+    // arms and attack effect
+    ctx.strokeStyle=f.hurt>0?'#fff':f.color;ctx.lineWidth=11;
+    if(f.attack>0){
+      ctx.beginPath();ctx.moveTo(center+f.facing*12,top+47);ctx.lineTo(center+f.facing*48,top+43);ctx.stroke();
+      ctx.strokeStyle=f.accent;ctx.lineWidth=5;ctx.beginPath();ctx.arc(center+f.facing*57,top+43,22,-.9,.9);ctx.stroke();
+    } else {
+      ctx.beginPath();ctx.moveTo(center-f.facing*10,top+45);ctx.lineTo(center-f.facing*23,top+60);ctx.moveTo(center+f.facing*10,top+45);ctx.lineTo(center+f.facing*(f.block?30:23),top+(f.block?26:60));ctx.stroke();
+    }
+    if(f.block){ctx.strokeStyle='#d8e4ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(center,top+48,40,-1.2,1.2);ctx.stroke();}
+    ctx.fillStyle='#f4f7ff';ctx.font='bold 14px system-ui';ctx.textAlign='center';ctx.fillText(label,center,top-13);
+    ctx.restore();
+  }
+  function draw() {
+    drawBackground();
+    // center line
+    ctx.strokeStyle='#ffdf70';ctx.globalAlpha=.5;ctx.setLineDash([8,10]);ctx.beginPath();ctx.moveTo(480,60);ctx.lineTo(480,floor);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
+    drawFighter(p1,'P1');drawFighter(p2,'P2');
+    particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/.35);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill();});ctx.globalAlpha=1;
+    if(!running && !over){
+      ctx.fillStyle='#05091699';ctx.fillRect(0,0,960,480);
+      ctx.fillStyle='#fff';ctx.font='900 44px system-ui';ctx.textAlign='center';ctx.fillText('MIRROR MATCH',480,220);
+      ctx.font='20px system-ui';ctx.fillStyle='#ffdf70';ctx.fillText('Press START to fight',480,260);
+    }
+    if(over){
+      ctx.fillStyle='#050916aa';ctx.fillRect(0,0,960,480);
+      ctx.fillStyle='#ffdf70';ctx.font='900 48px system-ui';ctx.textAlign='center';ctx.fillText(p1.hp>0?'PLAYER 1 WINS!':'PLAYER 2 WINS!',480,230);
+      ctx.fillStyle='#fff';ctx.font='20px system-ui';ctx.fillText('Press Start / Restart Match',480,270);
+    }
+  }
+  function loop(now) {
+    const dt=Math.min(.033,(now-last)/1000||0);last=now;
+    if(running && !over){
+      updateFighter(p1,p2,dt);updateFighter(p2,p1,dt);
+      particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=350*dt;p.life-=dt;});
+      particles=particles.filter(p=>p.life>0);
+    }
+    draw();requestAnimationFrame(loop);
+  }
+  document.getElementById('start').addEventListener('click',reset);
+  document.getElementById('pause').addEventListener('click',()=>{
+    if(over)return;
+    running=!running;message.textContent=running?'Match resumed. Fight!':'Paused — press Pause to continue.';
+  });
+  window.addEventListener('keydown',e=>{
+    const k=e.key.toLowerCase();
+    if(['arrowleft','arrowright','arrowup','arrowdown',' '].includes(k))e.preventDefault();
+    keys.add(k);
+  });
+  window.addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
+  window.addEventListener('blur',()=>keys.clear());
+  p1=makeFighter(220,'#10cdb0','#aaffee',1,{left:'a',right:'d',jump:'w',attack:'f',block:'s'});
+  p2=makeFighter(692,'#ff587d','#ffd1dc',-1,{left:'arrowleft',right:'arrowright',jump:'arrowup',attack:'/',block:'arrowdown'});
+  draw(); requestAnimationFrame(loop);
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Last One Standing - Cyber Arena</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#07111d;color:#eefaff;font:16px system-ui,Arial,sans-serif}
+main{max-width:1000px;margin:auto;padding:14px}h1{margin:0;color:#72f7ff;letter-spacing:.06em;font-size:clamp(1.4rem,4vw,2.3rem)}
+p{color:#b8d2df}.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+button,select{background:#102b3c;color:white;border:1px solid #2f91a7;border-radius:9px;padding:9px 12px;font:inherit}
+button{cursor:pointer}button:hover{background:#17445b}
+canvas{display:block;width:100%;height:auto;border:2px solid #24788a;border-radius:12px;background:#091a26}
+.hud{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.pill{background:#102332;border:1px solid #235165;border-radius:8px;padding:8px 11px}
+.layout{display:grid;grid-template-columns:1fr 250px;gap:12px}.panel{border:1px solid #235165;border-radius:12px;background:#0d1e2b;padding:12px}
+small{color:#b5c9d7;line-height:1.5}label{display:block;margin:9px 0 4px;color:#b5c9d7}
+@media(max-width:700px){.layout{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main>
+<div class="bar"><div><h1>LAST ONE STANDING</h1><div>CYBER ARENA • 50 FIGHTERS</div></div><button id="start">Start / Restart</button></div>
+<div class="layout"><section>
+<canvas id="arena" width="800" height="500"></canvas>
+<div class="hud"><div class="pill">❤️ Health: <b id="health">100</b></div><div class="pill">👥 Alive: <b id="alive">50</b></div><div class="pill">🔫 Weapon: <b id="weaponName">Pulse Rifle</b></div><div class="pill">🎯 Score: <b id="score">0</b></div></div>
+<p id="message">Press Start / Restart to enter the arena.</p>
+</section>
+<aside class="panel"><h3>Player setup</h3>
+<label for="skin">Armor color</label><select id="skin"><option value="#4cecff">Cyber Cyan</option><option value="#ff4bd8">Neon Magenta</option><option value="#9cff5b">Toxic Green</option><option value="#ffb347">Solar Gold</option></select>
+<label for="gun">Weapon</label><select id="gun"><option>Pulse Rifle</option><option>Plasma Blaster</option><option>Scatter Cannon</option><option>Rail Sniper</option></select>
+<h3>Controls</h3><small><b>W A S D</b> move<br><b>Mouse</b> aim<br><b>Click or Space</b> shoot<br><b>Tab</b> switch active player<br><b>Arrow keys</b> move Player 2<br><br>Two players share one Chromebook. Player 2 has magenta armor. Eliminate bots and survive the shrinking zone!</small>
+</aside></div>
+</main>
+<script>
+(function(){
+'use strict';
+const canvas=document.getElementById('arena'),ctx=canvas.getContext('2d');
+const $=id=>document.getElementById(id), W=canvas.width,H=canvas.height;
+let fighters=[],shots=[],keys={},mouse={x:600,y:250},active=0,playing=false,finished=false,score=0,frame=0,zone=235,lastFire=0;
+const guns={'Pulse Rifle':{damage:20,rate:180,speed:9,count:1,spread:.03},'Plasma Blaster':{damage:34,rate:420,speed:6,count:1,spread:0},'Scatter Cannon':{damage:9,rate:560,speed:7,count:6,spread:.28},'Rail Sniper':{damage:60,rate:700,speed:13,count:1,spread:0}};
+function player(id,x,y,human,color){return {id,x,y,hp:100,human,color,alive:true,angle:0,cool:Math.random()*300,speed:human?2.8:1.1+Math.random()*.7,r:human?12:9};}
+function start(){
+ fighters=[];shots=[];score=0;frame=0;zone=235;active=0;playing=true;finished=false;
+ fighters.push(player(1,130,250,true,$('skin').value),player(2,670,250,true,'#ff4bd8'));
+ for(let i=3;i<=50;i++){let x=40+Math.random()*720,y=35+Math.random()*430;fighters.push(player(i,x,y,false,['#ffb347','#ff5470','#b48cff','#72ff9b'][i%4]));}
+ $('message').textContent='Match started! Be the last player standing.';updateHud();
+}
+function alive(){return fighters.filter(p=>p.alive)}
+function nearest(p){let a=alive().filter(q=>q!==p);a.sort((x,y)=>Math.hypot(x.x-p.x,x.y-p.y)-Math.hypot(y.x-p.x,y.y-p.y));return a[0]}
+function shoot(p,a){
+ const g=guns[$('gun').value];p.cool=g.rate;
+ for(let i=0;i<g.count;i++){let ang=a+(Math.random()-.5)*g.spread*2;shots.push({x:p.x+Math.cos(ang)*15,y:p.y+Math.sin(ang)*15,vx:Math.cos(ang)*g.speed,vy:Math.sin(ang)*g.speed,owner:p,damage:g.damage,life:70,color:p.color});}
+}
+function updateHud(){let p=fighters[active];$('health').textContent=p?Math.max(0,Math.ceil(p.hp)):0;$('alive').textContent=alive().length;$('score').textContent=score;$('weaponName').textContent=$('gun').value;}
+function update(){
+ if(!playing||finished)return;frame++;
+ for(let p of fighters){if(!p.alive)continue;p.cool=Math.max(0,p.cool-16);
+ if(p.human){if(p.id===1){if(keys.w)p.y-=p.speed;if(keys.s)p.y+=p.speed;if(keys.a)p.x-=p.speed;if(keys.d)p.x+=p.speed;}else{if(keys.ArrowUp)p.y-=p.speed;if(keys.ArrowDown)p.y+=p.speed;if(keys.ArrowLeft)p.x-=p.speed;if(keys.ArrowRight)p.x+=p.speed;}if(p.id===active+1)p.angle=Math.atan2(mouse.y-p.y,mouse.x-p.x);}
+ else {let t=nearest(p);if(t){let a=Math.atan2(t.y-p.y,t.x-p.x),d=Math.hypot(t.x-p.x,t.y-p.y);p.angle=a;if(d>115){p.x+=Math.cos(a)*p.speed;p.y+=Math.sin(a)*p.speed;}else if(d<55){p.x-=Math.cos(a)*p.speed*.6;p.y-=Math.sin(a)*p.speed*.6;}if(p.cool<=0&&d<310){p.cool=500+Math.random()*400;let aa=a+(Math.random()-.5)*.24;shots.push({x:p.x,y:p.y,vx:Math.cos(aa)*5,vy:Math.sin(aa)*5,owner:p,damage:7,life:70,color:'#ff6b75'});}}}
+ p.x=Math.max(12,Math.min(W-12,p.x));p.y=Math.max(12,Math.min(H-12,p.y));
+ if(frame>600&&Math.hypot(p.x-W/2,p.y-H/2)>zone){p.hp-=.12;if(p.hp<=0)p.alive=false;}
+ }
+ for(let b of shots){b.x+=b.vx;b.y+=b.vy;b.life--;if(b.x<0||b.x>W||b.y<0||b.y>H)b.life=0;
+ for(let p of fighters){if(b.life>0&&p.alive&&p!==b.owner&&Math.hypot(p.x-b.x,p.y-b.y)<p.r+3){p.hp-=b.damage;b.life=0;if(p.hp<=0){p.alive=false;if(b.owner.human)score++;}}}}
+ shots=shots.filter(b=>b.life>0);
+ if(frame%500===0)zone=Math.max(75,zone-20);
+ if(alive().length<=1){finished=true;playing=false;let w=alive()[0];$('message').textContent=w?w.human?'YOU WIN! Last player standing!':w.id===2?'Player 2 wins!':'Bot '+w.id+' wins!':'Everyone was eliminated.';}
+ if(frame%8===0)updateHud();
+}
+function draw(){
+ ctx.clearRect(0,0,W,H);ctx.fillStyle='#0b202a';ctx.fillRect(0,0,W,H);
+ ctx.strokeStyle='#163d4a';ctx.lineWidth=1;for(let x=0;x<W;x+=32){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=0;y<H;y+=32){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}
+ ctx.strokeStyle=frame>600?'#ffb347':'#40ffb0';ctx.lineWidth=3;ctx.setLineDash([9,8]);ctx.beginPath();ctx.arc(W/2,H/2,zone,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+ // cyber cover
+ for(let i=0;i<8;i++){let x=90+(i%4)*195,y=90+Math.floor(i/4)*310;ctx.fillStyle='#173746';ctx.strokeStyle='#2e8192';ctx.lineWidth=2;ctx.fillRect(x-20,y-16,40,32);ctx.strokeRect(x-20,y-16,40,32);ctx.fillStyle='#45eaff';ctx.fillRect(x-14,y-13,28,3);}
+ for(let b of shots){ctx.strokeStyle=b.color;ctx.shadowBlur=10;ctx.shadowColor=b.color;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-b.vx*1.8,b.y-b.vy*1.8);ctx.stroke();}ctx.shadowBlur=0;
+ for(let p of fighters){if(!p.alive)continue;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);ctx.shadowBlur=12;ctx.shadowColor=p.color;
+ // energy rifle
+ ctx.fillStyle='#101923';ctx.strokeStyle='#a9eaff';ctx.lineWidth=1;ctx.fillRect(2,-4,20,8);ctx.fillStyle='#65faff';ctx.fillRect(15,-2,10,4);
+ // armored torso/backpack
+ ctx.fillStyle='#142b3a';ctx.strokeStyle=p.color;ctx.lineWidth=2;ctx.fillRect(-10,-8,17,16);ctx.strokeRect(-10,-8,17,16);ctx.fillStyle=p.color;ctx.fillRect(-3,-3,7,6);
+ // helmet and visor
+ ctx.fillStyle='#07111c';ctx.beginPath();ctx.moveTo(-9,-7);ctx.lineTo(-6,-12);ctx.lineTo(3,-12);ctx.lineTo(9,-6);ctx.lineTo(8,6);ctx.lineTo(2,11);ctx.lineTo(-6,9);ctx.closePath();ctx.fill();ctx.stroke();
+ ctx.fillStyle=p.color;ctx.fillRect(-4,-5,11,3);ctx.fillRect(-9,-2,3,5);ctx.restore();ctx.shadowBlur=0;
+ if(p.human){ctx.textAlign='center';ctx.font='bold 13px system-ui';ctx.fillStyle=p.color;ctx.fillText(p.id===1?'P1':'P2',p.x,p.y-20);ctx.fillStyle='#542632';ctx.fillRect(p.x-15,p.y+15,30,4);ctx.fillStyle='#57f7b3';ctx.fillRect(p.x-15,p.y+15,30*Math.max(0,p.hp/100),4);}
+ }
+ if(playing){ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mouse.x,mouse.y,8,0,Math.PI*2);ctx.moveTo(mouse.x-13,mouse.y);ctx.lineTo(mouse.x-4,mouse.y);ctx.moveTo(mouse.x+4,mouse.y);ctx.lineTo(mouse.x+13,mouse.y);ctx.moveTo(mouse.x,mouse.y-13);ctx.lineTo(mouse.x,mouse.y-4);ctx.moveTo(mouse.x,mouse.y+4);ctx.lineTo(mouse.x,mouse.y+13);ctx.stroke();}
+ if(!playing&&!finished){ctx.fillStyle='#06101ad9';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#73f7ff';ctx.font='bold 32px system-ui';ctx.fillText('CYBER ARENA',W/2,H/2-12);ctx.fillStyle='#fff';ctx.font='18px system-ui';ctx.fillText('Press Start / Restart to play',W/2,H/2+22);}
+ if(finished){ctx.fillStyle='#06101ad9';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='#73f7ff';ctx.font='bold 32px system-ui';ctx.fillText('MATCH OVER',W/2,H/2);ctx.fillStyle='#fff';ctx.font='18px system-ui';ctx.fillText('Press Start / Restart to play again',W/2,H/2+30);}
+}
+function fire(){let p=fighters[active];if(!playing||!p||!p.alive||p.cool>0)return;p.angle=Math.atan2(mouse.y-p.y,mouse.x-p.x);shoot(p,p.angle);updateHud();}
+canvas.addEventListener('mousemove',e=>{let r=canvas.getBoundingClientRect();mouse.x=(e.clientX-r.left)*W/r.width;mouse.y=(e.clientY-r.top)*H/r.height;});
+canvas.addEventListener('click',fire);
+window.addEventListener('keydown',e=>{let k=e.key.length===1?e.key.toLowerCase():e.key;keys[k]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();if(e.key===' '){fire()}if(e.key==='Tab'){e.preventDefault();active=1-active;updateHud();}if(k==='r')start();});
+window.addEventListener('keyup',e=>{let k=e.key.length===1?e.key.toLowerCase():e.key;keys[k]=false;});
+$('start').addEventListener('click',start);$('skin').addEventListener('change',()=>{if(fighters[0])fighters[0].color=$('skin').value;});
+$('gun').addEventListener('change',updateHud);
+function loop(){try{update();draw();}catch(err){$('message').textContent='Game error: '+err.message;console.error(err);}requestAnimationFrame(loop);}
+updateHud();loop();
+})();
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

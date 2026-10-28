@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tag & Escape — Two Player Game</title>
+<style>
+  :root { color-scheme: dark; --bg:#101827; --panel:#1b2940; --ink:#f3f7ff; --muted:#b9c7dd; --accent:#75e0b3; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,sans-serif; background:radial-gradient(circle at top,#203656,#101827 60%); color:var(--ink); min-height:100vh; display:flex; justify-content:center; padding:18px; }
+  main { width:min(100%,1000px); }
+  h1 { margin:0 0 4px; font-size:clamp(1.7rem,4vw,2.5rem); }
+  .sub { color:var(--muted); margin:0 0 14px; }
+  .top { display:flex; gap:12px; align-items:center; justify-content:space-between; flex-wrap:wrap; margin-bottom:12px; }
+  .hud { display:flex; gap:10px; flex-wrap:wrap; }
+  .pill { background:var(--panel); border:1px solid #354761; border-radius:12px; padding:9px 13px; font-weight:700; }
+  button { border:0; border-radius:10px; padding:10px 15px; font:inherit; font-weight:800; color:#102034; background:var(--accent); cursor:pointer; }
+  button:hover { filter:brightness(1.08); }
+  .game-wrap { background:#0b1220; padding:8px; border:1px solid #354761; border-radius:16px; box-shadow:0 16px 50px #0005; }
+  canvas { display:block; width:100%; height:auto; border-radius:10px; background:#152b36; touch-action:none; }
+  .bottom { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+  .card { background:var(--panel); border:1px solid #354761; border-radius:14px; padding:12px 14px; }
+  .card h2 { font-size:1rem; margin:0 0 7px; }
+  .card p { margin:4px 0; color:var(--muted); font-size:.94rem; }
+  kbd { background:#0c1422; color:white; border:1px solid #52647d; border-radius:5px; padding:1px 5px; font-size:.88em; }
+  .note { margin-top:10px; color:var(--muted); font-size:.88rem; }
+  @media(max-width:600px) { .bottom { grid-template-columns:1fr; } .pill { padding:7px 10px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="top">
+    <div>
+      <h1>🏃 Tag & Escape</h1>
+      <p class="sub">Two players. One arena. Don't get tagged!</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="hud">
+        <div class="pill">⏱️ Time: <span id="time">45</span>s</div>
+        <div class="pill">🏆 <span id="status">Ready?</span></div>
+      </div>
+      <button id="start">Start / Restart</button>
+    </div>
+  </div>
+
+  <div class="game-wrap">
+    <canvas id="game" width="900" height="520" aria-label="Tag and Escape game arena"></canvas>
+  </div>
+
+  <div class="bottom">
+    <section class="card">
+      <h2>🔵 Player 1 — Blue Runner</h2>
+      <p>Move: <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></p>
+      <p>Goal: avoid the red player until time runs out.</p>
+    </section>
+    <section class="card">
+      <h2>🔴 Player 2 — Red Runner</h2>
+      <p>Move: <kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd></p>
+      <p>Goal: tag the blue player before time runs out.</p>
+    </section>
+  </div>
+  <p class="note">Strategy tip: duck behind the green bushes, weave around the stone walls, and use the open escape lanes. Bushes hide players visually, but you can still be tagged if you get too close!</p>
+</main>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const timeEl = document.getElementById('time');
+  const statusEl = document.getElementById('status');
+  const startBtn = document.getElementById('start');
+  const W = canvas.width, H = canvas.height;
+  const keys = new Set();
+  const duration = 45;
+  let running = false, ended = false, remaining = duration, last = 0, raf = 0;
+  let p1 = {x:105,y:260,r:16,speed:205,color:'#4db6ff',name:'BLUE'};
+  let p2 = {x:795,y:260,r:16,speed:205,color:'#ff646d',name:'RED'};
+
+  const walls = [
+    {x:180,y:105,w:150,h:24}, {x:180,y:105,w:24,h:115},
+    {x:570,y:105,w:150,h:24}, {x:696,y:105,w:24,h:115},
+    {x:365,y:205,w:170,h:24}, {x:270,y:330,w:24,h:95},
+    {x:606,y:330,w:24,h:95}
+  ];
+  const bushes = [
+    {x:70,y:75,w:68,h:48}, {x:760,y:75,w:68,h:48},
+    {x:70,y:390,w:80,h:55}, {x:750,y:390,w:80,h:55},
+    {x:400,y:405,w:100,h:50}
+  ];
+  const exits = [
+    {x:0,y:230,w:28,h:90}, {x:872,y:230,w:28,h:90}
+  ];
+
+  function reset() {
+    p1 = {x:105,y:260,r:16,speed:205,color:'#4db6ff',name:'BLUE'};
+    p2 = {x:795,y:260,r:16,speed:205,color:'#ff646d',name:'RED'};
+    remaining = duration; running = true; ended = false; last = performance.now();
+    keys.clear(); statusEl.textContent = 'Run!';
+    timeEl.textContent = remaining;
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(loop);
+    draw();
+  }
+
+  function circleRectHit(x,y,r,rect) {
+    const cx = Math.max(rect.x, Math.min(x, rect.x + rect.w));
+    const cy = Math.max(rect.y, Math.min(y, rect.y + rect.h));
+    return (x-cx)**2 + (y-cy)**2 < r*r;
+  }
+  function canMove(player, nx, ny) {
+    if (nx-player.r < 0 || nx+player.r > W || ny-player.r < 0 || ny+player.r > H) return false;
+    return !walls.some(w => circleRectHit(nx,ny,player.r,w));
+  }
+  function movePlayer(p, dx, dy, dt) {
+    const length = Math.hypot(dx,dy) || 1;
+    dx = dx/length*p.speed*dt; dy = dy/length*p.speed*dt;
+    if (canMove(p,p.x+dx,p.y)) p.x += dx;
+    if (canMove(p,p.x,p.y+dy)) p.y += dy;
+  }
+  function inBush(p) { return bushes.some(b => p.x > b.x && p.x < b.x+b.w && p.y > b.y && p.y < b.y+b.h); }
+
+  function draw() {
+    ctx.clearRect(0,0,W,H);
+    // grass
+    ctx.fillStyle = '#173b3d'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle = '#245054'; ctx.lineWidth = 1;
+    for(let x=20;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=20;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    // escape routes
+    exits.forEach(e => {
+      ctx.fillStyle='#d5b96c'; ctx.fillRect(e.x,e.y,e.w,e.h);
+      ctx.fillStyle='#fff0ad'; ctx.fillRect(e.x+5,e.y+5,e.w-10,e.h-10);
+      ctx.fillStyle='#5e4b24'; ctx.font='bold 12px system-ui'; ctx.save(); ctx.translate(e.x+e.w/2,e.y+e.h/2); ctx.rotate(-Math.PI/2); ctx.textAlign='center'; ctx.fillText('ESCAPE',0,4); ctx.restore();
+    });
+    // bushes
+    bushes.forEach(b => {
+      ctx.fillStyle='#246b4b'; ctx.beginPath(); ctx.roundRect(b.x,b.y,b.w,b.h,15); ctx.fill();
+      ctx.fillStyle='#39875d';
+      for(let i=0;i<5;i++){ctx.beginPath();ctx.arc(b.x+12+i*12,b.y+15+(i%2)*10,13,0,Math.PI*2);ctx.fill();}
+    });
+    // walls
+    walls.forEach(w => {
+      ctx.fillStyle='#7d8b9a'; ctx.fillRect(w.x,w.y,w.w,w.h);
+      ctx.strokeStyle='#b8c3ce'; ctx.lineWidth=2; ctx.strokeRect(w.x+2,w.y+2,w.w-4,w.h-4);
+      ctx.strokeStyle='#596979'; ctx.lineWidth=1;
+      for(let x=w.x+20;x<w.x+w.w;x+=35){ctx.beginPath();ctx.moveTo(x,w.y);ctx.lineTo(x,w.y+w.h);ctx.stroke();}
+    });
+    // arena boundary
+    ctx.strokeStyle='#b2d7c9'; ctx.lineWidth=4; ctx.strokeRect(2,2,W-4,H-4);
+    drawPlayer(p1); drawPlayer(p2);
+    if (!running && !ended) overlay('TAG & ESCAPE','Press Start / Restart to play');
+    if (ended) overlay(statusEl.textContent, 'Press Start / Restart for another round');
+  }
+  function drawPlayer(p) {
+    const hiding = inBush(p);
+    ctx.save();
+    ctx.globalAlpha = hiding ? .68 : 1;
+    ctx.fillStyle='#07111b66'; ctx.beginPath(); ctx.ellipse(p.x+3,p.y+7,p.r+2,p.r*.7,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#ffffff'; ctx.lineWidth=3; ctx.stroke();
+    ctx.fillStyle='#102033'; ctx.font='bold 10px system-ui'; ctx.textAlign='center'; ctx.fillText(p.name,p.x,p.y+4);
+    if(hiding){ctx.strokeStyle='#8de0a8';ctx.setLineDash([3,3]);ctx.beginPath();ctx.arc(p.x,p.y,p.r+5,0,Math.PI*2);ctx.stroke();}
+    ctx.restore();
+  }
+  function overlay(title, subtitle) {
+    ctx.fillStyle='#06101bcc'; ctx.fillRect(180,210,540,105);
+    ctx.strokeStyle='#8de0b8'; ctx.lineWidth=2; ctx.strokeRect(180,210,540,105);
+    ctx.textAlign='center'; ctx.fillStyle='#ffffff'; ctx.font='bold 30px system-ui'; ctx.fillText(title,W/2,252);
+    ctx.fillStyle='#d0dfeb'; ctx.font='16px system-ui'; ctx.fillText(subtitle,W/2,284);
+  }
+  function finish(message) {
+    running = false; ended = true; statusEl.textContent = message;
+    draw();
+  }
+  function loop(now) {
+    if(!running) return;
+    const dt = Math.min((now-last)/1000, .04); last=now;
+    const p1dx = (keys.has('d')?1:0)-(keys.has('a')?1:0);
+    const p1dy = (keys.has('s')?1:0)-(keys.has('w')?1:0);
+    const p2dx = (keys.has('ArrowRight')?1:0)-(keys.has('ArrowLeft')?1:0);
+    const p2dy = (keys.has('ArrowDown')?1:0)-(keys.has('ArrowUp')?1:0);
+    movePlayer(p1,p1dx,p1dy,dt);
+    movePlayer(p2,p2dx,p2dy,dt);
+    remaining -= dt;
+    timeEl.textContent = Math.max(0,Math.ceil(remaining));
+    if(Math.hypot(p1.x-p2.x,p1.y-p2.y) < p1.r+p2.r-2) {
+      finish('RED TAGGED BLUE!');
+      return;
+    }
+    if(remaining <= 0) { finish('BLUE WINS!'); return; }
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
+  window.addEventListener('keydown', e => {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+    keys.add(k);
+  });
+  window.addEventListener('keyup', e => {
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    keys.delete(k);
+  });
+  window.addEventListener('blur', () => keys.clear());
+  startBtn.addEventListener('click', reset);
+  draw();
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

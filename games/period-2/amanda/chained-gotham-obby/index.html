@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chained: Gotham Obby</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0d12}
+html,body{margin:0;height:100%;background:var(--bg);font-family:system-ui,sans-serif}
+body{display:flex;align-items:center;justify-content:center}
+canvas{max-width:100%;max-height:100%;aspect-ratio:16/9;background:#000}
+</style></head><body>
+<canvas id="c" width="800" height="450"></canvas>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d');
+const W=800,H=450,DEATH=500,CHAIN=190,GRAV=.55,SPD=3.8,JUMP=11.5;
+// ---- level: [x,y,w] rooftops (extend down forever)
+const plats=[[0,340,420]];
+let lx=420,ly=340;
+[[90,200,0],[110,140,-40],[120,120,40],[100,160,-30],[125,100,0],[110,90,-50],[120,100,50],
+ [130,80,0],[100,200,-30],[125,90,40],[120,70,0],[110,110,-40],[130,80,40],[120,90,0],
+ [125,70,-30],[130,60,10],[110,140,-40],[130,70,40],[120,60,0],[125,90,-20]].forEach(([gap,w,dy])=>{
+ lx+=gap;ly=Math.max(230,Math.min(380,ly+dy));plats.push([lx,ly,w]);lx+=w});
+lx+=110;plats.push([lx,340,600]);
+const END=lx+250; // flag x
+const skyline=[];for(let i=0;i<60;i++)skyline.push([i*110+(i*37%40),80+(i*53%140),50+(i*29%50)]);
+const mk=(n,col,k,x)=>({n,col,k,x,y:300,vx:0,vy:0,on:false,face:1});
+let P=[],scene='menu',msg='',cam=0;
+function reset(){P=[mk('Batman','#2b2f3a',['KeyA','KeyD','KeyW'],60),mk('Robin','#d32f2f',['ArrowLeft','ArrowRight','ArrowUp'],120)];P.forEach(p=>p.y=300);scene='play';cam=0}
+const keys={};
+addEventListener('keydown',e=>{keys[e.code]=1;
+ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();
+ if(e.code==='Enter'&&scene!=='play')reset()});
+addEventListener('keyup',e=>{keys[e.code]=0});
+cv.addEventListener('click',()=>{if(scene!=='play')reset()});
+function rects(){return plats.map(p=>({x:p[0],y:p[1],w:p[2],h:800}))}
+const PW=24,PH=34;
+function hit(p,r){return p.x<r.x+r.w&&p.x+PW>r.x&&p.y<r.y+r.h&&p.y+PH>r.y}
+function resolveX(p,dir){for(const r of rects())if(hit(p,r)){p.x=dir>0?r.x-PW:r.x+r.w;p.vx=0}}
+function step(p){
+ const [l,r,j]=p.k;let ax=0;if(keys[l])ax-=1;if(keys[r])ax+=1;
+ p.vx=ax*SPD;if(ax)p.face=ax;
+ if(keys[j]&&p.on)p.vy=-JUMP;
+ p.vy+=GRAV;
+ p.x+=p.vx;resolveX(p,p.vx);
+ p.y+=p.vy;p.on=false;
+ for(const rc of rects())if(hit(p,rc)){if(p.vy>0){p.y=rc.y-PH;p.on=true}else p.y=rc.y+rc.h;p.vy=0}
+}
+function update(){
+ P.forEach(step);
+ const [a,b]=P,dx=b.x-a.x,ex=Math.abs(dx)-CHAIN;
+ if(ex>0){const s=Math.sign(dx);a.x+=s*ex/2;b.x-=s*ex/2;resolveX(a,s);resolveX(b,-s)}
+ for(const p of P)if(p.y>DEATH){scene='lose';msg=p.n+' fell! The chain dragged you both down.'}
+ if(P[0].x>END&&P[1].x>END){scene='win'}
+ const mid=(P[0].x+P[1].x)/2;cam=Math.max(0,mid-W/2);
+}
+function txt(s,x,y,size,col,al){g.font='bold '+size+'px system-ui,sans-serif';g.fillStyle=col||'#fff';g.textAlign=al||'center';g.fillText(s,x,y)}
+function hero(p){
+ const x=p.x-cam,y=p.y,bat=p.n==='Batman';
+ g.save();g.translate(x+PW/2,y);g.scale(p.face,1);
+ g.fillStyle=bat?'#15171d':'#f9c80e';g.beginPath();g.moveTo(-8,8);g.lineTo(-20,PH+(p.on?0:-6));g.lineTo(-6,PH-4);g.fill(); // cape
+ g.fillStyle=bat?'#4b5563':'#2e7d32';g.fillRect(-9,22,18,12); // legs
+ g.fillStyle=p.col;g.fillRect(-10,8,20,16); // torso
+ g.fillStyle='#f9c80e';g.fillRect(-10,21,20,3); // belt
+ if(!bat){g.fillStyle='#fff';g.fillRect(-3,11,6,5)}
+ g.fillStyle=bat?'#15171d':'#e8b890';g.beginPath();g.arc(0,4,8,0,7);g.fill(); // head
+ if(bat){g.fillStyle='#15171d';g.beginPath();g.moveTo(-7,-2);g.lineTo(-6,-10);g.lineTo(-2,-3);g.moveTo(7,-2);g.lineTo(6,-10);g.lineTo(2,-3);g.fill();g.fillStyle='#e8b890';g.fillRect(-4,5,8,4)}
+ else{g.fillStyle='#111';g.fillRect(-8,1,16,5)}
+ g.fillStyle='#fff';g.fillRect(1,2,4,2);g.fillRect(-5,2,3,2); // eyes
+ g.restore();
+}
+function draw(){
+ const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'#0a0f24');gr.addColorStop(1,'#2b2147');
+ g.fillStyle=gr;g.fillRect(0,0,W,H);
+ g.fillStyle='#f4eec0';g.beginPath();g.arc(650,80,34,0,7);g.fill();
+ g.fillStyle='#10131f';
+ skyline.forEach(b=>{const x=b[0]-cam*.4;const m=((x%6600)+6600)%6600-200;g.fillRect(m,H-b[1]-60,b[2],b[1]+60)});
+ if(scene==='menu'){
+  txt('CHAINED',W/2,120,60,'#ffd54f');txt('Gotham Rooftop Obby for Two',W/2,160,22,'#ddd');
+  txt('Batman: A / D move, W jump',W/2,230,20,'#bbb');txt('Robin: ← / → move, ↑ jump',W/2,260,20,'#ff8a80');
+  txt("You're chained together — don't let either of you fall!",W/2,310,17,'#fff');
+  txt('Press Enter or click to start',W/2,370,24,'#ffd54f');return}
+ plats.forEach(p=>{const x=p[0]-cam;if(x>W||x+p[2]<0)return;
+  g.fillStyle='#232733';g.fillRect(x,p[1],p[2],H);g.fillStyle='#4a5166';g.fillRect(x,p[1],p[2],6);
+  g.fillStyle='#e9d98a';for(let i=10;i<p[2]-10;i+=26)for(let j=24;j<H-p[1];j+=34)if((i*7+j*3+p[0])%5<2)g.fillRect(x+i,p[1]+j,8,12)});
+ // flag
+ const fx=END+30-cam;g.fillStyle='#ccc';g.fillRect(fx,250,4,90);g.fillStyle='#ffd54f';g.fillRect(fx+4,250,34,22);
+ txt('FINISH',fx+20,240,14,'#ffd54f');
+ // chain
+ const [a,b]=P,ax=a.x+PW/2-cam,ay=a.y+20,bx=b.x+PW/2-cam,by=b.y+20;
+ const d=Math.hypot(bx-ax,by-ay),sag=Math.max(0,CHAIN-Math.abs(bx-ax))*.5+8;
+ g.strokeStyle=d>CHAIN*.95?'#ff5252':'#c0c0c0';g.lineWidth=4;g.setLineDash([7,4]);
+ g.beginPath();g.moveTo(ax,ay);g.quadraticCurveTo((ax+bx)/2,(ay+by)/2+sag,bx,by);g.stroke();g.setLineDash([]);
+ P.forEach(hero);
+ P.forEach(p=>{txt(p.n,p.x-cam+PW/2,p.y-14,12,'#fff')});
+ // progress
+ const pr=Math.max(0,Math.min(1,Math.min(P[0].x,P[1].x)/END));
+ g.fillStyle='#0008';g.fillRect(200,14,400,10);g.fillStyle='#ffd54f';g.fillRect(200,14,400*pr,10);
+ txt('Teamwork: stay within chain range!',W/2,42,13,'#fff');
+ if(scene!=='play'){g.fillStyle='rgba(0,0,0,.7)';g.fillRect(0,0,W,H);
+  if(scene==='win'){txt('YOU BOTH SURVIVED! 🦇',W/2,200,44,'#ffd54f');txt('Gotham is safe, thanks to teamwork.',W/2,245,22,'#fff')}
+  else{txt('YOU FELL!',W/2,200,50,'#ff5252');txt(msg,W/2,245,20,'#fff')}
+  txt('Press Enter or click to play again',W/2,310,22,'#ddd')}
+}
+function loop(){if(scene==='play')update();draw();requestAnimationFrame(loop)}
+loop();
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

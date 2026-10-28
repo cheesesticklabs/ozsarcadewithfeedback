@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Errand Town 3D</title>
+<style>
+:root{--bg:#fdeff4;--fg:#3a2a33;--card:#fff;--ac:#e8608f;--mut:#8a7480;--bd:#f2c9d8;--on:#ffe3ee;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#201a1e;--fg:#f3e8ee;--card:#2d242a;--ac:#f07aa4;--mut:#b49aa8;--bd:#4a3a43;--on:#4a2c3a;color-scheme:dark}}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+#g{position:fixed;inset:0}canvas{display:block}
+#top{position:fixed;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;right:8px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center}
+#hd{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+#hd span,#top button{background:var(--card);border:2px solid var(--bd);border-radius:14px;padding:4px 10px;font-weight:700;font-size:.85rem;color:var(--fg)}
+#top button{cursor:pointer;font:inherit;font-size:.8rem}
+#toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 80px);transform:translateX(-50%);background:var(--card);border:2px solid var(--ac);border-radius:20px;padding:6px 14px;font-weight:600;font-size:.9rem;display:none;text-align:center;max-width:90%;color:var(--fg)}
+#ov{position:fixed;inset:0;background:#000a;display:none;align-items:center;justify-content:center;padding:10px}
+#box{background:var(--card);border-radius:16px;padding:14px;width:100%;max-width:520px;max-height:90%;overflow:auto;border:2px solid var(--bd)}
+h1{font-size:1.2rem;text-align:center;margin:2px 0}p{margin:6px 0;line-height:1.4}.mut{color:var(--mut);font-size:.85rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:8px;margin:10px 0}
+.it{border:2px solid var(--bd);border-radius:12px;padding:8px 4px;text-align:center;cursor:pointer;background:var(--card);color:var(--fg);font:inherit;font-size:.82rem}
+.it .e{font-size:1.8rem;display:block}.it small{display:block;color:var(--mut)}.it.off{opacity:.4;cursor:not-allowed}
+.go{display:block;width:100%;background:var(--ac);color:#fff;border:0;border-radius:12px;padding:10px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:6px}
+.go.alt{background:var(--card);color:var(--fg);border:2px solid var(--bd)}
+#pad{position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(2,54px);gap:6px;touch-action:none}
+#pad button{background:var(--card);color:var(--fg);border:2px solid var(--bd);border-radius:12px;font-size:1.3rem;opacity:.85;touch-action:none;user-select:none}
+</style></head><body>
+<div id="g"></div>
+<div id="top"><div id="hd"></div><button id="nb">New game</button></div>
+<div id="toast"></div>
+<div id="ov"><div id="box"></div></div>
+<div id="pad"><span></span><button data-d="u">▲</button><span></span><button data-d="l">◀</button><button data-d="d">▼</button><button data-d="r">▶</button></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=i=>document.getElementById(i);
+const MIN=[['🐰','Bunny',12],['🐻','Bear',15],['🦫','Capybara',18],['🦎','Axolotl',14],['🐧','Penguin',16],['🎁','Blind box',8],['🦊','Fox',15],['🐼','Panda',17],['🐸','Frog',11],['🦄','Unicorn',22],['🐙','Octopus',13],['🐥','Chick',9]];
+const HOL=[['👕','Graphic tee',25],['🧥','Hoodie',50],['👖','Jeans',45],['🧢','Cap',20],['🩳','Shorts',30],['🧣','Scarf',28],['👗','Sundress',42],['🧦','Socks',12],['🩱','Swimsuit',35],['🧤','Gloves',18],['👚','Crop top',27],['🎽','Tank top',22]];
+const CATS=[['Mochi','#f5f0e6'],['Biscuit','#e0a458'],['Gremlin','#555555'],['Luna','#222233'],['Pumpkin','#f28c28'],['Smokey','#999aa8'],['Patches','#c98e5a'],['Noodle','#ffe9b0']];
+const BOBA=[['🧋','Classic milk tea',6],['🍓','Strawberry matcha',7],['🥭','Mango pomelo',7],['🍑','Peach oolong',6],['🤎','Brown sugar boba',8]];
+const INFO={miniso:['🧸','Miniso','Fresh plushies every day. Check back tomorrow for new ones!'],hollister:['👕','Hollister','Loud music, beachy smell, and a new rack every day.'],shelter:['🐾','Cat Shelter','Every cat is looking at you. Adopted cats follow you everywhere!'],boba:['🧋','Boba Stand','The cup is bigger than your head.'],home:['🏠','Home','']};
+const rng=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+let G;
+function mkStock(d){const r=rng(d*7919+13);
+ const pick=(a,n,f)=>a.map(x=>[r(),x]).sort((p,q)=>p[0]-q[0]).slice(0,n).map(p=>f(p[1]));
+ const it=x=>{let p=Math.max(4,x[2]+Math.round((r()-.5)*6));const sale=r()<.25;if(sale)p=Math.round(p*.7);return{e:x[0],n:x[1],p,sale}};
+ return{miniso:pick(MIN,6,it),hollister:pick(HOL,5,it),shelter:pick(CATS.filter(c=>!G.cats.some(a=>a.n===c[0])),4,x=>({e:'🐱',n:x[0],c:x[1],p:30+Math.floor(r()*18)}))}}
+function newGame(){G={day:1,money:200,visited:{},plush:[],cloth:[],cats:[],boba:[],today:{p:[],c:[],k:[],b:[]},score:0,t:420};G.stock=mkStock(1);save()}
+function save(){try{localStorage.setItem('et3d',JSON.stringify(G))}catch(e){}}
+try{G=JSON.parse(localStorage.getItem('et3d'))}catch(e){}
+if(!G||!G.stock)newGame();
+// ---- 3D ----
+const R=new THREE.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));$('g').appendChild(R.domElement);
+const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(50,1,.1,120);
+const hemi=new THREE.HemisphereLight(0xffffff,0x557755,.8),sun=new THREE.DirectionalLight(0xffffff,.8);sun.position.set(10,20,8);sc.add(hemi,sun);
+function rs(){R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}addEventListener('resize',rs);rs();
+const M=c=>new THREE.MeshLambertMaterial({color:c});
+const bx=(w,h,d,c,x=0,y=0,z=0)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(c));m.position.set(x,y,z);return m};
+const sp=(r,c,x,y,z)=>{const m=new THREE.Mesh(new THREE.SphereGeometry(r,14,10),M(c));m.position.set(x,y,z);return m};
+const pl=(w,h,c,x,z)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),M(c));m.rotation.x=-Math.PI/2;m.position.set(x,.01,z);return m};
+const gr=pl(60,44,0x8fd18f,0,0);gr.position.y=0;sc.add(gr,pl(44,6,0x8d8a86,0,0));
+function sign(t){const cv=document.createElement('canvas');cv.width=320;cv.height=80;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,320,80);g.fillStyle='#333';g.font='bold 38px system-ui';g.textAlign='center';g.textBaseline='middle';g.fillText(t,160,42);return new THREE.Mesh(new THREE.PlaneGeometry(3.6,.9),new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(cv)}))}
+const BL=[{id:'miniso',x:-10,z:-8,w:6,d:5,c:0xff8fb1,s:'🧸 Miniso',f:1},{id:'hollister',x:-1,z:-8,w:6,d:5,c:0x6fa8dc,s:'👕 Hollister',f:1},{id:'shelter',x:8,z:-8,w:5,d:5,c:0xf6b26b,s:'🐾 Cat Shelter',f:1},{id:'boba',x:-9,z:8,w:5,d:4,c:0xc9a3e8,s:'🧋 Boba Stand',f:-1},{id:'home',x:9,z:8,w:6,d:5,c:0xb6d7a8,s:'🏠 Home',f:-1}];
+BL.forEach(b=>{b.x0=b.x-b.w/2;b.x1=b.x+b.w/2;b.z0=b.z-b.d/2;b.z1=b.z+b.d/2;const fz=b.z+b.f*b.d/2,re=b.f===1?-3:3;b.dz=fz+b.f*1.4;
+ sc.add(bx(b.w,3.2,b.d,b.c,b.x,1.6,b.z),bx(b.w+.5,.4,b.d+.5,0x7a5a4a,b.x,3.4,b.z),bx(1.3,2.1,.15,0x7a4a21,b.x,1.05,fz),pl(2,Math.abs(fz-re),0xe8dcc0,b.x,(fz+re)/2));
+ const s=sign(b.s);s.position.set(b.x,2.7,fz+b.f*.06);if(b.f===-1)s.rotation.y=Math.PI;sc.add(s)});
+const TR=[[-5.5,-8],[3.7,-8],[-15,-5],[15,-5],[-16,-9],[16,-9],[-15,6],[-3,8],[1,6.5],[3,9],[0,9.5],[15,5],[16,8],[-16,10]];
+TR.forEach(t=>{const g=new THREE.Group();const tk=new THREE.Mesh(new THREE.CylinderGeometry(.2,.25,1.4,8),M(0x8b5a2b));tk.position.y=.7;const f=new THREE.Mesh(new THREE.ConeGeometry(1.1,2.6,8),M(0x3f9e4d));f.position.y=2.5;g.add(tk,f);g.position.set(t[0],0,t[1]);sc.add(g)});
+function free(x,z,r=.4){if(Math.abs(x)>19||Math.abs(z)>14)return false;for(const b of BL)if(x>b.x0-r&&x<b.x1+r&&z>b.z0-r&&z<b.z1+r)return false;for(const t of TR)if((x-t[0])**2+(z-t[1])**2<(.6+r)**2)return false;return true}
+function girl(hc,dc){const g=new THREE.Group(),sk=0xf6d2b5,u={};
+ const piv=(m,x,y,h)=>{const p=new THREE.Group();p.position.set(x,y,0);m.position.y=-h/2;p.add(m);g.add(p);return p};
+ u.l=piv(bx(.18,.6,.18,sk),-.12,.62,.6);u.r=piv(bx(.18,.6,.18,sk),.12,.62,.6);
+ u.l.add(bx(.2,.1,.27,0xffffff,0,-.57,.03));u.r.add(bx(.2,.1,.27,0xffffff,0,-.57,.03));
+ const d=new THREE.Mesh(new THREE.CylinderGeometry(.22,.42,.65,12),M(dc));d.position.y=.95;g.add(d,bx(.4,.3,.24,dc,0,1.35,0));
+ u.a=piv(bx(.13,.5,.13,sk),-.3,1.5,.5);u.b=piv(bx(.13,.5,.13,sk),.3,1.5,.5);
+ const h=sp(.3,hc,0,1.86,-.04);h.scale.set(1,.92,1);
+ u.p=sp(.13,hc,0,1.72,-.32);
+ g.add(sp(.27,sk,0,1.78,0),h,u.p,sp(.07,0xff4f8b,.0,1.92,-.3),sp(.035,0x222222,-.09,1.8,.25),sp(.035,0x222222,.09,1.8,.25),sp(.05,0xffa0b8,-.15,1.72,.22),sp(.05,0xffa0b8,.15,1.72,.22));
+ const sh=new THREE.Mesh(new THREE.CircleGeometry(.4,16),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.25}));sh.rotation.x=-Math.PI/2;sh.position.y=.02;g.add(sh);
+ g.userData=u;return g}
+function anim(g,mv,t){const u=g.userData,a=mv?Math.sin(t*10)*.7:0;u.l.rotation.x=a;u.r.rotation.x=-a;u.a.rotation.x=-a;u.b.rotation.x=a;u.p.position.x=Math.sin(t*8)*(mv?.1:.02);g.position.y=mv?Math.abs(Math.sin(t*10))*.06:0}
+function face(g,dx,dz){let d=Math.atan2(dx,dz)-g.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));g.rotation.y+=d*.25}
+function cat(c){const g=new THREE.Group();g.add(bx(.35,.3,.7,c,0,.35,0),bx(.3,.28,.28,c,0,.5,.42),bx(.08,.14,.08,c,-.1,.7,.42),bx(.08,.14,.08,c,.1,.7,.42),bx(.07,.07,.45,c,0,.52,-.5),bx(.05,.05,.02,0x111111,-.07,.52,.57),bx(.05,.05,.02,0x111111,.07,.52,.57));return g}
+const P=girl(0x5b3a29,0xff6fa5);sc.add(P);
+const LINES=['I heard Miniso has new plushies today! 🧸','Brown sugar boba is life. 🧋','Hollister’s rack changes every morning.','Is that cat following you?! So cute. 🐱','The shelter cat Gremlin stole my sandwich.'];
+const NC=[[0x222222,0x6fa8dc],[0xf4d35e,0xb6d7a8],[0xa0522d,0xf6b26b],[0xc0392b,0xc9a3e8],[0x888888,0xffd966]];
+const npcs=NC.map((c,i)=>{const m=girl(c[0],c[1]);m.position.set(-12+i*6,0,i%2?1.5:-1.5);sc.add(m);return{m,tx:m.position.x,tz:m.position.z,w:Math.random()*2,cd:0,say:LINES[i]}});
+let catMs=[],trail=[],keys={},open=null,doorLock=null,last=performance.now(),hc=0;
+function syncCats(){while(catMs.length<G.cats.length){const m=cat(G.cats[catMs.length].c);m.position.copy(P.position);sc.add(m);catMs.push(m)}}
+function resetWorld(){P.position.set(-2,0,0);P.rotation.y=0;catMs.forEach(m=>sc.remove(m));catMs=[];trail=[];syncCats();catMs.forEach(m=>m.position.set(-2,0,0))}
+// ---- UI ----
+let tt;function toast(s,ms=2600){const t=$('toast');t.textContent=s;t.style.display='block';clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',ms)}
+function hud(){const h=Math.floor(G.t/60),m=Math.floor(G.t%60);
+ $('hd').innerHTML=`<span>📅 Day ${G.day}</span><span>🕒 ${(h+11)%12+1}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}</span><span>💰 $${G.money}</span><span>${['miniso','hollister','shelter','boba'].map(k=>(G.visited[k]?'✅':'⬜')+INFO[k][0]).join(' ')}</span>`}
+function ov(on){$('ov').style.display=on?'flex':'none'}
+const items=id=>id==='boba'?BOBA.map(x=>({e:x[0],n:x[1],p:x[2],inf:1})):G.stock[id];
+function showShop(id,msg=''){open=id;G.visited[id]=1;hud();const it=items(id),i=INFO[id];
+ $('box').innerHTML=`<h1>${i[0]} ${i[1]}</h1><p>${i[2]}</p>`+(it.length?`<div class="grid">`+it.map((x,k)=>`<button class="it ${x.sold?'off':''}" onclick="buy('${id}',${k})"><span class="e">${x.e}</span>${x.n}<small>${x.sold?'SOLD':(x.sale?'🔥 SALE ':'')+'$'+x.p}</small></button>`).join('')+`</div>`:`<p>All the cats here already have a home! 🎉</p>`)+
+ `<p class="mut" style="text-align:center">💰 $${G.money} ${msg}</p><button class="go" onclick="leave()">Leave ➜</button>`;ov(1)}
+function buy(id,k){const x=items(id)[k];if(x.sold)return;if(G.money<x.p)return showShop(id,'· Not enough money 💸');
+ G.money-=x.p;const T=G.today;
+ if(id==='boba'){G.boba.push(x.e);T.b.push(x.e)}else{x.sold=1;
+  if(id==='miniso'){G.plush.push(x.e);T.p.push(x.e)}else if(id==='hollister'){G.cloth.push(x.e);T.c.push(x.e)}else{G.cats.push({n:x.n,c:x.c});T.k.push(x.n);syncCats()}}
+ save();showShop(id,'· Bought '+(x.inf?x.e:x.n)+'!')}
+function leave(){open=null;ov(0)}
+function home(){open='home';$('box').innerHTML=`<h1>🏠 Home</h1><p style="text-align:center">End Day ${G.day} and go to sleep?</p><button class="go" onclick="endDay(0)">Sleep 💤</button><button class="go alt" onclick="leave()">Keep exploring</button>`;ov(1)}
+function endDay(forced){open='end';const T=G.today,s=T.p.length*3+T.c.length*4+T.k.length*15+T.b.length*2+Math.floor(G.money/10)+(T.k.length&&T.p.length?5:0);G.score+=s;
+ $('box').innerHTML=`<h1>🌙 Day ${G.day} complete!</h1><p style="text-align:center">${forced?'You ran out of daylight and stumbled home. ':''}${G.cats.length?'Your '+G.cats.length+' cat'+(G.cats.length>1?'s':'')+' curl up with your plushies. 🐱🧸':'A quiet day. The shelter cats are waiting for you.'}</p>
+ <p>🧸 Today: ${T.p.join(' ')||'—'}<br>👕 Today: ${T.c.join(' ')||'—'}<br>🐱 Adopted: ${T.k.join(', ')||'—'}<br>🧋 Today: ${T.b.join(' ')||'—'}</p>
+ <p class="mut">Collection: ${G.plush.length} plushies · ${G.cloth.length} clothes · ${G.cats.length} cats · ${G.boba.length} drinks</p>
+ <h1>Day score ${s} · Total ${G.score} ⭐</h1><button class="go" onclick="nextDay()">Start Day ${G.day+1} ☀️</button>`;ov(1);save()}
+function nextDay(){G.day++;G.money+=120;G.t=420;G.visited={};G.today={p:[],c:[],k:[],b:[]};G.stock=mkStock(G.day);save();P.position.set(-2,0,0);trail=[];open=null;ov(0);hud();toast('☀️ Day '+G.day+'! New stock at Miniso, Hollister and the shelter. +$120 allowance.',4000)}
+$('nb').onclick=()=>{if(confirm('Start a brand-new game? Progress will be lost.')){newGame();resetWorld();hud();ov(0);open=null;toast('New game! $200 to spend.')}};
+// ---- input ----
+const km={ArrowUp:'u',w:'u',W:'u',ArrowDown:'d',s:'d',S:'d',ArrowLeft:'l',a:'l',A:'l',ArrowRight:'r',d:'r',D:'r'};
+addEventListener('keydown',e=>{const d=km[e.key];if(d){e.preventDefault();keys[d]=1}});addEventListener('keyup',e=>{const d=km[e.key];if(d)keys[d]=0});
+document.querySelectorAll('#pad button').forEach(b=>{const d=b.dataset.d;b.addEventListener('pointerdown',e=>{e.preventDefault();keys[d]=1});['pointerup','pointerleave','pointercancel'].forEach(v=>b.addEventListener(v,()=>keys[d]=0))});
+// ---- loop ----
+const DAY=new THREE.Color(0x87ceeb),NIGHT=new THREE.Color(0x0f1630),ORG=new THREE.Color(0xff9a5c);
+function sky(){const h=G.t/60;let k=h<8?(h-6)/2:h<17?1:Math.max(0,1-(h-17)/4.5);k=Math.min(1,Math.max(.05,k));
+ const c=new THREE.Color().lerpColors(NIGHT,DAY,k);if(h>17&&h<20)c.lerp(ORG,.35*Math.sin((h-17)/3*Math.PI));
+ sc.background=c;sc.fog=new THREE.Fog(c,35,80);hemi.intensity=.3+.55*k;sun.intensity=.12+.75*k}
+function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;const t=now/1000;
+ if(!open){G.t+=dt*4.2;if(G.t>=1320){endDay(1)}
+  let dx=(keys.r?1:0)-(keys.l?1:0),dz=(keys.d?1:0)-(keys.u?1:0);const mv=dx||dz,p=P.position;
+  if(mv){const n=Math.hypot(dx,dz);dx/=n;dz/=n;const s=4.2*dt;if(free(p.x+dx*s,p.z))p.x+=dx*s;if(free(p.x,p.z+dz*s))p.z+=dz*s;face(P,dx,dz);
+   const l=trail[trail.length-1];if(!l||Math.hypot(l[0]-p.x,l[1]-p.z)>.3){trail.push([p.x,p.z]);if(trail.length>300)trail.shift()}}
+  anim(P,mv,t);
+  catMs.forEach((m,i)=>{const q=trail[Math.max(0,trail.length-1-(i+1)*5)]||[p.x,p.z],ex=q[0]-m.position.x,ez=q[1]-m.position.z,d=Math.hypot(ex,ez);
+   if(d>.08){m.position.x+=ex*.12;m.position.z+=ez*.12;face(m,ex,ez);m.position.y=Math.abs(Math.sin(t*12+i))*.05}else m.position.y=0});
+  npcs.forEach(n=>{const m=n.m,ex=n.tx-m.position.x,ez=n.tz-m.position.z,d=Math.hypot(ex,ez);n.cd-=dt;
+   if(d>.2){m.position.x+=ex/d*1.4*dt;m.position.z+=ez/d*1.4*dt;face(m,ex,ez);anim(m,1,t+n.w)}
+   else{anim(m,0,t);n.w-=dt;if(n.w<0){n.w=1+Math.random()*3;n.tx=-16+Math.random()*32;n.tz=-2.6+Math.random()*5.2}}
+   if(n.cd<=0&&Math.hypot(m.position.x-p.x,m.position.z-p.z)<1.6){n.cd=6;toast(n.say,2800)}});
+  for(const b of BL){const d=Math.hypot(p.x-b.x,p.z-b.dz);if(d<1.3&&doorLock!==b.id){doorLock=b.id;b.id==='home'?home():showShop(b.id)}else if(doorLock===b.id&&d>2.8)doorLock=null}
+  hc+=dt;if(hc>.25){hc=0;hud();sky()}}
+ const tg=new THREE.Vector3(P.position.x,10,P.position.z+9);cam.position.lerp(tg,.1);cam.lookAt(P.position.x,1,P.position.z);
+ R.render(sc,cam);requestAnimationFrame(loop)}
+resetWorld();hud();sky();toast('Day '+G.day+': visit Miniso, Hollister, the Shelter and the Boba Stand. Stock changes every day!',4500);requestAnimationFrame(loop);
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"){e.preventDefault();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

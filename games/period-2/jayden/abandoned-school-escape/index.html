@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Abandoned School Escape</title>
+<style>
+:root{color-scheme:dark;--bg:#050506}
+html,body{margin:0;height:100%;background:var(--bg);font-family:Georgia,serif}
+body{display:flex;align-items:center;justify-content:center}
+canvas{width:100%;max-width:1130px;height:auto;background:#000}
+</style>
+</head>
+<body>
+<canvas id="c" width="1130" height="460"></canvas>
+<script>
+const W=20,H=13,VW=560,VH=400,OY=48,CS=2,N=VW/CS,OX=[0,570];
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const kd={};
+addEventListener('keydown',e=>{kd[e.code]=1;if(e.code.startsWith('Arrow')||e.code==='Space')e.preventDefault();
+ if((e.code==='Enter'||e.code==='Space')&&state!=='play'){reset();state='play'}});
+addEventListener('keyup',e=>kd[e.code]=0);
+
+// map: hallway + classrooms (same layout on both floors)
+const rooms=[[1,4],[6,9],[11,14],[16,18]],ct=[];
+function mk(){const g=[];for(let y=0;y<H;y++)g.push(Array(W).fill(1));
+ for(let y=5;y<=7;y++)for(let x=1;x<=18;x++)g[y][x]=0;
+ for(const [a,b] of rooms){for(const r of [[1,3],[9,11]])for(let y=r[0];y<=r[1];y++)for(let x=a;x<=b;x++)g[y][x]=0;
+  const m=(a+b)>>1;g[4][m]=0;g[8][m]=0}return g}
+const F=[mk(),mk()];
+for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(!F[0][y][x]&&(y<5||y>7))ct.push([x,y]);
+const ST=[1,6],EX=[18,6];
+const solid=(f,x,y)=>{const a=Math.floor(x),b=Math.floor(y);return a<0||b<0||a>=W||b>=H||F[f][b][a]===1};
+const hit=(f,x,y,r=.25)=>solid(f,x-r,y-r)||solid(f,x+r,y-r)||solid(f,x-r,y+r)||solid(f,x+r,y+r);
+function los(f,x1,y1,x2,y2){const d=Math.hypot(x2-x1,y2-y1),n=Math.ceil(d*5);
+ for(let i=1;i<n;i++)if(solid(f,x1+(x2-x1)*i/n,y1+(y2-y1)*i/n))return false;return true}
+function bfs(f,sx,sy,tx,ty){const g=F[f],pv={},q=[[sx,sy]];pv[sx+','+sy]=null;
+ while(q.length){const [x,y]=q.shift();
+  if(x===tx&&y===ty){let k=[x,y],p=pv[x+','+y];while(p&&pv[p[0]+','+p[1]]){k=p;p=pv[p[0]+','+p[1]]}return k}
+  for(const [a,b] of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+a,ny=y+b,key=nx+','+ny;
+   if(nx>=0&&ny>=0&&nx<W&&ny<H&&!g[ny][nx]&&!(key in pv)){pv[key]=[x,y];q.push([nx,ny])}}}return null}
+
+let state='menu',P,K,M,timer,got,msg='',msgT=0,last=0,lite=1;
+const say=(t,s=2.5)=>{msg=t;msgT=s};
+function reset(){
+ P=[{f:0,x:3.5,y:6.2,a:0,c:'#5ab4ff',n:'P1',k:{u:'KeyW',d:'KeyS',l:'KeyA',r:'KeyD'}},
+    {f:0,x:3.5,y:6.8,a:0,c:'#ffa94d',n:'P2',k:{u:'ArrowUp',d:'ArrowDown',l:'ArrowLeft',r:'ArrowRight'}}];
+ const t=ct.slice().sort(()=>Math.random()-.5);
+ K=[0,1,2,3].map(i=>({f:i<2?0:1,x:t[i][0]+.5,y:t[i][1]+.5,got:false}));
+ M={f:1,x:18.5,y:6.5,st:'patrol',dest:[10,6],ct:0,tg:null,cd:0,seen:false};
+ timer=180;got=0;say('Find 4 keys, then reach the EXIT on Floor 1. Do not get caught.',5)}
+function pick(){if(Math.random()<.3){M.dest=ST.slice();return}
+ const t=ct[Math.floor(Math.random()*ct.length)];M.dest=Math.random()<.4?[t[0],6]:[t[0],t[1]]}
+function end(w,t){state=w?'win':'lose';say(t,999)}
+
+function update(dt){
+ timer-=dt;msgT-=dt;lite=Math.min(1,lite+dt*2);if(Math.random()<.01)lite=.3;
+ if(timer<=0)return end(0,'Time ran out. The school keeps you forever.');
+ for(const p of P){
+  const t=(kd[p.k.r]?1:0)-(kd[p.k.l]?1:0),m=(kd[p.k.u]?1:0)-(kd[p.k.d]?1:0);
+  p.a+=t*2.4*dt;const mx=Math.cos(p.a)*m*3.2*dt,my=Math.sin(p.a)*m*3.2*dt;
+  if(!hit(p.f,p.x+mx,p.y))p.x+=mx;if(!hit(p.f,p.x,p.y+my))p.y+=my;
+  if(Math.floor(p.x)===ST[0]&&Math.floor(p.y)===ST[1]){p.f^=1;p.x=2.5;p.y=6.5;p.a=0;say(p.n+' changed floors')}
+  for(const k of K)if(!k.got&&k.f===p.f&&Math.hypot(k.x-p.x,k.y-p.y)<.6){k.got=true;got++;say(p.n+' found a key! ('+got+'/4)')}
+  if(p.f===0&&Math.floor(p.x)===EX[0]&&Math.floor(p.y)===EX[1]){
+   if(got>=4)return end(1,'You unlocked every door and escaped!');say('Exit locked. Keys left: '+(4-got),1.5)}
+  if(M.f===p.f&&Math.hypot(M.x-p.x,M.y-p.y)<.6)return end(0,p.n+' was caught by the monster.');
+ }
+ const m=M;m.cd-=dt;m.seen=false;let best=null,bd=1e9;
+ for(const p of P){if(p.f!==m.f)continue;const d=Math.hypot(p.x-m.x,p.y-m.y);
+  if(d<7&&d<bd&&los(m.f,m.x,m.y,p.x,p.y)){best=p;bd=d}}
+ if(best){m.st='chase';m.ct=5;m.tg=best;m.seen=true;m.dest=[Math.floor(best.x),Math.floor(best.y)]}
+ else if(m.st==='chase'){m.ct-=dt;if(m.ct<=0){m.st='patrol';pick();say('The monster lost you...',2)}}
+ const ch=m.st==='chase',oth=ch&&m.tg.f!==m.f;if(oth)m.dest=ST.slice();
+ const mt=[Math.floor(m.x),Math.floor(m.y)],at=mt[0]===m.dest[0]&&mt[1]===m.dest[1];
+ if(at&&mt[0]===ST[0]&&mt[1]===ST[1]&&m.cd<=0&&(oth||!ch)){m.f^=1;m.x=2.5;m.y=6.5;m.cd=2;if(!ch)pick();return}
+ if(at&&!m.seen&&!oth){if(ch)m.ct-=dt*2;else pick()}
+ let px,py;
+ if(at){if(m.seen){px=m.tg.x;py=m.tg.y}else{px=mt[0]+.5;py=mt[1]+.5}}
+ else{const n=bfs(m.f,mt[0],mt[1],m.dest[0],m.dest[1]);if(n){px=n[0]+.5;py=n[1]+.5}else{pick();return}}
+ const d=Math.hypot(px-m.x,py-m.y),sp=(ch?3.1:1.7)*dt;
+ if(d>.01){const s=Math.min(sp,d)/d;m.x+=(px-m.x)*s;m.y+=(py-m.y)*s}
+}
+
+function view(p,o,ox,i){
+ const f=p.f,dx=Math.cos(p.a),dy=Math.sin(p.a),qx=-dy*.66,qy=dx*.66;
+ ctx.save();ctx.translate(ox,OY);ctx.beginPath();ctx.rect(0,0,VW,VH);ctx.clip();
+ ctx.fillStyle='#030303';ctx.fillRect(0,0,VW,VH/2);
+ const gr=ctx.createLinearGradient(0,VH/2,0,VH);gr.addColorStop(0,'#000');gr.addColorStop(1,'#17120e');
+ ctx.fillStyle=gr;ctx.fillRect(0,VH/2,VW,VH/2);
+ const zb=[];
+ for(let c=0;c<N;c++){
+  const cx=2*c/N-1,rx=dx+qx*cx,ry=dy+qy*cx;let mx=Math.floor(p.x),my=Math.floor(p.y);
+  const ddx=Math.abs(1/rx),ddy=Math.abs(1/ry),sx=rx<0?-1:1,sy=ry<0?-1:1;
+  let sdx=(rx<0?p.x-mx:mx+1-p.x)*ddx,sdy=(ry<0?p.y-my:my+1-p.y)*ddy,side=0;
+  for(let k=0;k<40;k++){if(sdx<sdy){sdx+=ddx;mx+=sx;side=0}else{sdy+=ddy;my+=sy;side=1}
+   if(mx<0||my<0||mx>=W||my>=H||F[f][my][mx])break}
+  const d=Math.max(.1,side?sdy-ddy:sdx-ddx);zb[c]=d;
+  const h=VH/d,b=Math.pow(Math.max(0,1-d/8),2)*lite*(side?.7:1);
+  ctx.fillStyle='rgb('+(95*b|0)+','+(82*b|0)+','+(70*b|0)+')';ctx.fillRect(c*CS,(VH-h)/2,CS,h)}
+ // sprites
+ const S=[];for(const k of K)if(!k.got&&k.f===f)S.push({x:k.x,y:k.y,t:'k'});
+ S.push({x:ST[0]+.5,y:ST[1]+.5,t:'s'});if(f===0)S.push({x:EX[0]+.5,y:EX[1]+.5,t:'e'});
+ if(M.f===f)S.push({x:M.x,y:M.y,t:'m'});if(o.f===f)S.push({x:o.x,y:o.y,t:'p',c:o.c});
+ S.forEach(s=>s.d=Math.hypot(s.x-p.x,s.y-p.y));S.sort((a,b)=>b.d-a.d);
+ const inv=1/(qx*dy-dx*qy);
+ for(const s of S){
+  const sx=s.x-p.x,sy=s.y-p.y,tx=inv*(dy*sx-dx*sy),ty=inv*(-qy*sx+qx*sy);if(ty<.25)continue;
+  const scr=VW/2*(1+tx/ty),sz=VH/ty,wf={k:.2,m:.5,p:.3,s:.7,e:.8}[s.t],w=sz*wf;
+  const [a,b2]={k:[.3,.45],m:[-.45,.5],p:[-.2,.5],s:[-.5,.5],e:[-.5,.5]}[s.t];
+  const br=Math.pow(Math.max(0,1-ty/8),2)*lite;
+  let col=s.t==='k'?[255,216,74]:s.t==='m'?[20,6,6]:s.t==='s'?[60,180,100]:s.t==='e'?(got>=4?[50,200,90]:[190,40,40]):(s.c==='#5ab4ff'?[90,180,255]:[255,170,77]);
+  const mn=(s.t==='m')?1:Math.max(br,s.t==='p'?.25:.3);
+  ctx.fillStyle='rgb('+(col[0]*mn|0)+','+(col[1]*mn|0)+','+(col[2]*mn|0)+')';
+  for(let c=Math.max(0,Math.floor((scr-w/2)/CS));c<=Math.min(N-1,Math.ceil((scr+w/2)/CS));c++){
+   if(ty>=zb[c])continue;const u=(c*CS-(scr-w/2))/w;
+   if(s.t==='m'&&Math.abs(u-.5)>.3)continue;if(s.t==='p'&&Math.abs(u-.5)>.35)continue;
+   ctx.fillRect(c*CS,VH/2+sz*a,CS,sz*(b2-a))}
+  if(s.t==='m'){ctx.fillStyle='#f22';const ew=sz*.07;
+   for(const ex of [scr-sz*.1,scr+sz*.1]){const c=Math.floor(ex/CS);if(c>=0&&c<N&&ty<zb[c])ctx.fillRect(ex-ew/2,VH/2-sz*.33,ew,ew*.6)}}
+  if((s.t==='s'||s.t==='e')&&ty<6){ctx.fillStyle='#fff';ctx.font='bold '+(sz*.1|0)+'px sans-serif';ctx.textAlign='center';
+   ctx.fillText(s.t==='s'?'STAIRS':'EXIT',scr,VH/2-sz*.1)}
+ }
+ // flashlight vignette
+ const v=ctx.createRadialGradient(VW/2,VH/2+20,40,VW/2,VH/2+20,VW*.62);
+ v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.93)');ctx.fillStyle=v;ctx.fillRect(0,0,VW,VH);
+ if(M.st==='chase'&&M.f===f){ctx.fillStyle='rgba(255,0,0,'+(.1+.08*Math.sin(performance.now()/110))+')';ctx.fillRect(0,0,VW,VH)}
+ ctx.restore();
+ ctx.fillStyle=p.c;ctx.font='bold 15px Georgia';ctx.textAlign='left';
+ ctx.fillText(p.n+' - Floor '+(f+1)+(i?'  (arrows)':'  (WASD)'),ox+6,OY-8);
+}
+function render(){
+ ctx.fillStyle='#000';ctx.fillRect(0,0,1130,460);ctx.textAlign='center';
+ if(state==='menu'){
+  ctx.font='bold 34px Georgia';ctx.fillStyle='#c33';ctx.fillText('ABANDONED SCHOOL ESCAPE',565,120);
+  ctx.font='17px Georgia';ctx.fillStyle='#d8d4cc';
+  ['Split screen, first person. Find all 4 keys across both floors, then reach the EXIT on Floor 1.',
+   'A monster hunts the halls. If it sees you it chases, but break line of sight and it gives up.',
+   'Player 1: W/S walk, A/D turn.     Player 2: Up/Down walk, Left/Right turn.',
+   'Walk into the green STAIRS to change floors.','','Press ENTER or SPACE to start'].forEach((t,i)=>ctx.fillText(t,565,185+i*32));return}
+ view(P[0],P[1],OX[0],0);view(P[1],P[0],OX[1],1);
+ ctx.font='bold 15px Georgia';ctx.fillStyle='#ffd84a';ctx.fillText('Keys '+got+'/4',565,20);
+ ctx.fillStyle=timer<30?'#f44':'#d8d4cc';ctx.fillText(Math.max(0,Math.ceil(timer))+'s',565,38);
+ ctx.fillStyle='#d8d4cc';ctx.font='14px Georgia';ctx.textAlign='center';
+ if(msgT>0)ctx.fillText(msg,565,OY+VH+28);
+ if(state!=='play'){ctx.fillStyle='rgba(0,0,0,.78)';ctx.fillRect(0,0,1130,460);
+  ctx.font='bold 40px Georgia';ctx.fillStyle=state==='win'?'#4f4':'#e33';ctx.fillText(state==='win'?'YOU ESCAPED!':'GAME OVER',565,190);
+  ctx.font='18px Georgia';ctx.fillStyle='#d8d4cc';ctx.fillText(msg,565,230);ctx.fillText('Press ENTER or SPACE to play again',565,275)}
+}
+function loop(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;if(state==='play')update(dt);render();requestAnimationFrame(loop)}
+reset();requestAnimationFrame(loop);
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

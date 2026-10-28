@@ -1,0 +1,582 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Escape Mr Pino</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+/* Layout: one full-width first-person stage, detention-slip panels laid over it for title and game over. Single dark look on purpose. */
+:root{
+  --bg:#0b0c0d;
+  --panel:#15181a;
+  --line:#3b4440;
+  --text:#e6eadf;
+  --muted:#8f998f;
+  --alarm:#ff3030;
+  --safe:#35d27f;
+  --locker:#4a78b8;
+  --display:"Bungee","Impact","Arial Black",sans-serif;
+  --body:"Special Elite","Courier New",monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--text)}
+body{
+  font-family:var(--body);font-size:15px;line-height:1.5;margin:0;
+  padding-block:16px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.stage{position:relative;background:#000;border:2px solid var(--line);aspect-ratio:16/9;width:100%;overflow:hidden}
+canvas{display:block;width:100%;height:100%;image-rendering:pixelated;cursor:crosshair}
+.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(5,6,6,.88);padding:12px;overflow:auto}
+.overlay[hidden]{display:none!important}
+.slip{background:var(--panel);border:2px solid var(--text);padding:clamp(14px,3vw,28px);max-width:640px;width:100%;display:flex;flex-direction:column;gap:12px;min-width:0}
+.slip h1,.slip h2{font-family:var(--display);font-weight:400;margin:0;line-height:1;color:var(--alarm);font-size:clamp(28px,6vw,52px);text-wrap:balance;letter-spacing:.01em}
+.slip h2{font-size:clamp(26px,5vw,44px)}
+.slip p{margin:0;max-width:60ch}
+.slip ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px}
+.slip li::marker{color:var(--alarm)}
+.tag{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+button{font-family:var(--display);font-size:18px;letter-spacing:.04em;background:var(--alarm);color:#140404;border:0;padding:12px 22px;cursor:pointer;align-self:flex-start}
+button:hover{background:#ff5a5a}
+button:focus-visible{outline:3px solid var(--text);outline-offset:3px}
+.keys{display:flex;flex-wrap:wrap;gap:6px 18px;color:var(--muted);font-size:13px}
+.keys b{color:var(--text);font-weight:400;border:1px solid var(--line);padding:0 6px;margin-right:4px}
+.stats{display:flex;gap:24px;flex-wrap:wrap;color:var(--muted)}
+.stats strong{display:block;font-family:var(--display);font-weight:400;font-size:26px;color:var(--text)}
+.touchnote{display:none;color:var(--muted);font-size:13px}
+@media (pointer:coarse){.touchnote{display:block}}
+@media (max-width:520px){.slip ul{font-size:13px}}
+</style>
+
+<div class="wrap">
+  <div class="stage" id="stage">
+    <canvas id="c" width="640" height="360" aria-label="First-person view of a school hallway"></canvas>
+
+    <div class="overlay" id="title">
+      <div class="slip">
+        <span class="tag">Detention notice</span>
+        <h1>Escape Mr Pino</h1>
+        <p>It is after hours. The school is locked, two floors are open, and Mr Pino is walking the halls looking for you.</p>
+        <ul>
+          <li>Run, sprint and break his line of sight.</li>
+          <li>Step up to a blue locker and press E to hide. He can't find you if he doesn't see you go in.</li>
+          <li>When the screen turns red you have 10 seconds to reach a green safe room on either floor.</li>
+          <li>Survive 5 red alerts to get out.</li>
+        </ul>
+        <div class="keys">
+          <span><b>W A S D</b>move</span><span><b>Mouse</b>look (click first)</span><span><b>← →</b>turn</span><span><b>Shift</b>sprint</span><span><b>E</b>hide / leave</span><span><b>M</b>mute</span>
+        </div>
+        <p class="touchnote">This game needs a keyboard. Play on a laptop or Chromebook.</p>
+        <button id="startBtn" type="button">Start</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="end" hidden>
+      <div class="slip">
+        <span class="tag" id="endTag">Report</span>
+        <h2 id="endTitle">Caught</h2>
+        <p id="endText"></p>
+        <div class="stats">
+          <div><strong id="sTime">0:00</strong>time survived</div>
+          <div><strong id="sAlerts">0</strong>alerts survived</div>
+        </div>
+        <button id="againBtn" type="button">Try again</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+ctx.imageSmoothingEnabled = false;
+const MW = 28, MH = 12, D4 = [[1,0],[-1,0],[0,1],[0,-1]];
+const SOLID = '#LG';
+const GOAL = 5;
+
+/* ---------- map ---------- */
+function build(f){
+  const g = Array.from({length:MH}, () => Array(MW).fill('#'));
+  const carve = (x1,y1,x2,y2,ch='.') => { for(let y=y1;y<=y2;y++) for(let x=x1;x<=x2;x++) g[y][x]=ch; };
+  carve(1,5,26,6);
+  [[1,5,3],[7,14,10],[16,22,19],[24,26,25]].forEach(([a,b,d]) => { carve(a,1,b,3); g[4][d]='.'; });
+  [[1,5,3],[7,12,9],[14,20,17],[22,26,24]].forEach(([a,b,d]) => { carve(a,8,b,10); g[7][d]='.'; });
+  if (f===1){ g[5][8]='#'; g[6][13]='#'; g[5][19]='#'; }
+  else { g[6][9]='#'; g[5][16]='#'; }
+  [1,26].forEach(x => { g[5][x]='S'; g[6][x]='S'; });
+  if (f===0){ carve(1,1,5,3,'R'); g[4][3]='R'; }
+  else { carve(22,8,26,10,'R'); g[7][24]='R'; }
+  for (const y of [4,7]) for (let x=1;x<=26;x++) if (g[y][x]==='#' && x%3===0) g[y][x]='L';
+  for (let y=0;y<MH;y++) for (let x=0;x<MW;x++) if (g[y][x]==='#')
+    for (const [a,b] of D4){ if (g[y+b]?.[x+a]==='R'){ g[y][x]='G'; break; } }
+  return g.map(r => r.join(''));
+}
+function distField(maps){
+  const df = [0,1].map(() => Array.from({length:MH}, () => Array(MW).fill(1e9)));
+  const q = [];
+  for (let f=0;f<2;f++) for (let y=0;y<MH;y++) for (let x=0;x<MW;x++) if (maps[f][y][x]==='R'){ df[f][y][x]=0; q.push([f,x,y]); }
+  while (q.length){
+    const [f,x,y] = q.shift(), d = df[f][y][x];
+    for (const [a,b] of D4){
+      const nx=x+a, ny=y+b; if (nx<0||ny<0||nx>=MW||ny>=MH) continue;
+      if (SOLID.includes(maps[f][ny][nx]) || df[f][ny][nx]<=d+1) continue;
+      df[f][ny][nx]=d+1; q.push([f,nx,ny]);
+    }
+    if (maps[f][y][x]==='S' && df[1-f][y][x]>d+1){ df[1-f][y][x]=d+1; q.push([1-f,x,y]); }
+  }
+  return df;
+}
+
+/* ---------- state ---------- */
+let G = {mode:'title'}, P = {}, M = {};
+let muted = false, AC = null;
+const KEYS = {};
+const rnd = (a,b) => a + Math.random()*(b-a);
+
+function startGame(){
+  const maps = [build(0), build(1)];
+  G = {mode:'play', maps, df:distField(maps), t:0, alert:null, nextAlert:rnd(18,28), survived:0, lockR:0, msg:'', msgT:0, beatT:0, sirenT:0, flash:0};
+  P = {x:13.5, y:5.9, a:0, f:0, stam:100, tired:false, hidden:false, stairLock:false, bob:0, moving:false, sprint:false};
+  M = {f:0, x:25.5, y:9.5, state:'patrol', target:null, last:null, seenT:0, wait:0, repath:0, next:null, limbo:0, foundT:0, sees:false, anim:0};
+  say('Find a locker if he spots you.', 4);
+  document.getElementById('title').hidden = true;
+  document.getElementById('end').hidden = true;
+}
+function finish(win, title, text){
+  G.mode = win ? 'win' : 'over';
+  try { document.exitPointerLock && document.exitPointerLock(); } catch(e){}
+  const s = Math.floor(G.t);
+  document.getElementById('endTag').textContent = win ? 'Cleared to leave' : 'Report filed';
+  document.getElementById('endTitle').textContent = title;
+  document.getElementById('endText').textContent = text;
+  document.getElementById('sTime').textContent = Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+  document.getElementById('sAlerts').textContent = G.survived + '/' + GOAL;
+  document.getElementById('againBtn').textContent = win ? 'Play again' : 'Try again';
+  document.getElementById('end').hidden = false;
+  if (!win){ beep(90,.6,'sawtooth',.12); }
+  else { beep(523,.2,'square',.06); setTimeout(()=>beep(784,.35,'square',.06),180); }
+}
+function say(t, s=2.5){ G.msg = t; G.msgT = s; }
+
+/* ---------- audio ---------- */
+function audio(){ try { AC = AC || new (window.AudioContext||window.webkitAudioContext)(); AC.resume(); } catch(e){} }
+function beep(f,d,type='square',v=.05){
+  if (!AC || muted) return;
+  try {
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.type=type; o.frequency.value=f; g.gain.value=v;
+    o.connect(g); g.connect(AC.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(.0001, AC.currentTime+d); o.stop(AC.currentTime+d);
+  } catch(e){}
+}
+
+/* ---------- input ---------- */
+addEventListener('keydown', e => {
+  KEYS[e.code] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  if (e.code==='KeyE' && !e.repeat && G.mode==='play') toggleHide();
+  if (e.code==='KeyM') muted = !muted;
+});
+addEventListener('keyup', e => { KEYS[e.code] = false; });
+addEventListener('blur', () => { for (const k in KEYS) KEYS[k] = false; });
+let mdown = false;
+cv.addEventListener('mousedown', () => { mdown = true; if (G.mode==='play'){ try { cv.requestPointerLock && cv.requestPointerLock(); } catch(e){} } });
+addEventListener('mouseup', () => { mdown = false; });
+addEventListener('mousemove', e => {
+  if (G.mode!=='play') return;
+  if (document.pointerLockElement===cv || mdown) P.a += (e.movementX||0) * 0.0028;
+});
+document.getElementById('startBtn').onclick = () => { audio(); startGame(); try { cv.requestPointerLock && cv.requestPointerLock(); } catch(e){} };
+document.getElementById('againBtn').onclick = () => { audio(); startGame(); };
+
+/* ---------- helpers ---------- */
+const cellAt = (f,x,y) => G.maps[f][Math.floor(y)]?.[Math.floor(x)];
+const solid = (x,y,f=P.f) => { const c = cellAt(f,x,y); return c===undefined || SOLID.includes(c); };
+const canStand = (x,y) => { const r=.2; return !solid(x-r,y-r)&&!solid(x+r,y-r)&&!solid(x-r,y+r)&&!solid(x+r,y+r); };
+function los(ax,ay,bx,by){
+  const dx=bx-ax, dy=by-ay, d=Math.hypot(dx,dy), n=Math.ceil(d/.15);
+  for (let i=1;i<n;i++){ if (solid(ax+dx*i/n, ay+dy*i/n, M.f)) return false; }
+  return true;
+}
+function nextStep(f,sx,sy,tx,ty,blockR){
+  if (sx===tx && sy===ty) return null;
+  const m = G.maps[f], prev = new Int16Array(MW*MH).fill(-1), s = sy*MW+sx;
+  const q=[s]; prev[s]=s;
+  while (q.length){
+    const c=q.shift(), cx=c%MW, cy=(c/MW)|0;
+    if (cx===tx && cy===ty) break;
+    for (const [a,b] of D4){
+      const nx=cx+a, ny=cy+b; if (nx<0||ny<0||nx>=MW||ny>=MH) continue;
+      const ch=m[ny][nx]; if (SOLID.includes(ch) || (blockR && ch==='R')) continue;
+      const n=ny*MW+nx; if (prev[n]!==-1) continue; prev[n]=c; q.push(n);
+    }
+  }
+  const t = ty*MW+tx; if (prev[t]===-1) return null;
+  let c=t; while (prev[c]!==s) c=prev[c];
+  return [c%MW, (c/MW)|0];
+}
+function randomCell(f, nearP){
+  const out=[];
+  for (let y=0;y<MH;y++) for (let x=0;x<MW;x++){
+    const ch=G.maps[f][y][x]; if (SOLID.includes(ch) || ch==='S') continue;
+    if (ch==='R' && blockR()) continue;
+    if (nearP && Math.hypot(x+.5-P.x, y+.5-P.y) > 9) continue;
+    out.push([x,y]);
+  }
+  return out.length ? out[(Math.random()*out.length)|0] : [13,5];
+}
+const blockR = () => !!G.alert || G.lockR>0;
+
+/* ---------- player actions ---------- */
+function nearLocker(){
+  let best=null, bd=1.5;
+  for (let y=Math.floor(P.y)-2;y<=Math.floor(P.y)+2;y++) for (let x=Math.floor(P.x)-2;x<=Math.floor(P.x)+2;x++){
+    if (cellAt(P.f,x,y)!=='L') continue;
+    const dx=x+.5-P.x, dy=y+.5-P.y, d=Math.hypot(dx,dy); if (d>=bd) continue;
+    let da = Math.atan2(dy,dx)-P.a; da = Math.atan2(Math.sin(da),Math.cos(da));
+    if (Math.abs(da)<1.0){ bd=d; best=[x,y]; }
+  }
+  return best;
+}
+function toggleHide(){
+  if (P.hidden){ P.hidden=false; say('You step out.',1.5); beep(180,.12,'square',.04); return; }
+  if (!nearLocker()){ say('No locker in front of you.',1.5); return; }
+  if (M.sees && M.limbo<=0 && Math.hypot(M.x-P.x,M.y-P.y)<7){ say('He is watching you! Break line of sight first.',2); beep(120,.2,'sawtooth',.06); return; }
+  P.hidden=true; M.foundT=0; say('Hiding. Stay quiet.',2); beep(220,.1,'square',.04);
+}
+
+/* ---------- update ---------- */
+function update(dt){
+  G.t += dt; G.msgT -= dt; G.lockR = Math.max(0, G.lockR-dt); G.flash = Math.max(0, G.flash-dt);
+
+  // movement
+  let fwd = (KEYS.KeyW||KEYS.ArrowUp?1:0) - (KEYS.KeyS||KEYS.ArrowDown?1:0);
+  let str = (KEYS.KeyD?1:0) - (KEYS.KeyA?1:0);
+  const turn = (KEYS.ArrowRight?1:0) - (KEYS.ArrowLeft?1:0);
+  P.a += turn * 2.2 * dt;
+  if (P.hidden){ fwd=0; str=0; }
+  const moving = fwd!==0 || str!==0;
+  const wantSprint = (KEYS.ShiftLeft||KEYS.ShiftRight) && moving && !P.tired && !P.hidden;
+  P.sprint = wantSprint && P.stam>0;
+  if (P.sprint){ P.stam -= 32*dt; if (P.stam<=0){ P.stam=0; P.tired=true; } }
+  else { P.stam = Math.min(100, P.stam + (moving?14:24)*dt); if (P.tired && P.stam>=30) P.tired=false; }
+  const sp = P.sprint ? 5.0 : 3.0;
+  if (moving){
+    const l = Math.hypot(fwd,str)||1, c=Math.cos(P.a), s=Math.sin(P.a);
+    const vx = (c*fwd - s*str)/l*sp*dt, vy = (s*fwd + c*str)/l*sp*dt;
+    if (canStand(P.x+vx,P.y)) P.x+=vx;
+    if (canStand(P.x,P.y+vy)) P.y+=vy;
+    P.bob += dt*(P.sprint?13:8);
+  }
+  P.moving = moving;
+
+  // stairs
+  const here = cellAt(P.f,P.x,P.y);
+  if (here==='S'){
+    if (!P.stairLock){
+      P.stairLock = true; P.f = 1-P.f; G.flash = .5;
+      say('Floor ' + (P.f+1), 1.8); beep(330,.08); setTimeout(()=>beep(440,.08),80);
+      if (M.limbo<=0){ M.limbo = M.state==='chase' ? 4 : 10; M.state = M.state==='chase' ? 'chase' : 'search'; }
+      M.f = P.f; M.next = null;
+    }
+  } else P.stairLock = false;
+
+  updatePino(dt);
+  updateAlert(dt);
+
+  // heartbeat and alert siren
+  const d = Math.hypot(M.x-P.x, M.y-P.y);
+  if (M.limbo<=0 && M.f===P.f && d<10){
+    G.beatT -= dt;
+    if (G.beatT<=0){ G.beatT = Math.max(.35, d/9); beep(55,.13,'sine',Math.min(.4,.55-d/20)); }
+  }
+}
+
+function updateAlert(dt){
+  if (!G.alert){
+    G.nextAlert -= dt;
+    if (G.nextAlert<=0){
+      G.alert = {t:10};
+      if (cellAt(M.f,M.x,M.y)==='R'){ const c=randomCell(M.f,false); M.x=c[0]+.5; M.y=c[1]+.5; M.next=null; }
+      say('RED ALERT! Get to a safe room!', 3);
+    }
+    return;
+  }
+  G.alert.t -= dt;
+  G.sirenT -= dt;
+  if (G.sirenT<=0){ G.sirenT=.45; beep(Math.floor(G.t*2.2)%2?880:640,.3,'square',.05); }
+  if (cellAt(P.f,P.x,P.y)==='R'){
+    G.alert=null; G.survived++; G.lockR=5; G.nextAlert=rnd(22,36); P.hidden=false;
+    beep(660,.12,'square',.06); setTimeout(()=>beep(880,.2,'square',.06),120);
+    if (G.survived>=GOAL){ finish(true,'You escaped','The front doors click open. Mr Pino stands in the hallway, clapping slowly. Class dismissed.'); }
+    else say('SAFE! ' + G.survived + ' of ' + GOAL + ' alerts survived.', 3);
+    return;
+  }
+  if (G.alert.t<=0){ finish(false,'Out of time','The ten seconds ran out before you reached a safe room. Mr Pino was waiting at the door with a pink slip.'); }
+}
+
+function updatePino(dt){
+  if (M.limbo>0){
+    M.limbo -= dt;
+    if (M.limbo<=0){
+      const spots=[[1.5,5.5],[1.5,6.5],[26.5,5.5],[26.5,6.5]];
+      spots.sort((a,b)=>Math.hypot(b[0]-P.x,b[1]-P.y)-Math.hypot(a[0]-P.x,a[1]-P.y));
+      M.x=spots[0][0]; M.y=spots[0][1]; M.f=P.f; M.last={x:P.x,y:P.y}; M.state='search'; M.wait=0; M.next=null;
+      say('Footsteps on the stairs...',2); beep(100,.3,'sawtooth',.08);
+    }
+    M.sees=false; return;
+  }
+  const dx=P.x-M.x, dy=P.y-M.y, dist=Math.hypot(dx,dy);
+  const range = G.alert ? 16 : 11;
+  M.sees = !P.hidden && dist<range && los(M.x,M.y,P.x,P.y);
+  M.anim += dt;
+
+  if (M.sees){ if (M.state!=='chase') beep(140,.25,'sawtooth',.08); M.state='chase'; M.last={x:P.x,y:P.y}; M.seenT=0; }
+  else if (M.state==='chase'){
+    M.seenT += dt;
+    const lx=M.last.x-M.x, ly=M.last.y-M.y;
+    if (Math.hypot(lx,ly)<.5 || M.seenT>7){ M.state='search'; M.wait=2.5; }
+  }
+  if (P.sprint && !P.hidden && dist<6 && M.state!=='chase'){ M.state='search'; M.last={x:P.x,y:P.y}; M.wait=0; }
+
+  // hidden: he can wait near the locker
+  if (P.hidden){
+    if (dist<1.8){ M.foundT += dt; if (M.foundT>.5 && G.msgT<=0) say('He is right outside the locker...',1.2); if (M.foundT>2.2){ finish(false,'Found','Mr Pino opened the locker. He had been standing there the whole time.'); return; } }
+    else M.foundT = Math.max(0, M.foundT-dt);
+  } else M.foundT=0;
+
+  if (!P.hidden && dist<.75){ finish(false,'Caught','Mr Pino got you. You are in detention until further notice.'); return; }
+
+  // pick target
+  const bR = blockR();
+  const mult = G.alert ? 1.15 : 1;
+  let speed=1.9, tx, ty;
+  if (M.state==='chase'){ speed=3.5; tx=M.last.x; ty=M.last.y; }
+  else if (M.state==='search'){
+    speed=2.4; tx=M.last.x; ty=M.last.y;
+    if (Math.hypot(tx-M.x,ty-M.y)<.6){ M.wait-=dt; if (M.wait<=0){ M.state='patrol'; M.target=null; } speed=0; }
+  } else {
+    if (!M.target || (Math.floor(M.x)===M.target[0] && Math.floor(M.y)===M.target[1])) M.target = randomCell(M.f, Math.random()<.45);
+    tx=M.target[0]+.5; ty=M.target[1]+.5;
+  }
+  speed *= mult;
+  if (speed<=0) return;
+
+  let gx, gy;
+  if (M.state==='chase' && M.sees && dist<3.5){ gx=P.x; gy=P.y; }
+  else {
+    M.repath -= dt;
+    if (M.repath<=0 || !M.next){
+      M.repath=.2;
+      M.next = nextStep(M.f, Math.floor(M.x), Math.floor(M.y), Math.floor(tx), Math.floor(ty), bR);
+      if (!M.next && M.state==='patrol') M.target=null;
+    }
+    if (M.next){ gx=M.next[0]+.5; gy=M.next[1]+.5; } else { gx=tx; gy=ty; }
+  }
+  const vx=gx-M.x, vy=gy-M.y, vd=Math.hypot(vx,vy);
+  if (vd>.001){ const st=Math.min(vd, speed*dt); M.x+=vx/vd*st; M.y+=vy/vd*st; }
+}
+
+/* ---------- sprite ---------- */
+function mkPino(frame, angry){
+  const c=document.createElement('canvas'); c.width=32; c.height=48;
+  const g=c.getContext('2d'), R=(col,x,y,w,h)=>{ g.fillStyle=col; g.fillRect(x,y,w,h); };
+  const skin='#d9a77a';
+  R('#1d2336',10,35,5,frame?11:13); R('#1d2336',17,35,5,frame?13:11);
+  R('#0a0a0a',9,frame?46:48,7,2); R('#0a0a0a',16,frame?48:46,7,2);
+  R('#e9e9e9',8,17,16,19); R('#c9c9c9',8,17,2,19);
+  R('#dcdcdc',5,18,3,15); R('#dcdcdc',24,18,3,15); R(skin,5,33,3,3); R(skin,24,33,3,3);
+  R('#a81818',15,18,2,15); R('#d42828',14,18,4,3);
+  R('#202020',12,17,1,11); R('#202020',19,17,1,11); R('#fff',18,27,5,6); R('#6a8',19,28,2,2); R('#222',19,31,3,1);
+  R(skin,14,14,4,4); R(skin,10,4,12,11); R(skin,11,15,10,1);
+  R('#2a1b12',10,2,12,3); R('#2a1b12',9,4,2,4); R('#2a1b12',21,4,2,4);
+  R('#0d0d0d',11,8,5,4); R('#0d0d0d',17,8,5,4); R('#0d0d0d',16,9,1,1);
+  R(angry?'#ffd0d0':'#cfe6ff',12,9,3,2); R(angry?'#ffd0d0':'#cfe6ff',18,9,3,2);
+  R(angry?'#ff1a1a':'#222',13,9,1,2); R(angry?'#ff1a1a':'#222',19,9,1,2);
+  if (angry){ R('#111',11,6,4,1); R('#111',12,7,3,1); R('#111',18,7,3,1); R('#111',18,6,4,1); R('#2a0000',13,12,6,3); R('#fff',14,12,4,1); }
+  else R('#7a3a30',14,13,4,1);
+  return c;
+}
+const SPR = [[mkPino(0,false),mkPino(1,false)],[mkPino(0,true),mkPino(1,true)]];
+
+/* ---------- render ---------- */
+const zb = new Float32Array(W);
+const vig = document.createElement('canvas'); vig.width=W; vig.height=H;
+{ const g=vig.getContext('2d'), r=g.createRadialGradient(W/2,H/2,H*.28,W/2,H/2,H*.95); r.addColorStop(0,'rgba(0,0,0,0)'); r.addColorStop(1,'rgba(0,0,0,.8)'); g.fillStyle=r; g.fillRect(0,0,W,H); }
+const redVig = document.createElement('canvas'); redVig.width=W; redVig.height=H;
+{ const g=redVig.getContext('2d'), r=g.createRadialGradient(W/2,H/2,H*.25,W/2,H/2,H*.9); r.addColorStop(0,'rgba(180,0,0,0)'); r.addColorStop(1,'rgba(200,0,0,.95)'); g.fillStyle=r; g.fillRect(0,0,W,H); }
+
+const BASE = {'#':[150,160,128], 'L':[64,104,168], 'G':[44,176,104]};
+
+function drawWorld(){
+  const alert = !!G.alert;
+  const tr = alert ? 1.3 : 1, tg = alert ? .55 : 1, tb = alert ? .55 : 1;
+  const bob = P.moving ? Math.sin(P.bob)*(P.sprint?4:2) : 0;
+  const hz = H/2 + bob;
+  let gr = ctx.createLinearGradient(0,0,0,hz);
+  gr.addColorStop(0, alert?'#1a0606':'#16191a'); gr.addColorStop(1, alert?'#5a1818':'#4a5050');
+  ctx.fillStyle=gr; ctx.fillRect(0,0,W,hz);
+  gr = ctx.createLinearGradient(0,hz,0,H);
+  gr.addColorStop(0, alert?'#3a0c0c':'#262b28'); gr.addColorStop(1, alert?'#8a2a2a':'#8a9086');
+  ctx.fillStyle=gr; ctx.fillRect(0,hz,W,H-hz);
+
+  const map = G.maps[P.f];
+  const dx=Math.cos(P.a), dy=Math.sin(P.a), plx=-dy*.66, ply=dx*.66;
+  for (let i=0;i<W;i++){
+    const cx=2*i/W-1, rx=dx+plx*cx, ry=dy+ply*cx;
+    let mx=Math.floor(P.x), my=Math.floor(P.y);
+    const ddx=Math.abs(1/rx), ddy=Math.abs(1/ry);
+    let sx, sy, sdx, sdy;
+    if (rx<0){ sx=-1; sdx=(P.x-mx)*ddx; } else { sx=1; sdx=(mx+1-P.x)*ddx; }
+    if (ry<0){ sy=-1; sdy=(P.y-my)*ddy; } else { sy=1; sdy=(my+1-P.y)*ddy; }
+    let side=0, hit='#';
+    for (let n=0;n<64;n++){
+      if (sdx<sdy){ sdx+=ddx; mx+=sx; side=0; } else { sdy+=ddy; my+=sy; side=1; }
+      const c = map[my]?.[mx];
+      if (c===undefined){ hit='#'; break; }
+      if (SOLID.includes(c)){ hit=c; break; }
+    }
+    const perp = Math.max(.05, side===0 ? sdx-ddx : sdy-ddy);
+    let wx = side===0 ? P.y+perp*ry : P.x+perp*rx; wx -= Math.floor(wx);
+    zb[i]=perp;
+    const lh = H/perp, top = hz - lh/2;
+    const k = Math.max(.1, 1-perp/15) * (side?.74:1);
+    const b = BASE[hit];
+    const col = m => `rgb(${Math.min(255,b[0]*k*m*tr)|0},${(b[1]*k*m*tg)|0},${(b[2]*k*m*tb)|0})`;
+    const seg = (f0,f1,color) => { ctx.fillStyle=color; ctx.fillRect(i, top+lh*f0, 1, Math.ceil(lh*(f1-f0))+.5); };
+    seg(0,1,col(1));
+    if (hit==='#'){ seg(0,.04,col(.55)); seg(.9,1,col(.5)); seg(.46,.49,col(.8)); }
+    else if (hit==='L'){
+      const u=(wx*3)%1;
+      if (u<.04||u>.96) seg(0,1,col(.45));
+      else {
+        if (u>.2&&u<.8){ seg(.12,.14,col(.35)); seg(.17,.19,col(.35)); seg(.22,.24,col(.35)); }
+        if (u>.78&&u<.88) seg(.5,.58,'rgb('+(200*k|0)+','+(200*k|0)+','+(190*k|0)+')');
+      }
+      seg(.94,1,col(.5));
+    } else {
+      if (wx>.18&&wx<.82){ seg(.28,.5,'rgb('+(235*k*tr>255?255:235*k*tr|0)+','+(235*k*tg|0)+','+(235*k*tb|0)+')'); }
+      if (wx>.24&&wx<.76){ seg(.31,.47,col(.9)); }
+      seg(.9,1,col(.5));
+    }
+  }
+
+  // Mr Pino sprite
+  if (M.limbo<=0 && M.f===P.f){
+    const rx=M.x-P.x, ry=M.y-P.y, inv=1/(plx*dy-dx*ply);
+    const tx=inv*(dy*rx-dx*ry), ty=inv*(-ply*rx+plx*ry);
+    if (ty>.2){
+      const sxc = (W/2)*(1+tx/ty), sh = Math.abs(H/ty)*1.12, sw = sh*(32/48);
+      const x0 = Math.floor(sxc-sw/2), x1 = Math.floor(sxc+sw/2);
+      const sy0 = hz - sh*.52;
+      const img = SPR[M.state==='chase'?1:0][Math.floor(M.anim*(M.state==='chase'?5:3))%2];
+      ctx.globalAlpha = Math.max(.25, Math.min(1, 1.15-ty/16));
+      for (let x=Math.max(0,x0); x<Math.min(W,x1); x++){
+        if (ty>=zb[x]) continue;
+        const u = Math.floor((x-x0)/sw*32);
+        ctx.drawImage(img, Math.min(31,u),0,1,48, x, sy0, 1, sh);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+function pathInfo(){
+  const df=G.df; let f=P.f,x=Math.floor(P.x),y=Math.floor(P.y),steps=0,ax=null,ay=null,cross=false;
+  const d0=df[f][y]?.[x] ?? 1e9;
+  while ((df[f][y][x])>0 && steps<300){
+    let bf=f,bx=x,by=y,bd=df[f][y][x];
+    for (const [a,b] of D4){ const nx=x+a,ny=y+b; if (nx<0||ny<0||nx>=MW||ny>=MH) continue; if (df[f][ny][nx]<bd){ bd=df[f][ny][nx]; bx=nx; by=ny; bf=f; } }
+    if (G.maps[f][y][x]==='S' && df[1-f][y][x]<bd){ bf=1-f; bx=x; by=y; }
+    if (bx===x&&by===y&&bf===f) break;
+    if (bf!==f) cross=true; else if (!cross && steps<4){ ax=bx; ay=by; }
+    f=bf; x=bx; y=by; steps++;
+  }
+  return {d:d0, ax, ay, cross, floor:f};
+}
+
+const F1 = '16px Bungee, Impact, sans-serif';
+const F2 = '12px "Special Elite", "Courier New", monospace';
+function text(t,x,y,font,color,align='left'){ ctx.font=font; ctx.textAlign=align; ctx.fillStyle='rgba(0,0,0,.7)'; ctx.fillText(t,x+1,y+1); ctx.fillStyle=color; ctx.fillText(t,x,y); }
+
+function drawHUD(){
+  const alert=G.alert;
+  // stamina
+  ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(14,H-26,124,12);
+  ctx.fillStyle = P.tired ? '#a33' : '#e8e0a0'; ctx.fillRect(16,H-24,120*P.stam/100,8);
+  text('STAMINA',14,H-31,F2,'#c8cfc4');
+  text('FLOOR '+(P.f+1),14,24,F1,'#e6eadf');
+  text('ALERTS '+G.survived+'/'+GOAL,14,42,F2,'#c8cfc4');
+  const s=Math.floor(G.t); text(Math.floor(s/60)+':'+String(s%60).padStart(2,'0'),14,58,F2,'#c8cfc4');
+
+  // minimap
+  const cs=5, mx0=W-MW*cs-12, my0=12, map=G.maps[P.f];
+  ctx.fillStyle='rgba(0,0,0,.65)'; ctx.fillRect(mx0-3,my0-3,MW*cs+6,MH*cs+6);
+  for (let y=0;y<MH;y++) for (let x=0;x<MW;x++){
+    const c=map[y][x]; let col=null;
+    if (c==='.') col='#555c58'; else if (c==='R') col=(alert&&Math.floor(G.t*4)%2)?'#9bffc4':'#35d27f'; else if (c==='S') col='#e0b830'; else if (c==='L') col='#3b5f95';
+    if (col){ ctx.fillStyle=col; ctx.fillRect(mx0+x*cs,my0+y*cs,cs,cs); }
+  }
+  ctx.fillStyle='#fff'; ctx.fillRect(mx0+P.x*cs-2,my0+P.y*cs-2,4,4);
+  ctx.strokeStyle='#fff'; ctx.beginPath(); ctx.moveTo(mx0+P.x*cs,my0+P.y*cs); ctx.lineTo(mx0+(P.x+Math.cos(P.a)*1.6)*cs,my0+(P.y+Math.sin(P.a)*1.6)*cs); ctx.stroke();
+
+  // alert
+  if (alert){
+    text(Math.max(0,alert.t).toFixed(1), W/2, 62, '48px Bungee, Impact, sans-serif', alert.t<4?'#fff':'#ffb0b0','center');
+    text('REACH A SAFE ROOM', W/2, 84, F1, '#ffd0d0','center');
+    const info=pathInfo();
+    if (info.ax!==null){
+      const ang=Math.atan2(info.ay+.5-P.y, info.ax+.5-P.x)-P.a;
+      ctx.save(); ctx.translate(W/2,124); ctx.rotate(ang);
+      ctx.fillStyle='#35d27f'; ctx.strokeStyle='#04210f'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(0,-20); ctx.lineTo(16,10); ctx.lineTo(5,6); ctx.lineTo(5,20); ctx.lineTo(-5,20); ctx.lineTo(-5,6); ctx.lineTo(-16,10); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    }
+    const label = info.cross ? 'Safe room is on floor '+(info.floor+1)+'. Use the stairs.' : info.d+' steps to go';
+    text(label, W/2, 160, F2, '#c9ffe0','center');
+  }
+
+  // prompts
+  if (!P.hidden && nearLocker()) text('[E] hide in locker', W/2, H-26, F1, '#9cc4ff','center');
+  if (P.hidden) text('[E] leave locker', W/2, H-26, F1, '#9cc4ff','center');
+  if (G.msgT>0 && G.msg) text(G.msg, W/2, alert?190:H-52, F2, '#fff','center');
+  if (muted) text('MUTED',W-14,H-10,F2,'#889','right');
+}
+
+function render(){
+  ctx.clearRect(0,0,W,H);
+  if (!G.maps){ ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H); return; }
+  drawWorld();
+  if (G.alert){ ctx.fillStyle=`rgba(255,0,0,${.14+.1*Math.sin(G.t*8)})`; ctx.fillRect(0,0,W,H); ctx.globalAlpha=.4+.25*Math.sin(G.t*8); ctx.drawImage(redVig,0,0); ctx.globalAlpha=1; }
+  if (M.limbo<=0 && M.f===P.f){
+    const d=Math.hypot(M.x-P.x,M.y-P.y);
+    if (d<6){ ctx.globalAlpha=(1-d/6)*(.55+.2*Math.sin(G.t*10)); ctx.drawImage(redVig,0,0); ctx.globalAlpha=1; }
+  }
+  ctx.drawImage(vig,0,0);
+  if (G.flash>0){ ctx.fillStyle=`rgba(255,255,255,${G.flash*1.2})`; ctx.fillRect(0,0,W,H); }
+  if (P.hidden){
+    ctx.fillStyle='#050608'; ctx.fillRect(0,0,W,H*.32); ctx.fillRect(0,H*.62,W,H*.38);
+    for (let y=H*.32;y<H*.62;y+=14) ctx.fillRect(0,y+5,W,9);
+    ctx.fillStyle='rgba(20,40,80,.28)'; ctx.fillRect(0,0,W,H);
+  }
+  drawHUD();
+}
+
+/* ---------- loop ---------- */
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(.05, (now-last)/1000); last = now;
+  if (G.mode==='play') update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.__game = {get G(){return G;}, get P(){return P;}, get M(){return M;}};
+})();
+</script>
+
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"){e.preventDefault();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

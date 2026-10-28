@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Night Shift at Pizza Palace</title>
+<style>
+:root{color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0;height:100%;background:#050505}
+body{display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{width:100%;max-width:calc(100vh*16/9);aspect-ratio:16/9;display:block;background:#000;outline:none}
+</style></head><body>
+<canvas id="c" width="960" height="540" tabindex="0"></canvas>
+<script>
+const cv=document.getElementById('c'),g=cv.getContext('2d');
+const HOUR=40,W=960,H=540,OW=560;
+const MONO='"Courier New",monospace',HEAD='Impact,"Arial Black",sans-serif';
+const RN=['Show Stage','Dining Hall','Pirate Cove','West Hall','Supply Closet','East Hall','Kitchen'];
+const RL=['1A','1B','1C','2A','2B','4A','5'];
+const MAP=[[80,4],[80,44],[8,44],[24,94],[8,134],[136,94],[148,44]];
+const PAN=[0,0,-1,-1,-1,1,1,-1,1];
+const COL=['#7a4a22','#4a4aa8','#c9a227','#b33'];
+const NM=['Bear','Bunny','Chick','Fox'];
+const FOXAI=[3,4,6,8,10,13];
+const CALLS=[
+ [2,'Hey, rookie. Welcome to the night shift','at Pizza Palace. Keep your eyes open.'],
+ [10,'The animatronics wander around at night.','Their servos jam if they sit idle all day.'],
+ [18,'Watch the cameras. The Bear only moves','when nobody is looking at him.'],
+ [26,'If something is at your door, shut it.','Doors and lights drain power. Good luck.']
+];
+let state='title',t=0,power=100,powerOut=0,mon=false,cam=0,sw=0,ac=null,loseT=0,killer=0,usage=1;
+let door=[false,false],dA=[0,0],held=[false,false],AN,fox;
+cv.focus();addEventListener('click',()=>cv.focus());
+
+function beep(pan,f,d,type,v){
+  if(!ac)return;
+  const o=ac.createOscillator(),gn=ac.createGain();
+  o.type=type||'square';o.frequency.value=f;
+  gn.gain.setValueAtTime(v||.15,ac.currentTime);
+  gn.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d);
+  o.connect(gn);
+  if(ac.createStereoPanner){const p=ac.createStereoPanner();p.pan.value=pan;gn.connect(p);p.connect(ac.destination);}
+  else gn.connect(ac.destination);
+  o.start();o.stop(ac.currentTime+d);
+}
+function noise(d,v){
+  if(!ac)return;
+  const n=(ac.sampleRate*d)|0,b=ac.createBuffer(1,n,ac.sampleRate),a=b.getChannelData(0);
+  for(let i=0;i<n;i++)a[i]=(Math.random()*2-1)*(1-i/n);
+  const s=ac.createBufferSource(),gn=ac.createGain();
+  s.buffer=b;gn.gain.value=v;s.connect(gn);gn.connect(ac.destination);s.start();
+}
+function foot(room){
+  const p=PAN[room];
+  if(room>=7)beep(p,60,.5,'sawtooth',.5);
+  else if(room===6)noise(.18,.3);
+  else beep(p,110,.2,'triangle',.25);
+}
+function hour(){return Math.min(5,(t/HOUR)|0);}
+function hourLabel(){const h=hour();return (h?h:12)+' AM';}
+function lightOn(i){return held[i]&&!door[i]&&!powerOut&&state==='play';}
+
+function reset(){
+  t=0;power=100;powerOut=0;mon=false;cam=0;sw=0;loseT=0;usage=1;
+  door=[false,false];dA=[0,0];held=[false,false];
+  AN=[
+    {ty:1,room:0,tick:0,at:0,int:4.6,ai:[4,5,6,8,10,13],path:{0:[1],1:[3],3:[4,7],4:[7]}},
+    {ty:2,room:0,tick:0,at:0,int:5,ai:[3,4,6,7,9,12],path:{0:[1],1:[5,6],6:[5],5:[6,8]}},
+    {ty:0,room:0,tick:0,at:0,int:6,ai:[1,2,3,4,6,8],shy:1,path:{0:[1],1:[3,5],3:[7],5:[8]}}
+  ];
+  fox={stage:0,tick:0,un:0,run:0};
+}
+reset();
+
+function lose(ty){
+  if(state!=='play')return;
+  state='lost';killer=ty;loseT=0;noise(1.4,.8);
+  for(let k=0;k<6;k++)setTimeout(()=>beep(0,220-k*25,.3,'sawtooth',.4),k*70);
+}
+
+function step(a,dt){
+  if(state!=='play')return;
+  if(a.room>=7){
+    a.at-=dt;
+    if(a.at<=0){
+      const sd=a.room-7;
+      if(door[sd]){a.room=1;a.tick=0;beep(sd?1:-1,70,.4,'sawtooth',.4);}
+      else lose(a.ty);
+    }
+    return;
+  }
+  a.tick+=dt;
+  if(a.tick<a.int)return;
+  a.tick=0;
+  if(a.shy&&mon&&cam===a.room)return;
+  if(Math.random()*20<a.ai[hour()]){
+    const o=a.path[a.room];
+    a.room=o[(Math.random()*o.length)|0];
+    foot(a.room);
+    if(a.room>=7)a.at=hour()>=3?3:4;
+  }
+}
+
+function update(dt){
+  t+=dt;sw=Math.max(0,sw-dt);
+  if(t>=HOUR*6){
+    state='won';
+    [523,659,784,1047].forEach((f,k)=>setTimeout(()=>beep(0,f,.5,'triangle',.3),k*250));
+    return;
+  }
+  for(let i=0;i<2;i++)dA[i]+=((door[i]?1:0)-dA[i])*Math.min(1,dt*10);
+  const extras=(door[0]?1:0)+(door[1]?1:0)+(lightOn(0)?1:0)+(lightOn(1)?1:0)+(mon?1:0);
+  usage=extras+1;
+  if(!powerOut){
+    power-=(.07+.1*extras)*dt;
+    if(power<=0){
+      power=0;powerOut=9;door=[false,false];mon=false;
+      [392,330,294,262,196].forEach((f,k)=>setTimeout(()=>beep(0,f,.35,'triangle',.25),k*300));
+    }
+  }else{
+    powerOut-=dt;
+    if(powerOut<=0){lose(0);return;}
+    return;
+  }
+  AN.forEach(a=>step(a,dt));
+  // Fox: runs the west hall if his cove is left unwatched
+  const watched=mon&&cam===2;
+  if(fox.run>0){
+    fox.run-=dt;
+    if(fox.run<=0){
+      if(door[0]){power=Math.max(0,power-6);fox.stage=1;fox.un=0;beep(-1,50,.5,'sawtooth',.5);}
+      else lose(3);
+    }
+  }else{
+    fox.tick+=dt;
+    if(fox.stage<3){
+      if(fox.tick>=6){
+        fox.tick=0;
+        if(!watched&&Math.random()*20<FOXAI[hour()]){fox.stage++;beep(-1,150,.15,'triangle',.2);}
+      }
+    }else if(watched)fox.un=0;
+    else{
+      fox.un+=dt;
+      if(fox.un>=5){
+        fox.run=3;fox.un=0;
+        for(let k=0;k<8;k++)setTimeout(()=>beep(-1,80,.1,'square',.3),k*350);
+      }
+    }
+  }
+}
+
+/* ---------- drawing helpers ---------- */
+function T(s,x,y,sz,col,al,f){g.fillStyle=col||'#fff';g.font=sz+'px '+(f||MONO);g.textAlign=al||'center';g.fillText(s,x,y);}
+function C(x,y,r){g.beginPath();g.arc(x,y,r,0,7);g.fill();}
+function mon_(ty,cx,by,s){
+  g.save();g.translate(cx,by);g.scale(s,s);
+  g.fillStyle=COL[ty];
+  g.fillRect(-60,-190,120,190);
+  C(0,-230,55);
+  if(ty===1){g.fillRect(-40,-370,24,110);g.fillRect(16,-370,24,110);}
+  else if(ty===3){
+    g.beginPath();g.moveTo(-50,-265);g.lineTo(-35,-340);g.lineTo(-10,-278);g.fill();
+    g.beginPath();g.moveTo(50,-265);g.lineTo(35,-340);g.lineTo(10,-278);g.fill();
+    g.fillRect(-25,-215,50,40);
+  }else if(ty===0){C(-45,-275,22);C(45,-275,22);}
+  g.fillStyle='#fff';C(-22,-240,13);C(22,-240,13);
+  g.fillStyle='#e00';C(-22,-240,5);C(22,-240,5);
+  if(ty===2){
+    g.fillStyle='#e8851a';g.beginPath();g.moveTo(-18,-222);g.lineTo(18,-222);g.lineTo(0,-190);g.fill();
+    g.fillStyle='#fff';g.fillRect(-40,-170,80,60);
+  }else{g.fillStyle='#ddd';for(let k=-3;k<=3;k++)g.fillRect(k*9-3,-205,6,14);}
+  g.restore();
+}
+function stat(a,n){
+  for(let k=0;k<n;k++){g.fillStyle='rgba(255,255,255,'+Math.random()*a+')';g.fillRect(Math.random()*400,Math.random()*300,Math.random()*30+2,2);}
+}
+function hallBG(col){
+  g.fillStyle=col;g.fillRect(0,0,400,300);
+  g.fillStyle='#000';g.fillRect(120,90,160,120);
+  g.strokeStyle='#555';g.lineWidth=2;
+  [[0,0,120,90],[400,0,280,90],[0,300,120,210],[400,300,280,210]].forEach(l=>{g.beginPath();g.moveTo(l[0],l[1]);g.lineTo(l[2],l[3]);g.stroke();});
+  g.strokeRect(120,90,160,120);
+}
+
+function drawCam(i){
+  g.fillStyle='#1a1a22';g.fillRect(0,0,400,300);
+  if(i===0){
+    g.fillStyle='#1b1730';g.fillRect(0,0,400,300);
+    g.fillStyle='#6b1520';g.fillRect(0,0,70,300);g.fillRect(330,0,70,300);
+    g.fillStyle='#3a2a1a';g.fillRect(70,190,260,110);
+    T('PIZZA PALACE',200,60,24,'#c9a227','center',HEAD);
+  }else if(i===1){
+    g.fillStyle='#26242c';g.fillRect(0,0,400,300);
+    g.fillStyle='#4a3e2a';[[90,250],[200,270],[310,250]].forEach(p=>{g.beginPath();g.ellipse(p[0],p[1],45,16,0,0,7);g.fill();});
+    g.fillStyle='#d44';[[90,235],[310,235]].forEach(p=>{g.beginPath();g.moveTo(p[0]-10,p[1]);g.lineTo(p[0]+10,p[1]);g.lineTo(p[0],p[1]-24);g.fill();});
+  }else if(i===2){
+    g.fillStyle='#201028';g.fillRect(0,0,400,300);
+    g.fillStyle='#5a2a7a';g.fillRect(90,20,220,280);
+    g.fillStyle='#2b1240';for(let x=100;x<310;x+=22)g.fillRect(x,20,2,280);
+    if(fox.stage>0&&fox.run<=0){
+      const gw=fox.stage*34;g.fillStyle='#000';g.fillRect(200-gw/2,20,gw,280);
+      if(fox.stage<3){g.fillStyle='#e22';C(192,150,3);C(208,150,3);}
+      else mon_(3,200,290,.5);
+    }
+    T('OUT OF ORDER',200,14,12,'#e8a');
+  }else if(i===3){
+    hallBG('#2a2a30');
+    if(fox.run>0){const p=1-fox.run/3;mon_(3,200,215+p*80,.2+p*.55);}
+  }else if(i===4){
+    g.fillStyle='#22221f';g.fillRect(0,0,400,300);
+    g.fillStyle='#3a3226';for(let y=60;y<260;y+=60)g.fillRect(40,y,320,8);
+    g.fillStyle='#556';g.fillRect(300,200,40,60);
+  }else if(i===5){
+    hallBG('#2a302a');
+  }else{
+    g.fillStyle='#000';g.fillRect(0,0,400,300);
+    T('AUDIO ONLY',200,150,22,'#888');
+    return;
+  }
+  AN.forEach((a,k)=>{if(a.room===i)mon_(a.ty,110+k*90,i===0?250:270,.4);});
+}
+
+function btn(x,y,key,on,col){
+  g.fillStyle=on?col:'#2a2a2f';g.fillRect(x,y,26,44);
+  g.strokeStyle='#000';g.lineWidth=2;g.strokeRect(x,y,26,44);
+  T(key,x+13,y+28,16,on?'#000':'#999');
+}
+function doorway(i){
+  const x=i?385:25,y=110,w=150,h=290,cx=x+w/2,lit=lightOn(i);
+  g.fillStyle=lit?'#3d3b1e':'#020204';g.fillRect(x,y,w,h);
+  if(lit){
+    g.fillStyle='rgba(255,255,200,.08)';for(let k=0;k<5;k++)g.fillRect(x,y+h-60+k*12,w,3);
+    const m=AN.find(a=>a.room===7+i);
+    if(m)mon_(m.ty,cx,y+h,.72);
+  }
+  const a=dA[i];
+  if(a>.01){
+    g.fillStyle='#4c525b';g.fillRect(x,y,w,h*a);
+    g.fillStyle='#343840';for(let yy=y+10;yy<y+h*a;yy+=22)g.fillRect(x,yy,w,4);
+  }
+  g.strokeStyle='#0a0a0e';g.lineWidth=10;g.strokeRect(x-5,y-5,w+10,h+10);
+  const bx=i?352:183;
+  btn(bx,160,i?'E':'Q',lit,'#ee5');
+  btn(bx,215,i?'D':'A',door[i],'#e33');
+}
+function drawOffice(){
+  g.save();g.beginPath();g.rect(0,0,OW,H);g.clip();
+  g.fillStyle='#16161f';g.fillRect(0,0,OW,H);
+  g.fillStyle='#0f0f16';g.fillRect(0,0,OW,60);
+  g.fillStyle='#1c1b22';g.fillRect(0,440,OW,100);
+  doorway(0);doorway(1);
+  g.fillStyle='#7a1f2b';g.fillRect(235,120,90,80);
+  T('CELEBRATE!',280,165,11,'#f3c64a');
+  g.fillStyle='#2a2018';g.fillRect(215,330,130,110);
+  g.fillStyle='#555';g.fillRect(276,300,8,32);
+  g.save();g.translate(280,296);g.rotate(t*14);g.fillStyle='#8a8a8a';
+  for(let k=0;k<3;k++){g.rotate(2.0944);g.fillRect(-6,0,12,30);}
+  g.restore();
+  g.fillStyle='#444';C(280,296,6);
+  if(state==='play'){
+    for(const c of CALLS){
+      if(t>=c[0]&&t<c[0]+8){T(c[1],OW/2,462,14,'#cde');T(c[2],OW/2,482,14,'#cde');}
+    }
+    T('P1: Q / E hold light   A / D door',OW/2,525,13,'#778');
+  }
+  if(powerOut>0){
+    g.fillStyle='rgba(0,0,0,.93)';g.fillRect(0,0,OW,H);
+    const ph=9-powerOut;
+    if(ph>2&&((ph*2)|0)%2===0){g.fillStyle='#fff';C(92,255,4);C(108,255,4);}
+    T('POWER OUT',OW/2,70,38,'#c22','center',HEAD);
+  }
+  g.restore();
+}
+function drawMonitor(){
+  g.save();g.translate(OW,0);g.beginPath();g.rect(0,0,400,H);g.clip();
+  g.fillStyle='#0b0b0e';g.fillRect(0,0,400,H);
+  g.save();g.beginPath();g.rect(0,0,400,300);g.clip();
+  if(mon&&!powerOut){
+    drawCam(cam);
+    g.fillStyle='rgba(40,90,60,.18)';g.fillRect(0,0,400,300);
+    g.fillStyle='rgba(0,0,0,.15)';for(let y=0;y<300;y+=4)g.fillRect(0,y,400,1);
+    stat(sw>0?.8:.12,sw>0?170:35);
+    T('CAM '+RL[cam]+'  '+RN[cam],10,290,13,'#cfc','left');
+    if((t*2|0)%2===0){g.fillStyle='#e22';C(380,18,6);}
+    T('REC',350,22,12,'#e22','right');
+  }else{
+    g.fillStyle='#111';g.fillRect(0,0,400,300);
+    T('MONITOR OFF',200,140,22,'#555');
+    T('Player 2: press Up to raise it',200,170,14,'#555');
+  }
+  g.restore();
+  g.fillStyle='#101014';g.fillRect(0,300,400,240);
+  g.save();g.translate(14,318);
+  MAP.forEach((p,i)=>{
+    g.fillStyle=(mon&&i===cam)?'#2f8f2f':'#2d2d33';g.fillRect(p[0],p[1],52,28);
+    T(RL[i],p[0]+26,p[1]+19,14,'#ddd');
+  });
+  g.fillStyle='#553';g.fillRect(80,134,52,28);T('YOU',106,153,13,'#ddd');
+  g.restore();
+  T(hourLabel(),310,362,46,'#f3c64a','center',HEAD);
+  T('Night 1',310,385,14,'#99a');
+  T('Power: '+Math.ceil(power)+'%',310,425,18,power>25?'#8d8':'#e44');
+  T('Usage',250,455,13,'#99a','left');
+  for(let k=0;k<6;k++){g.fillStyle=k<usage?(usage>4?'#e44':usage>2?'#ec4':'#5c5'):'#2a2a2f';g.fillRect(300+k*14,443,10,16);}
+  T('P2: Up = monitor, Left/Right = camera',200,525,12,'#778');
+  g.restore();
+}
+
+function draw(){
+  g.clearRect(0,0,W,H);
+  if(state==='title'){
+    g.fillStyle='#0a0a12';g.fillRect(0,0,W,H);
+    T('NIGHT SHIFT',480,110,72,'#f3c64a','center',HEAD);
+    T('at Pizza Palace',480,150,26,'#ddd');
+    T('Two players, one screen. Survive from 12 AM to 6 AM.',480,200,18,'#ccd');
+    T('PLAYER 1: THE GUARD (left)',250,260,20,'#f3c64a');
+    T('Q / E  hold for left / right light',250,292,16,'#ddd');
+    T('A / D  close left / right door',250,316,16,'#ddd');
+    T('The light only works with the door open.',250,340,14,'#99a');
+    T('PLAYER 2: THE CAMERAS (right)',710,260,20,'#f3c64a');
+    T('Up arrow  raise or lower the monitor',710,292,16,'#ddd');
+    T('Left / Right arrows  switch camera',710,316,16,'#ddd');
+    T('Tell Player 1 who is coming. Check the Cove!',710,340,14,'#99a');
+    T('Doors, lights and the monitor all drain one battery.',480,392,16,'#99a');
+    T('Click the game once, then press Enter to start',480,460,24,'#f3c64a');
+    return;
+  }
+  if(state==='lost'){
+    loseT+=1/60;
+    g.fillStyle=(loseT<.6&&((loseT*30)|0)%2)?'#a00':'#200';g.fillRect(0,0,W,H);
+    const sh=Math.max(0,1.2-loseT)*16;
+    mon_(killer,480+(Math.random()-.5)*sh,700+(Math.random()-.5)*sh,2.6);
+    if(loseT>1){
+      g.fillStyle='rgba(0,0,0,.75)';g.fillRect(0,170,W,200);
+      T('GAME OVER',480,245,64,'#e33','center',HEAD);
+      T(NM[killer]+' got you at '+hourLabel()+'.',480,290,22);
+      T('Press Enter to try again',480,340,20,'#f3c64a');
+    }
+    return;
+  }
+  if(state==='won'){
+    g.fillStyle='#0a1020';g.fillRect(0,0,W,H);
+    T('6 AM',480,250,130,'#f3c64a','center',HEAD);
+    T('You both survived the night!',480,320,30);
+    T('Press Enter to play again',480,375,20,'#99a');
+    return;
+  }
+  drawOffice();drawMonitor();
+  g.fillStyle='#000';g.fillRect(OW-2,0,4,H);
+  if(power<20&&!powerOut&&((t*6)|0)%7===0){g.fillStyle='rgba(0,0,0,.35)';g.fillRect(0,0,OW,H);}
+}
+
+addEventListener('keydown',e=>{
+  const k=e.key.length>1?e.key:e.key.toLowerCase();
+  if(k.startsWith('Arrow')||k===' ')e.preventDefault();
+  if(k==='Enter'&&state!=='play'){
+    if(!ac){try{ac=new(window.AudioContext||window.webkitAudioContext)();}catch(_){}}
+    reset();state='play';beep(0,880,.15,'square',.2);setTimeout(()=>beep(0,880,.15,'square',.2),250);return;
+  }
+  if(state!=='play'||powerOut)return;
+  if(k==='q')held[0]=true;
+  if(k==='e')held[1]=true;
+  if(e.repeat)return;
+  if(k==='a'){door[0]=!door[0];beep(-1,180,.1,'square',.25);}
+  if(k==='d'){door[1]=!door[1];beep(1,180,.1,'square',.25);}
+  if(k==='ArrowUp'){mon=!mon;sw=.3;beep(0,300,.12,'triangle',.2);}
+  if(mon&&k==='ArrowLeft'){cam=(cam+6)%7;sw=.25;}
+  if(mon&&k==='ArrowRight'){cam=(cam+1)%7;sw=.25;}
+});
+addEventListener('keyup',e=>{
+  const k=e.key.toLowerCase();
+  if(k==='q')held[0]=false;
+  if(k==='e')held[1]=false;
+});
+
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(.1,(now-last)/1000);last=now;
+  if(state==='play')update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

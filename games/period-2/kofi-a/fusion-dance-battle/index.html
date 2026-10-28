@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Steven Universe: Fusion Dance Battle</title>
+<style>
+:root{--site-primary:#7838a8;--site-on-primary:#fff;--site-secondary:#25133e;--site-on-secondary:#fff2ff;--site-background:#160d2d;--site-on-background:#fff7ff;--site-font-body:system-ui,sans-serif;--site-font-heading:system-ui,sans-serif;--site-heading-scale:1;--site-spacing-scale:1;--site-radius-scale:1;--site-decoration-opacity:1;color-scheme:light dark}
+*{box-sizing:border-box}body{margin:0;font-family:var(--site-font-body);background:light-dark(#f5edff,#160d2d);color:light-dark(#26113b,#fff7ff)}#app{min-height:100vh;width:100%;background-color:var(--site-background);color:var(--site-on-background);padding:clamp(14px,3vw,30px);border-radius:0;background-image:radial-gradient(ellipse at 50% 0%,#552a80 0%,#160d2d 68%)}header{text-align:center;margin:0 auto 24px;max-width:950px}h1{font-family:var(--site-font-heading);font-size:calc(clamp(25px,4.8vw,44px)*var(--site-heading-scale));margin:0 0 8px;color:#ffe6fb}header p{margin:0;color:#e0c9f8;line-height:1.5}.tag{display:inline-block;margin-top:12px;border:1px solid #a881d4;border-radius:99px;padding:6px 12px;font-size:12px;background:#2a1942}.players{max-width:1000px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{background:#25163d;border:2px solid #9c78d0;border-radius:calc(18px*var(--site-radius-scale));padding:18px;text-align:center;box-shadow:0 12px 28px #0004}.card.p2{border-color:#ff9bd4}.avatar{font-size:clamp(48px,7vw,72px);margin:4px}.card h2{font-size:19px;margin:0}.keyhint{font-size:12px;color:#d4c2e8;margin:5px 0 14px}.meter{height:12px;background:#11091e;border-radius:99px;overflow:hidden;margin:10px 0}.meter div{height:100%;width:0;background:linear-gradient(90deg,#8a8cff,#ff8bc8);transition:width .18s}.score{font-size:28px;font-weight:900}.move{min-height:28px;color:#ffe7a4;font-weight:700;margin:4px}.actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}button{font:inherit;font-weight:800;border:1px solid #d2aaff;border-radius:12px;padding:11px 14px;background:#60378e;color:white;cursor:pointer}button:hover{filter:brightness(1.15)}button:focus-visible{outline:3px solid #fff;outline-offset:3px}.p2 button{background:#9a3f78;border-color:#ffc2e2}.arena{max-width:1000px;margin:18px auto 0;text-align:center;padding:22px 16px;background:#1b102d;border:1px solid #735196;border-radius:18px}.arena h2{margin:0 0 6px}.beat{font-size:60px;margin:8px}.status{min-height:28px;color:#e4d5f8}.winner{font-size:22px;color:#ffe7a4;font-weight:900;margin-top:8px}.instructions{max-width:1000px;margin:14px auto 0;text-align:center;color:#c8b4e0;font-size:13px;line-height:1.6}.reset{margin-left:5px}.sparkle{position:fixed;inset:0;pointer-events:none;opacity:var(--site-decoration-opacity);background:radial-gradient(circle at 12% 22%,#ffb9f11c 0 2px,transparent 3px),radial-gradient(circle at 86% 18%,#a8c5ff22 0 2px,transparent 3px);background-size:120px 120px;z-index:0}#app>*{position:relative;z-index:1}@media(max-width:650px){.players{grid-template-columns:1fr}.card{padding:14px}.arena{padding:18px 12px}}
+</style></head>
+<body><div id="app"><div class="sparkle"></div><header><h1>💎 Steven Universe: Fusion Dance Battle 💎</h1><p>Two players. One keyboard. Match the beat and build fusion energy!</p><span class="tag">✨ LOCAL MULTIPLAYER · SAME DEVICE ✨</span></header>
+<section class="players">
+<article class="card"><div class="avatar">💗💙</div><h2>PLAYER 1 · STEVEN</h2><div class="keyhint">A = SPIN &nbsp;·&nbsp; D = GROOVE</div><div>Fusion energy</div><div class="meter"><div id="energy1"></div></div><div class="score"><span id="score1">0</span> / 10</div><div class="move" id="dance1">Ready to dance!</div><div class="actions"><button id="p1spin">A · 🌀 Spin</button><button id="p1groove">D · 🪩 Groove</button></div></article>
+<article class="card p2"><div class="avatar">🔴🔵</div><h2>PLAYER 2 · GARNET</h2><div class="keyhint">← = SPIN &nbsp;·&nbsp; → = GROOVE</div><div>Fusion energy</div><div class="meter"><div id="energy2"></div></div><div class="score"><span id="score2">0</span> / 10</div><div class="move" id="dance2">Ready to dance!</div><div class="actions"><button id="p2spin">← · 🌀 Spin</button><button id="p2groove">→ · 🪩 Groove</button></div></article>
+</section><section class="arena"><h2>🌟 THE FUSION FLOOR 🌟</h2><div class="beat" id="beat">🎵</div><div class="status" id="status" aria-live="polite">Press “Start Beat” when both players are ready.</div><div class="actions"><button id="start">▶ Start Beat</button><button id="next" disabled>🎶 Next Beat</button><button id="reset" class="reset">↻ Restart Match</button></div><div id="winner" class="winner"></div></section>
+<div class="instructions">Match the dance prompt shown in the middle to earn 1 fusion point. First player to 10 wins!<br>Keyboard: Player 1 uses <b>A / D</b>; Player 2 uses <b>← / →</b>. You can also click the buttons.</div></div>
+<script>
+(()=>{const $=id=>document.getElementById(id);let scores=[0,0],prompt='spin',active=false,over=false;const moves={spin:{label:'SPIN!',emoji:'🌀'},groove:{label:'GROOVE!',emoji:'🪩'}};function draw(){for(let i=0;i<2;i++){$('score'+(i+1)).textContent=scores[i];$('energy'+(i+1)).style.width=(scores[i]*10)+'%';}}function beat(){prompt=Math.random()<.5?'spin':'groove';$('beat').textContent=moves[prompt].emoji;$('status').textContent='DANCE PROMPT: '+moves[prompt].label+' Tap the matching move!';$('next').disabled=false;}function dance(player,move){if(!active||over)return;if(move===prompt){scores[player]++;$('dance'+(player+1)).textContent='✨ Perfect '+moves[move].label+' +1!';$('status').textContent='Player '+(player+1)+' nailed the beat!';}else{$('dance'+(player+1)).textContent='💫 Off beat! Try again';$('status').textContent='Not quite! The prompt is '+moves[prompt].label;}draw();if(scores[player]>=10){over=true;active=false;$('winner').textContent='💎 PLAYER '+(player+1)+' WINS THE FUSION DANCE! 💎';$('status').textContent='Amazing moves! Press Restart Match for a rematch.';$('start').disabled=true;$('next').disabled=true;}}$('start').addEventListener('click',()=>{if(over)return;active=true;$('start').textContent='Beat started!';$('start').disabled=true;beat();});$('next').addEventListener('click',()=>{if(active&&!over)beat();});$('reset').addEventListener('click',()=>{scores=[0,0];active=false;over=false;prompt='spin';draw();$('beat').textContent='🎵';$('status').textContent='Press “Start Beat” when both players are ready.';$('winner').textContent='';$('dance1').textContent='Ready to dance!';$('dance2').textContent='Ready to dance!';$('start').disabled=false;$('start').textContent='▶ Start Beat';$('next').disabled=true;});[['p1spin',0,'spin'],['p1groove',0,'groove'],['p2spin',1,'spin'],['p2groove',1,'groove']].forEach(([id,p,m])=>$(id).addEventListener('click',()=>dance(p,m)));document.addEventListener('keydown',e=>{if(e.repeat)return;let k=e.key.toLowerCase();if(k==='a')dance(0,'spin');if(k==='d')dance(0,'groove');if(e.key==='ArrowLeft'){e.preventDefault();dance(1,'spin')}if(e.key==='ArrowRight'){e.preventDefault();dance(1,'groove')}if(e.code==='Space'&&!active&&!over){e.preventDefault();$('start').click()}});draw();})();
+</script>
+<style>
+  .turn-banner{max-width:1000px;margin:0 auto 14px;padding:12px 16px;border-radius:14px;text-align:center;background:linear-gradient(100deg,#42256c,#762e69);border:1px solid #d6a6ff;font-weight:900;letter-spacing:.04em}
+  .turn-banner .turn-name{color:#ffe79b}
+  .card.turn-active{box-shadow:0 0 0 3px #ffe79b,0 0 30px #c99bff80;transform:translateY(-3px)}
+  .card{transition:transform .2s,box-shadow .2s}
+  .fusion-stage{max-width:1000px;margin:0 auto 16px;overflow:hidden;border:1px solid #8059ad;border-radius:20px;background:radial-gradient(ellipse at 50% 100%,#6e3c8f,#211039 65%);position:relative}
+  .fusion-stage svg{display:block;width:100%;height:auto;max-height:250px}
+  .stage-caption{text-align:center;margin:0;padding:9px 12px 13px;color:#f0dfff;font-weight:700;font-size:13px}
+  .gem-glow{animation:gemPulse 1.6s ease-in-out infinite alternate;transform-origin:center}
+  .dancer-one{animation:bobOne .65s ease-in-out infinite alternate;transform-origin:160px 145px}
+  .dancer-two{animation:bobTwo .65s ease-in-out infinite alternate;transform-origin:340px 145px}
+  .burst{animation:burst .55s ease-out}
+  @keyframes gemPulse{from{opacity:.55;filter:drop-shadow(0 0 2px #fff)}to{opacity:1;filter:drop-shadow(0 0 12px #ffb9ff)}}
+  @keyframes bobOne{0%{transform:translate(0,2px) rotate(-12deg)}25%{transform:translate(-9px,-15px) rotate(12deg)}50%{transform:translate(0,-4px) rotate(-8deg)}75%{transform:translate(9px,-18px) rotate(15deg)}100%{transform:translate(0,2px) rotate(-12deg)}}
+  @keyframes bobTwo{0%{transform:translate(0,-4px) rotate(12deg)}25%{transform:translate(9px,-17px) rotate(-14deg)}50%{transform:translate(0,1px) rotate(9deg)}75%{transform:translate(-9px,-14px) rotate(-12deg)}100%{transform:translate(0,-4px) rotate(12deg)}}
+  .dancer-one>path:nth-of-type(3),.dancer-two>path:nth-of-type(3){transform-box:fill-box;transform-origin:center;animation:armDance .32s ease-in-out infinite alternate}
+  .dancer-one>path:nth-of-type(4),.dancer-two>path:nth-of-type(4){transform-box:fill-box;transform-origin:top center;animation:legDance .4s ease-in-out infinite alternate}
+  @keyframes armDance{from{transform:rotate(-24deg) scale(1.08)}to{transform:rotate(24deg) scale(.94)}}
+  @keyframes legDance{from{transform:rotate(12deg)}to{transform:rotate(-12deg)}}
+  .dancer-one{animation-duration:.48s}.dancer-two{animation-duration:.58s}
+  @keyframes burst{from{transform:scale(.75);opacity:.3}to{transform:scale(1);opacity:1}}
+  .turn-help{color:#ffe7a4;font-weight:800}
+  @media(prefers-reduced-motion:reduce){.gem-glow,.dancer-one,.dancer-two,.burst{animation:none}}
+</style>
+<script>
+(()=>{
+  const $=id=>document.getElementById(id);
+  const root=document.getElementById('app');
+  const players=document.querySelector('.players');
+  const stage=document.createElement('section');
+  stage.className='fusion-stage';
+  stage.innerHTML=`<svg id="fusionArt" viewBox="0 0 500 205" role="img" aria-label="Two gem heroes dancing beneath a glowing fusion crystal">
+    <defs><linearGradient id="crystal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff4ff"/><stop offset=".45" stop-color="#e7a8ff"/><stop offset="1" stop-color="#7d48d0"/></linearGradient><radialGradient id="floor"><stop stop-color="#a76be5" stop-opacity=".7"/><stop offset="1" stop-color="#2c1748" stop-opacity="0"/></radialGradient></defs>
+    <ellipse cx="250" cy="174" rx="225" ry="42" fill="url(#floor)"/>
+    <g fill="#e5d4ff" opacity=".8"><circle cx="42" cy="35" r="2"/><circle cx="104" cy="63" r="2"/><circle cx="190" cy="24" r="1.5"/><circle cx="310" cy="39" r="2"/><circle cx="414" cy="29" r="1.5"/><circle cx="465" cy="83" r="2"/></g>
+    <g class="gem-glow"><path d="M250 22 L266 48 L250 69 L234 48Z" fill="url(#crystal)" stroke="#fff0ff" stroke-width="2"/><path d="M250 27 L250 62 M238 48 L262 48" stroke="#fff" stroke-width="1.5" opacity=".8"/></g>
+    <path d="M160 55 Q205 75 240 102 M340 55 Q295 75 260 102" fill="none" stroke="#ffb9f5" stroke-width="3" stroke-dasharray="5 7" opacity=".85"/>
+    <g class="dancer-one"><circle cx="160" cy="83" r="19" fill="#f2c5b8"/><path d="M140 83 Q135 56 159 57 Q184 56 180 83 L170 73 L160 78 L150 70Z" fill="#f8c9e9"/><path d="M144 103 L176 103 L187 145 L172 145 L160 123 L148 145 L133 145Z" fill="#f6a5d8"/><path d="M145 109 L117 90 M175 109 L198 91" stroke="#f2c5b8" stroke-width="9" stroke-linecap="round"/><path d="M145 145 L141 170 M174 145 L180 170" stroke="#f2c5b8" stroke-width="10" stroke-linecap="round"/><path d="M151 83 L156 85 M169 83 L164 85" stroke="#59375c" stroke-width="3" stroke-linecap="round"/></g>
+    <g class="dancer-two"><circle cx="340" cy="83" r="19" fill="#a94e87"/><path d="M320 80 Q315 55 340 56 Q365 55 360 80 L351 73 L340 78 L329 72Z" fill="#b54c9d"/><path d="M324 103 L356 103 L367 145 L352 145 L340 123 L328 145 L313 145Z" fill="#8c62dc"/><path d="M325 109 L301 90 M355 109 L383 90" stroke="#a94e87" stroke-width="9" stroke-linecap="round"/><path d="M325 145 L321 170 M354 145 L360 170" stroke="#a94e87" stroke-width="10" stroke-linecap="round"/><path d="M331 83 L336 85 M349 83 L344 85" stroke="#fff" stroke-width="3" stroke-linecap="round"/></g>
+    <g id="stageBurst" class="gem-glow"><path d="M250 83 L255 96 L269 101 L255 106 L250 120 L245 106 L231 101 L245 96Z" fill="#ffe99c"/><circle cx="222" cy="78" r="4" fill="#ff9bd8"/><circle cx="278" cy="77" r="4" fill="#8feaff"/></g>
+    <path d="M70 179 Q160 159 250 179 T430 179" fill="none" stroke="#cba2ff" stroke-width="2" opacity=".65"/>
+  </svg><p class="stage-caption" id="stageCaption">✨ The crystal is waiting for your first move. Take turns to build fusion energy! ✨</p>`;
+  root.insertBefore(stage,players);
+  const banner=document.createElement('div');banner.className='turn-banner';banner.id='turnBanner';banner.innerHTML='PLAYER 1 GOES FIRST · <span class="turn-name">STEVEN</span> — make your move!';root.insertBefore(banner,stage);
+  let current=0, prompt='spin', active=false, finished=false, scores=[0,0], used=[false,false], timeLeft=10, timerId=null;
+  const moveData={spin:{label:'SPIN',emoji:'🌀'},groove:{label:'GROOVE',emoji:'🪩'}};
+  const cards=document.querySelectorAll('.card');
+  function stopTimer(){if(timerId!==null){clearInterval(timerId);timerId=null;}}
+  function startTimer(){stopTimer();timeLeft=10;announce();timerId=setInterval(()=>{timeLeft--;if(timeLeft<=0){stopTimer();if(!active||finished)return;const expired=current;current=1-current;used=[false,false];$('dance'+(expired+1)).textContent='⏰ Time ran out!';$('stageCaption').textContent=`⏰ Player ${expired+1}'s time ran out. Player ${current+1}, you're up!`;nextPrompt();startTimer();}else announce();},1000);}
+  function announce(){
+    banner.innerHTML=`PLAYER ${current+1}'S TURN · <span class="turn-name">${current===0?'STEVEN':'GARNET'}</span> · ⏱️ <span class="turn-name">${timeLeft}s</span> — ${used[current]?'move made!':'match the prompt!'}`;
+    cards.forEach((c,i)=>c.classList.toggle('turn-active',i===current&&!finished));
+    $('status').textContent=finished?'Dance battle complete!':`Player ${current+1}, you have ${timeLeft} seconds! Prompt: ${moveData[prompt].label}.`;
+    $('next').disabled=!used[current]||finished;
+    $('start').disabled=active||finished;
+    $('start').textContent=active?'Beat in progress':'▶ Start Beat';
+    $('stageCaption').textContent=used[current]?'🌟 Great move! Pass the turn when ready.':'✨ Take turns: only the highlighted player can score right now. ✨';
+  }
+  function nextPrompt(){prompt=Math.random()<.5?'spin':'groove';$('beat').textContent=moveData[prompt].emoji;$('status').textContent=`PLAYER ${current+1}: DANCE PROMPT — ${moveData[prompt].label}!`;$('stageBurst').classList.remove('burst');void $('stageBurst').getBoundingClientRect();$('stageBurst').classList.add('burst');}
+  function updateScore(){for(let i=0;i<2;i++){$('score'+(i+1)).textContent=scores[i];$('energy'+(i+1)).style.width=(scores[i]*10)+'%';}}
+  function dance(p,m){if(!active||finished||p!==current||used[p])return;used[p]=true;
+    if(m===prompt){scores[p]++;$('dance'+(p+1)).textContent=`✨ Perfect ${moveData[m].label}! +1`; $('stageCaption').textContent=p===0?'💗 Steven adds a sparkle to the fusion!':'🔴 Garnet brings the rhythm into sync!';}
+    else{$('dance'+(p+1)).textContent='💫 Off beat — no point';$('stageCaption').textContent='💫 A little off-beat! The dance continues.';}
+    updateScore();
+    if(scores[p]>=10){finished=true;active=false;stopTimer();$('winner').textContent=`💎 PLAYER ${p+1} WINS THE FUSION DANCE! 💎`;$('status').textContent='The fusion crystal bursts into light! Restart for a rematch.';$('beat').textContent='💎';$('stageCaption').textContent='🌈 A dazzling fusion finale!';cards.forEach(c=>c.classList.remove('turn-active'));$('next').disabled=true;$('start').disabled=true;banner.innerHTML=`🏆 PLAYER ${p+1} WINS!`;return;}
+    used=[false,false];current=1-current;nextPrompt();startTimer();
+  }
+  $('start').addEventListener('click',e=>{e.stopImmediatePropagation();if(finished)return;active=true;used=[false,false];nextPrompt();startTimer();},true);
+  $('next').addEventListener('click',e=>{e.stopImmediatePropagation();if(finished||!used[current])return;used[current]=false;current=1-current;nextPrompt();announce();},true);
+  $('reset').addEventListener('click',e=>{e.stopImmediatePropagation();stopTimer();scores=[0,0];current=0;prompt='spin';active=false;finished=false;used=[false,false];timeLeft=10;updateScore();$('beat').textContent='🎵';$('winner').textContent='';$('dance1').textContent='Ready to dance!';$('dance2').textContent='Ready to dance!';$('stageCaption').textContent='✨ The crystal is waiting for your first move. Take turns to build fusion energy! ✨';announce();},true);
+  [['p1spin',0,'spin'],['p1groove',0,'groove'],['p2spin',1,'spin'],['p2groove',1,'groove']].forEach(([id,p,m])=>$(id).addEventListener('click',e=>{e.stopImmediatePropagation();dance(p,m);},true));
+  document.addEventListener('keydown',e=>{if(e.repeat)return;const k=e.key.toLowerCase();if(k==='a'){e.preventDefault();e.stopImmediatePropagation();dance(0,'spin')}else if(k==='d'){e.preventDefault();e.stopImmediatePropagation();dance(0,'groove')}else if(e.key==='ArrowLeft'){e.preventDefault();e.stopImmediatePropagation();dance(1,'spin')}else if(e.key==='ArrowRight'){e.preventDefault();e.stopImmediatePropagation();dance(1,'groove')}},true);
+  const nextBtn=$('next');nextBtn.disabled=true;nextBtn.style.display='none';
+  // A player completes one move, then the next player gets the turn.
+  const originalInstructions=document.querySelector('.instructions');
+  if(originalInstructions)originalInstructions.innerHTML='Players switch automatically after every move: Player 1 uses <b>A / D</b>, then Player 2 uses <b>← / →</b>. Match the prompt for 1 point. First to 10 wins!';
+  announce();
+})();
+</script><script>
+(()=>{
+  const arena=document.querySelector('.arena');
+  if(!arena)return;
+  const controls=arena.querySelector('.actions');
+  const musicButton=document.createElement('button');
+  musicButton.id='musicToggle';musicButton.textContent='🎶 Play Instrumental';musicButton.setAttribute('aria-pressed','false');
+  controls.appendChild(musicButton);
+  const caption=document.createElement('p');caption.className='music-caption';caption.textContent='Original, Steven Universe-inspired instrumental · synthesized live';arena.appendChild(caption);
+  let audio=null,master=null,loop=null,step=0,playing=false;
+  const melody=[659.25,783.99,880,783.99,659.25,587.33,523.25,587.33,659.25,783.99,987.77,880,783.99,659.25,587.33,523.25];
+  const bass=[130.81,130.81,164.81,164.81,174.61,174.61,146.83,146.83];
+  function tone(freq,start,duration,wave,volume){const osc=audio.createOscillator(),gain=audio.createGain();osc.type=wave;osc.frequency.setValueAtTime(freq,start);gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(volume,start+.025);gain.gain.exponentialRampToValueAtTime(.0001,start+duration);osc.connect(gain);gain.connect(master);osc.start(start);osc.stop(start+duration+.03);}
+  function beat(){if(!playing||!audio)return;const now=audio.currentTime;const n=step%16;tone(melody[n],now,.23,'triangle',.075);if(n%2===0)tone(bass[(n/2)%8],now,.36,'sine',.12);if(n%4===0)tone(75,now,.08,'sine',.045);if(n===4||n===12)tone(330,now,.12,'sine',.025);step++;}
+  async function toggle(){if(!playing){const AudioCtx=window.AudioContext||window.webkitAudioContext;if(!AudioCtx){caption.textContent='Audio playback is not supported in this browser.';return;}audio=audio||new AudioCtx();await audio.resume();master=master||audio.createGain();master.gain.value=.7;master.connect(audio.destination);playing=true;step=0;beat();loop=setInterval(beat,250);musicButton.textContent='🔇 Stop Instrumental';musicButton.setAttribute('aria-pressed','true');caption.textContent='♪ Dreamy synth melody, warm bass, and a gentle beat are playing';}else{playing=false;clearInterval(loop);loop=null;if(master)master.gain.setTargetAtTime(.0001,audio.currentTime,.04);musicButton.textContent='🎶 Play Instrumental';musicButton.setAttribute('aria-pressed','false');caption.textContent='Instrumental paused · press Play Instrumental to resume';}}
+  musicButton.addEventListener('click',toggle);
+  const reset=document.getElementById('reset');if(reset)reset.addEventListener('click',()=>{if(playing)toggle();});
+})();
+</script><script>
+(()=>{
+  const oldButton=document.getElementById('musicToggle');
+  const arena=document.querySelector('.arena');
+  if(!oldButton||!arena)return;
+  const button=oldButton.cloneNode(true);oldButton.replaceWith(button);
+  button.textContent='🎶 Play Love Song Instrumental';button.setAttribute('aria-pressed','false');
+  const caption=arena.querySelector('.music-caption');
+  if(caption)caption.textContent='Original dreamy, piano-led love-ballad instrumental · inspired by the show’s tender mood';
+  let ctx=null,master=null,loop=null,step=0,playing=false;
+  const melody=[523.25,587.33,659.25,587.33,493.88,523.25,587.33,659.25,698.46,659.25,587.33,523.25];
+  const chords=[[261.63,329.63,392],[220,261.63,329.63],[174.61,220,261.63],[196,246.94,293.66]];
+  function note(freq,start,duration,wave,volume){const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type=wave;osc.frequency.setValueAtTime(freq,start);gain.gain.setValueAtTime(.0001,start);gain.gain.exponentialRampToValueAtTime(volume,start+.07);gain.gain.setValueAtTime(volume,start+duration*.55);gain.gain.exponentialRampToValueAtTime(.0001,start+duration);osc.connect(gain);gain.connect(master);osc.start(start);osc.stop(start+duration+.02);}
+  function beat(){if(!playing||!ctx)return;const now=ctx.currentTime,n=step%12;if(n%3===0){const chord=chords[(Math.floor(step/3))%chords.length];chord.forEach((f,i)=>note(f,now+i*.035,1.05,'sine',.027));note(chord[0]/2,now,1.25,'triangle',.045);}note(melody[n],now,.62,'triangle',.045);if(n%3===2)note(melody[n]*2,now+.12,.24,'sine',.012);step++;}
+  async function toggle(){if(!playing){const AC=window.AudioContext||window.webkitAudioContext;if(!AC){if(caption)caption.textContent='Audio playback is not supported in this browser.';return;}ctx=ctx||new AC();await ctx.resume();if(!master){master=ctx.createGain();master.connect(ctx.destination);}master.gain.cancelScheduledValues(ctx.currentTime);master.gain.setTargetAtTime(.65,ctx.currentTime,.08);playing=true;step=0;beat();loop=setInterval(beat,500);button.textContent='🔇 Stop Love Song Instrumental';button.setAttribute('aria-pressed','true');if(caption)caption.textContent='♪ A soft, romantic original ballad with gentle piano-like notes and warm harmonies';}else{playing=false;clearInterval(loop);loop=null;if(master&&ctx)master.gain.setTargetAtTime(.0001,ctx.currentTime,.05);button.textContent='🎶 Play Love Song Instrumental';button.setAttribute('aria-pressed','false');if(caption)caption.textContent='Instrumental paused · press Play to listen again';}}
+  button.addEventListener('click',toggle);
+  const reset=document.getElementById('reset');if(reset)reset.addEventListener('click',()=>{if(playing)toggle();});
+})();
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

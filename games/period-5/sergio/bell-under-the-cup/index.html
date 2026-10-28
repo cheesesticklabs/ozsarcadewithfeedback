@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bell Under the Cup</title>
+<style>
+:root{color-scheme:dark;--bg:#1b1f2a;--fg:#f4f1e8;--p1:#4da3ff;--p2:#ffb347;--pad:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:var(--pad);box-sizing:border-box}
+canvas{max-width:100%;max-height:85vh;background:#2a3042;border-radius:12px}
+p{margin:8px;font-size:14px;text-align:center}
+</style></head><body>
+<canvas id="c" width="800" height="450"></canvas>
+<p><b style="color:var(--p1)">P1</b> Lift: A &nbsp;|&nbsp; <b style="color:var(--p2)">P2</b> Lift: L &nbsp;|&nbsp; Space to start</p>
+<script>
+const c=document.getElementById('c'),g=c.getContext('2d');
+const CX=400,GY=370,WIN=5,MAXS=3,UP=.8,LOCK=.35;
+let h=0,lifts=[0,0],strikes=[0,0],hit=[0,0],state='title',msg='',cup,timer,lifter,flash=0,last=0,ac,shake=0;
+function ring(){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+[880,1320].forEach(f=>{const o=ac.createOscillator(),v=ac.createGain();o.frequency.value=f;
+o.connect(v);v.connect(ac.destination);v.gain.setValueAtTime(.25,ac.currentTime);
+v.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.8);o.start();o.stop(ac.currentTime+.8)})}catch(e){}}
+function reset(){h=0;lifts=[0,0];strikes=[0,0];hit=[0,0];state='play';msg='';cup='down';timer=0;lifter=-1}
+addEventListener('keydown',e=>{
+ const k=e.key.toLowerCase();
+ if(k===' '){e.preventDefault();if(state!=='play')reset();return}
+ if(state!=='play'||e.repeat)return;
+ const p={a:0,l:1}[k];if(p===undefined)return;
+ if(cup==='down'){cup='up';timer=UP;lifter=p;lifts[p]++;msg='P'+(p+1)+' lifts the cup!';
+  if(lifts[p]>=WIN){state='over';msg='P'+(p+1)+' wins with '+WIN+' clean lifts!'}}
+ else if(cup==='up'){ // hand reaches under a raised cup: bell hit
+  hit[p]=.3;strikes[p]++;flash=.4;shake=.3;ring();msg='P'+(p+1)+' hit the bell!';
+  if(strikes[p]>=MAXS){state='over';msg='P'+(p+1)+' hit the bell '+MAXS+' times. P'+(2-p)+' wins!'}}
+});
+function hand(p,t,lift){
+ const d=p?1:-1,sl=Math.sin(Math.PI*t),base=lift?GY-h*170-40:GY-40;
+ const x=CX+d*(100-sl*100),y=base+(GY-30-base)*sl;
+ g.save();g.translate(x,y);g.scale(-d,1);
+ g.fillStyle='#f2c29b';g.strokeStyle='#b57f55';g.lineWidth=3;
+ g.beginPath();g.roundRect(-10,-22,50,44,12);g.fill();g.stroke();
+ for(let i=0;i<4;i++){g.beginPath();g.roundRect(30,-22+i*11,26,10,5);g.fill();g.stroke()}
+ g.fillStyle=p?'#ffb347':'#4da3ff';g.fillRect(-48,-22,40,44);
+ g.restore();
+}
+function bell(){
+ const w=hit[0]+hit[1]>0?Math.sin(performance.now()/25)*4:0;
+ g.save();g.translate(w,0);
+ g.fillStyle='#e8b923';g.strokeStyle='#8a6b0c';g.lineWidth=3;
+ g.beginPath();g.arc(CX,GY,42,Math.PI,0);g.lineTo(CX+52,GY);g.lineTo(CX-52,GY);g.closePath();g.fill();g.stroke();
+ g.beginPath();g.arc(CX,GY-48,7,0,7);g.fill();g.stroke();
+ g.fillStyle='#8a6b0c';g.beginPath();g.arc(CX,GY+2,8,0,7);g.fill();g.restore();
+}
+function drawCup(){
+ const by=GY-h*170,ty=by-150;
+ g.fillStyle='#d6202a';g.strokeStyle='#8e1219';g.lineWidth=4;
+ g.beginPath();g.moveTo(CX-78,by);g.lineTo(CX+78,by);g.lineTo(CX+60,ty);g.lineTo(CX-60,ty);g.closePath();g.fill();g.stroke();
+ g.strokeStyle='rgba(0,0,0,.18)';g.lineWidth=3;
+ for(let i=1;i<4;i++){const y=ty+i*37,w=60+18*(i*37/150);g.beginPath();g.moveTo(CX-w,y);g.lineTo(CX+w,y);g.stroke()}
+ g.fillStyle='rgba(255,255,255,.28)';g.fillRect(CX-55,ty+10,10,120);
+ g.fillStyle='#ef3a43';g.strokeStyle='#8e1219';g.lineWidth=4;
+ g.beginPath();g.roundRect(CX-86,by-8,172,14,7);g.fill();g.stroke();
+}
+function hud(){
+ [[0,'#4da3ff',30,'left'],[1,'#ffb347',770,'right']].forEach(([p,col,x,a])=>{
+  g.textAlign=a;g.font='bold 22px system-ui';g.fillStyle=col;g.fillText('P'+(p+1),x,38);
+  g.fillStyle='#f4f1e8';g.font='16px system-ui';
+  g.fillText('Lifts: '+lifts[p]+'/'+WIN,x,64);
+  g.fillText('Strikes: '+'🔔'.repeat(strikes[p])+'·'.repeat(MAXS-strikes[p]),x,88)});
+ g.textAlign='center';g.fillStyle='#f4f1e8';g.font='bold 24px system-ui';g.fillText(msg,CX,420);
+}
+function frame(t){
+ const dt=Math.min(.05,(t-last)/1000||0);last=t;
+ g.clearRect(0,0,800,450);
+ if(flash>0){g.fillStyle='rgba(255,220,80,'+flash+')';g.fillRect(0,0,800,450);flash-=dt}
+ g.fillStyle='#3a4258';g.fillRect(0,GY,800,80);
+ g.save();if(shake>0){g.translate(Math.sin(t/20)*4,0);shake-=dt}
+ if(state==='title'){bell();drawCup();g.restore();g.fillStyle='#f4f1e8';g.textAlign='center';g.font='bold 40px system-ui';
+  g.fillText('Bell Under the Cup',CX,80);g.font='18px system-ui';
+  g.fillText('A bell hides under the cup. Press your key to lift it right away.',CX,112);
+  g.fillText('Press while the cup is already up and you hit the bell: strike!',CX,138);
+  g.fillText('First to '+WIN+' lifts wins. '+MAXS+' strikes and you lose. Press Space.',CX,164)}
+ else{
+  if(state==='play'){
+   if(cup==='up'){h=Math.min(1,h+dt*14);timer-=dt;if(timer<=0){cup='lowering';msg=''}}
+   else if(cup==='lowering'){h=Math.max(0,h-dt*2.2);if(h<=0){cup='lock';timer=LOCK}}
+   else if(cup==='lock'){timer-=dt;if(timer<=0)cup='down'}
+  } else if(cup!=='down'){h=Math.max(0,h-dt*2.2)}
+  for(let i=0;i<2;i++)hit[i]=Math.max(0,hit[i]-dt);
+  bell();drawCup();
+  for(let i=0;i<2;i++)hand(i,hit[i]?1-hit[i]/.3:0,lifter===i&&cup!=='down'&&cup!=='lock');
+  g.restore();hud();
+  if(state==='over'){g.fillStyle='#f4f1e8';g.font='18px system-ui';g.fillText('Press Space to play again',CX,445)}
+ }
+ requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

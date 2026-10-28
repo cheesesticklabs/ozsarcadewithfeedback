@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Kawaii Chomp</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{--bg:#fff0f6;--fg:#5a2a45;--card:#ffffff;--wall:#ff9cc4;--floor:#fff7fb}
+@media (prefers-color-scheme:dark){:root{--bg:#2a1630;--fg:#ffe3f1;--card:#3d2347;--wall:#d6639a;--floor:#1f1026}}
+html,body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,sans-serif;text-align:center}
+body{padding:env(safe-area-inset-top,0) 8px env(safe-area-inset-bottom,0)}
+h1{margin:8px 0;font-size:24px}
+#hud{display:flex;justify-content:center;gap:16px;flex-wrap:wrap;margin:4px}
+.sc{background:var(--card);border-radius:12px;padding:4px 12px;font-weight:bold}
+canvas{max-width:100%;height:auto;border-radius:12px;background:var(--floor)}
+#menu,#end{background:var(--card);border-radius:16px;padding:12px;margin:8px auto;max-width:620px}
+button{font:inherit;border:2px solid var(--wall);background:var(--card);color:var(--fg);border-radius:10px;padding:6px 10px;margin:3px;cursor:pointer}
+button.on{background:var(--wall);color:#fff}
+#go{font-size:20px;background:#ff5c9a;color:#fff;border-color:#ff5c9a}
+small{opacity:.8}
+</style></head><body>
+<h1>🎀 Kawaii Chomp 🍓</h1>
+<div id="menu">
+ <div><b>Player 1</b> (WASD): <span id="r0"></span></div>
+ <div><b>Player 2</b> (Arrow keys): <span id="r1"></span></div>
+ <div><button id="go">Start!</button></div>
+ <small>Eat all the sweets (🍫🍵🍓🍭) and don't get chomped by the Eater! Most sweets + survival wins.</small>
+</div>
+<div id="hud"></div>
+<canvas id="c" width="608" height="416"></canvas>
+<div id="end" style="display:none"><b id="msg"></b><div><button id="again">Play again</button></div></div>
+<script>
+const M=["###################","#.................#","#.##.####.####.##.#","#.................#","#.##.#.#####.#.##.#","#....#...#...#....#","####.###.#.###.####","#....#.......#....#","#.##.#.#####.#.##.#","#.................#","#.##.####.####.##.#","#.................#","###################"];
+const W=19,H=13,S=32,FOOD=["🍫","🍵","🍓","🍭"];
+const CH={kitty:{n:"Hello Kitty",c:"#ffffff",b:"#ff3b6b"},kuromi:{n:"Kuromi",c:"#3b3b4f",b:"#c050ff"},melody:{n:"My Melody",c:"#ffc2da",b:"#ff5c9a"},keroppi:{n:"Keroppi",c:"#79d879",b:"#2a9d4a"}};
+const sel=["kitty","melody"];
+const cv=document.getElementById("c"),g=cv.getContext("2d");
+let P,food,E,over,last,pt,et,startAt,running=false;
+
+// character menu
+[0,1].forEach(i=>{const r=document.getElementById("r"+i);
+ Object.keys(CH).forEach(k=>{const b=document.createElement("button");b.textContent=CH[k].n;b.dataset.k=k;
+  b.onclick=()=>{if(sel[1-i]===k)return;sel[i]=k;paint()};r.appendChild(b)})});
+function paint(){[0,1].forEach(i=>document.querySelectorAll("#r"+i+" button").forEach(b=>b.className=b.dataset.k===sel[i]?"on":""))}
+paint();
+
+function start(){
+ document.getElementById("menu").style.display="none";document.getElementById("end").style.display="none";
+ P=[{x:1,y:1,dir:[0,0],want:[0,0],score:0,alive:true,k:sel[0]},{x:17,y:11,dir:[0,0],want:[0,0],score:0,alive:true,k:sel[1]}];
+ E={x:9,y:3,dir:[1,0]};food={};
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(M[y][x]==="."&&!(x<3&&y<3)&&!(x>15&&y>9))food[x+","+y]=FOOD[(Math.random()*4)|0];
+ over=false;pt=et=0;last=performance.now();startAt=last+2500;running=true;hud();
+}
+const open=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&M[y][x]!=="#";
+function tryMove(o,d){if((d[0]||d[1])&&open(o.x+d[0],o.y+d[1])){o.x+=d[0];o.y+=d[1];o.dir=d;return true}return false}
+function bfs(){ // first step toward nearest living player
+ const q=[[E.x,E.y,null]],seen=new Set([E.x+","+E.y]);
+ while(q.length){const [x,y,f]=q.shift();
+  if(P.some(p=>p.alive&&p.x===x&&p.y===y))return f;
+  for(const d of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+d[0],ny=y+d[1],k=nx+","+ny;
+   if(open(nx,ny)&&!seen.has(k)){seen.add(k);q.push([nx,ny,f||d])}}}
+ return null}
+function hit(){P.forEach(p=>{if(p.alive&&p.x===E.x&&p.y===E.y)p.alive=false})}
+function tickP(){P.forEach(p=>{if(!p.alive)return;if(!tryMove(p,p.want))tryMove(p,p.dir);
+ const k=p.x+","+p.y;if(food[k]){delete food[k];p.score++}});hit();hud();check()}
+function tickE(){let d=bfs();
+ if(!d||Math.random()<0.18){const ds=[[1,0],[-1,0],[0,1],[0,-1]].filter(v=>open(E.x+v[0],E.y+v[1]));d=ds[(Math.random()*ds.length)|0]}
+ tryMove(E,d);hit();hud();check()}
+function check(){if(over)return;const left=Object.keys(food).length;
+ if(left&&P.some(p=>p.alive))return;
+ over=true;running=false;let m;const a=P.filter(p=>p.alive);
+ if(!a.length)m="😈 The Eater chomped everyone! Eater wins!";
+ else{let w=a.sort((p,q)=>q.score-p.score);
+  if(a.length===2&&a[0].score===a[1].score)m="🤝 It's a tie — you both survived!";
+  else m="🏆 "+CH[w[0].k].n+" wins with "+w[0].score+" sweets!"}
+ document.getElementById("msg").textContent=m;document.getElementById("end").style.display="block"}
+function hud(){document.getElementById("hud").innerHTML=P.map((p,i)=>`<div class="sc">P${i+1} ${CH[p.k].n}: ${p.score} 🍬 ${p.alive?"":"💀"}</div>`).join("")+`<div class="sc">Left: ${Object.keys(food).length}</div>`}
+
+function ear(x,y,c){g.fillStyle=c;g.beginPath();g.arc(x,y,5,0,7);g.fill()}
+function drawP(p){if(!p.alive)return;const x=p.x*S+16,y=p.y*S+17,c=CH[p.k];
+ ear(x-8,y-11,c.c);ear(x+8,y-11,c.c);g.fillStyle=c.c;g.strokeStyle="#00000055";g.lineWidth=1.5;
+ g.beginPath();g.arc(x,y,12,0,7);g.fill();g.stroke();
+ g.fillStyle=c.k==="kuromi"?"#fff":"#222";g.fillStyle=p.k==="kuromi"?"#fff":"#222";
+ g.beginPath();g.arc(x-4,y-2,1.8,0,7);g.arc(x+4,y-2,1.8,0,7);g.fill();
+ g.fillStyle=c.b;g.beginPath();g.arc(x+8,y-12,4,0,7);g.arc(x+13,y-10,3.5,0,7);g.fill();
+ g.fillStyle="#000";g.font="bold 9px sans-serif";g.textAlign="center";g.fillText(CH[p.k].n.split(" ").pop(),x,y+24)}
+function drawE(t){const x=E.x*S+16,y=E.y*S+16,m=0.1+Math.abs(Math.sin(t/120))*0.6,a=Math.atan2(E.dir[1],E.dir[0]);
+ g.fillStyle="#ffd400";g.beginPath();g.moveTo(x,y);g.arc(x,y,14,a+m,a+Math.PI*2-m);g.closePath();g.fill();
+ g.fillStyle="#222";g.beginPath();g.arc(x+Math.cos(a-1.2)*7,y+Math.sin(a-1.2)*7,2,0,7);g.fill()}
+function draw(t){g.clearRect(0,0,608,416);
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++)if(M[y][x]==="#"){g.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--wall");g.beginPath();g.roundRect(x*S+2,y*S+2,S-4,S-4,8);g.fill()}
+ g.font="18px serif";g.textAlign="center";g.textBaseline="middle";
+ for(const k in food){const [x,y]=k.split(",");g.fillText(food[k],x*S+16,y*S+17)}
+ g.textBaseline="alphabetic";if(P){P.forEach(drawP);if(E)drawE(t)}
+ if(running&&t<startAt){g.fillStyle="#000a";g.fillRect(0,170,608,70);g.fillStyle="#fff";g.font="bold 26px sans-serif";g.fillText("Get ready… the Eater wakes up soon!",304,215)}}
+function loop(t){if(running){const dt=t-last;last=t;pt+=dt;
+  while(pt>150){pt-=150;tickP()}
+  if(t>startAt){et+=dt;const sp=Math.max(150,240-(76-Object.keys(food).length)*0.5);while(et>sp){et-=sp;if(!over)tickE()}}}
+ draw(t);requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+
+const K={w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]},A={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]};
+addEventListener("keydown",e=>{if(!P)return;const k=e.key;
+ if(A[k]){P[1].want=A[k];e.preventDefault()}else if(K[k.toLowerCase()])P[0].want=K[k.toLowerCase()]});
+document.getElementById("go").onclick=start;
+document.getElementById("again").onclick=()=>{document.getElementById("end").style.display="none";document.getElementById("menu").style.display="block"};
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"){e.preventDefault();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

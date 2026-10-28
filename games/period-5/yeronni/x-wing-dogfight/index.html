@@ -1,0 +1,223 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>X-Wing: Dogfight</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+:root{--c:#5cf;--r:#f54;--g:#6f9}
+*{box-sizing:border-box}html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:"Trebuchet MS",Verdana,sans-serif;color:var(--c);user-select:none}
+canvas{display:block}
+.h{position:fixed;font-size:12px;letter-spacing:2px;text-shadow:0 0 6px var(--c);pointer-events:none;line-height:1.6}
+.h b{font-size:15px;color:#fff}
+#tl{left:16px;top:calc(14px + env(safe-area-inset-top,0px));width:210px}
+#tr{right:16px;top:calc(14px + env(safe-area-inset-top,0px));text-align:right}
+#bl{left:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));width:210px}
+#bc{left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);text-align:center;color:#fc6;text-shadow:0 0 6px #fa0;max-width:90vw}
+#tgt{right:16px;top:42%;width:200px;display:none;border:1px solid #f44a;padding:8px 10px;background:#200a;color:#f66;text-shadow:0 0 6px #f44}
+.bar{height:8px;border:1px solid var(--c);margin:2px 0 6px;background:#0008}.bar i{display:block;height:100%;width:100%;background:var(--c)}
+#hl{background:#fa3}#bo{background:#fc6}#th{background:#f44}
+#ret{position:fixed;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;pointer-events:none;transition:transform .1s}
+#ret.lock{transform:scale(.8);filter:hue-rotate(160deg) saturate(3)}
+#hm{position:fixed;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;opacity:0;pointer-events:none}
+#brs div,.br{position:fixed;border:1px solid #f44a;transform:translate(-50%,-50%);pointer-events:none;display:none;border-radius:2px}
+.br.lk{border:2px solid #ff4;box-shadow:0 0 8px #ff4}
+#arr{position:fixed;display:none;color:#f55;font-size:26px;pointer-events:none;text-shadow:0 0 8px #f00}
+#dmg{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .35s;background:radial-gradient(transparent 40%,rgba(255,30,0,.55))}
+#bn{position:fixed;left:0;right:0;top:22%;text-align:center;font-size:30px;letter-spacing:8px;color:#fff;text-shadow:0 0 14px var(--c);opacity:0;pointer-events:none;transition:opacity .5s}
+#ck{position:fixed;inset:0;pointer-events:none;display:none;background:linear-gradient(#0000 78%,#0b0e14 78.5%),linear-gradient(80deg,#0b0e14 0 5%,#0000 5.5% 94.5%,#0b0e14 95%);box-shadow:inset 0 0 160px 30px #000}
+#ov{position:fixed;inset:0;background:rgba(0,4,12,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px;overflow:auto;z-index:9}
+#ov h1{margin:0 0 6px;letter-spacing:10px;color:#fff;text-shadow:0 0 18px var(--c);font-size:clamp(26px,6vw,46px)}
+#ov p{max-width:640px;color:#9bd;margin:6px 0}
+.g{display:grid;grid-template-columns:auto auto;gap:4px 18px;text-align:left;margin:10px 0 16px;font-size:13px}.g b{color:#fff}.g span{color:#9bd}
+button{background:#0a2a44;color:#fff;border:1px solid var(--c);padding:12px 30px;font:inherit;letter-spacing:4px;cursor:pointer;margin:4px;box-shadow:0 0 14px #08f6}
+button:hover{background:#0d4a7a}
+</style></head><body>
+<div id="ck"></div><div id="brs"></div>
+<div id="tl" class="h"><b>X-WING</b><br>SHIELDS <span id="shv"></span><div class="bar"><i id="sh"></i></div>HULL <span id="hlv"></span><div class="bar"><i id="hl"></i></div></div>
+<div id="tr" class="h">WAVE <b id="wv"></b><br>DESTROYED <b id="kl"></b><br>REMAINING <b id="rm"></b><br>SCORE <b id="sc"></b></div>
+<div id="bl" class="h">SPEED <b id="sp"></b> MGLT<div class="bar"><i id="th"></i></div>BOOST <span id="bov"></span><div class="bar"><i id="bo"></i></div></div>
+<div id="bc" class="h">OBJECTIVE: Destroy all Imperial TIE fighters and survive.</div>
+<div id="tgt" class="h"><b id="tn">TIE FIGHTER</b> <span id="ts"></span><br>DIST <b id="td"></b> m<div class="bar"><i id="tb" style="background:#f44"></i></div></div>
+<svg id="ret" viewBox="0 0 64 64" fill="none" stroke="#6f9" stroke-width="2"><circle cx="32" cy="32" r="18" opacity=".7"/><path d="M32 6v14M32 44v14M6 32h14M44 32h14"/><circle cx="32" cy="32" r="1.5" fill="#6f9"/></svg>
+<svg id="hm" viewBox="0 0 40 40" stroke="#fff" stroke-width="3"><path d="M6 6l9 9M34 6l-9 9M6 34l9-9M34 34l-9-9"/></svg>
+<div id="arr">▲</div><div id="dmg"></div><div id="bn"></div>
+<div id="ov"><h1 id="ovh">X-WING</h1><p id="ovp">Loading…</p><div><button id="ovb">START MISSION</button><button id="ovr" style="display:none">RESTART</button></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+const $=i=>document.getElementById(i);
+const CTRL='<div class="g"><b>Mouse</b><span>Steer and aim (cursor is captured on start)</span><b>W / S</b><span>Pitch up / down</span><b>A / D</b><span>Yaw left / right</span><b>Q / E</b><span>Roll left / right</span><b>Shift</b><span>Boost thrust</span><b>Ctrl or Z</b><span>Slow down</span><b>Space / Click</b><span>Fire quad lasers</span><b>V</b><span>Chase / cockpit view</span><b>Esc</b><span>Pause / resume</span></div>';
+if(!window.THREE){$('ovh').textContent='LOAD ERROR';$('ovp').textContent='Three.js could not be loaded. Check your connection and reload.';$('ovb').style.display='none';return}
+const T=THREE,rnd=Math.random,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),MAXW=4;
+let R;try{R=new T.WebGLRenderer({antialias:true})}catch(e){$('ovh').textContent='NO WEBGL';$('ovp').textContent='WebGL is unavailable in this browser.';$('ovb').style.display='none';return}
+R.setPixelRatio(Math.min(devicePixelRatio,2));R.setSize(innerWidth,innerHeight);document.body.prepend(R.domElement);
+const S=new T.Scene(),cam=new T.PerspectiveCamera(70,innerWidth/innerHeight,.5,7000);
+S.add(new T.AmbientLight(0x7080b0,.75));
+const sun=new T.DirectionalLight(0xfff0dd,1.5);sun.position.set(-1,.6,.4);S.add(sun);
+const rim=new T.DirectionalLight(0x4466ff,.45);rim.position.set(1,-.5,-1);S.add(rim);
+const bl=new T.PointLight(0xffaa66,0,500,1.5);S.add(bl);
+const randU=()=>new T.Vector3(rnd()-.5,rnd()-.5,rnd()-.5).normalize();
+function tex(st,n=128){const c=document.createElement('canvas');c.width=c.height=n;const x=c.getContext('2d'),g=x.createRadialGradient(n/2,n/2,0,n/2,n/2,n/2);st.forEach(s=>g.addColorStop(s[0],s[1]));x.fillStyle=g;x.fillRect(0,0,n,n);return new T.CanvasTexture(c)}
+const gl=tex([[0,'#fff'],[.25,'rgba(255,255,255,.7)'],[1,'rgba(255,255,255,0)']]);
+const smat=(c,o=1)=>new T.SpriteMaterial({map:gl,color:c,blending:T.AdditiveBlending,transparent:true,depthWrite:false,opacity:o});
+const sp=(c,s,o)=>{const m=new T.Sprite(smat(c,o));m.scale.setScalar(s);return m};
+const mesh=(g,m,x=0,y=0,z=0)=>{const o=new T.Mesh(g,m);o.position.set(x,y,z);return o};
+
+/* ---------- environment ---------- */
+const BG=new T.Group();S.add(BG);
+{const n=3500,p=new Float32Array(n*3),c=new Float32Array(n*3),col=new T.Color();
+for(let i=0;i<n;i++){const u=randU().multiplyScalar(3600);p.set([u.x,u.y,u.z],i*3);col.setHSL(rnd()<.3?.6:.1,.5,.6+rnd()*.4);c.set([col.r,col.g,col.b],i*3)}
+const g=new T.BufferGeometry();g.setAttribute('position',new T.BufferAttribute(p,3));g.setAttribute('color',new T.BufferAttribute(c,3));
+const st=new T.Points(g,new T.PointsMaterial({size:1.8,sizeAttenuation:false,vertexColors:true}));st.frustumCulled=false;BG.add(st)}
+{const c=document.createElement('canvas');c.width=256;c.height=128;const x=c.getContext('2d');
+for(let i=0;i<40;i++){x.fillStyle=`hsla(${190+rnd()*40},${40+rnd()*30}%,${25+rnd()*35}%,.8)`;x.fillRect(0,rnd()*128,256,4+rnd()*14)}
+const pl=mesh(new T.SphereGeometry(700,40,28),new T.MeshPhongMaterial({map:new T.CanvasTexture(c),shininess:5}),-2300,600,-2000);BG.add(pl);
+const at=sp(0x5599ff,1900,.35);at.position.copy(pl.position);BG.add(at);
+const mo=mesh(new T.SphereGeometry(180,24,16),new T.MeshPhongMaterial({color:0x888078}),1600,-350,-2600);BG.add(mo)}
+[[0xaa33ff,-1800,900,-2500],[0x22bbaa,2000,-600,-2400],[0xff4488,300,1500,2800],[0x3366ff,-1500,-900,2600]].forEach(a=>{const s=sp(a[0],2600,.28);s.position.set(a[1],a[2],a[3]);BG.add(s)});
+const dN=260,dp=new Float32Array(dN*3).map(()=>(rnd()-.5)*240),dg=new T.BufferGeometry();dg.setAttribute('position',new T.BufferAttribute(dp,3));
+const dust=new T.Points(dg,new T.PointsMaterial({color:0x99bbcc,size:1.6,sizeAttenuation:false,transparent:true,opacity:.6}));dust.frustumCulled=false;S.add(dust);
+
+/* ---------- models ---------- */
+const hullM=new T.MeshPhongMaterial({color:0xc8ccd2,shininess:40}),redM=new T.MeshPhongMaterial({color:0xcc2a22}),darkM=new T.MeshPhongMaterial({color:0x333840}),glassM=new T.MeshPhongMaterial({color:0x223344,shininess:100});
+const P=new T.Group(),body=new T.Group(),eng=[],mks=[];S.add(P);P.add(body);
+body.add(mesh(new T.CylinderGeometry(.8,.3,9,12).rotateX(Math.PI/2),hullM));
+body.add(mesh(new T.SphereGeometry(.32,10,8),darkM,0,0,-4.5));
+{const c=mesh(new T.SphereGeometry(.7,10,8),glassM,0,.5,.6);c.scale.set(.8,.6,1.8);body.add(c)}
+for(const sx of[-1,1])for(const sy of[-1,1]){const g=new T.Group();g.position.set(0,0,1.5);g.rotation.z=sx*sy*.35;
+g.add(mesh(new T.BoxGeometry(6.8,.12,2.6),hullM,sx*3.4,0,0));
+g.add(mesh(new T.BoxGeometry(2.2,.14,.8),redM,sx*4.8,.08,.5));
+g.add(mesh(new T.CylinderGeometry(.14,.14,5,6).rotateX(Math.PI/2),darkM,sx*6.6,0,-1.8));
+g.add(mesh(new T.CylinderGeometry(.5,.45,2.2,10).rotateX(Math.PI/2),darkM,sx*1.3,0,.5));
+const e=sp(0xff8844,3.4);e.position.set(sx*1.3,0,1.8);g.add(e);eng.push(e);
+const o=new T.Object3D();o.position.set(sx*6.6,0,-4.4);g.add(o);mks.push({sx,sy,o});body.add(g)}
+const tM=new T.MeshPhongMaterial({color:0x777d86,shininess:30}),tP=new T.MeshPhongMaterial({color:0x2a3446,emissive:0x0a0f1a,shininess:80,side:T.DoubleSide}),tE=new T.MeshPhongMaterial({color:0x111111});
+const gPan=new T.CylinderGeometry(3.4,3.4,.25,6).rotateZ(Math.PI/2),gHub=new T.CylinderGeometry(1.2,1.2,.4,6).rotateZ(Math.PI/2),gStr=new T.CylinderGeometry(.2,.2,4.4,6).rotateZ(Math.PI/2),gBall=new T.SphereGeometry(1.2,14,10),gRing=new T.TorusGeometry(.7,.12,6,14);
+const edge=new T.LineSegments(new T.EdgesGeometry(gPan),new T.LineBasicMaterial({color:0x8899aa}));
+function mkTIE(){const g=new T.Group(),i=new T.Group();g.add(i);
+i.add(new T.Mesh(gBall,tM));i.add(mesh(gRing,tE,0,0,-1.0));i.add(new T.Mesh(gStr,tM));
+for(const s of[-1,1]){i.add(mesh(gPan,tP,s*2.2));i.add(mesh(gHub,tM,s*2.2));const e=edge.clone();e.position.x=s*2.2;i.add(e)}
+g.userData.i=i;return g}
+
+/* ---------- state ---------- */
+let state='menu',time=0,wave=1,kills=0,score=0,wt=0,ending=false,dead=false,hm=0,shake=0,fireCd=0,volley=0,lastHit=-9,cockpit=false,boost=100,speed=70,shield=100,hull=100,pr=0,yr=0,rr=0,mdx=0,mdy=0,mx=innerWidth/2,my=innerHeight/2,bt=0,locked=false,fovT=70;
+const keys={},vel=new T.Vector3(0,0,-70),F=new T.Vector3(0,0,-1),pf=new T.Vector3(),tmp=new T.Vector3(),tmp2=new T.Vector3(),pa=new T.Vector3(),qq=new T.Quaternion();
+const enemies=[],bolts=[],parts=[];
+
+/* ---------- effects & projectiles ---------- */
+const gBolt=new T.BoxGeometry(.3,.3,7),mBP=new T.MeshBasicMaterial({color:0x66ff88}),mBE=new T.MeshBasicMaterial({color:0xff3322}),hP=smat(0x44ff77),hE=smat(0xff2211),gDeb=new T.BoxGeometry(1,1,.25);
+function fx(pos,sc,life,col,v,g){const s=sp(col,sc);s.position.copy(pos);S.add(s);parts.push({m:s,v:v||new T.Vector3(),l:life,x:life,sc,g:g||0});return s}
+function sparks(pos,n,spd,col,sz,life){for(let i=0;i<n;i++)fx(pos,sz,life*(.5+rnd()),col,randU().multiplyScalar(spd*(.3+rnd())),0)}
+function boom(pos,s){fx(pos,10*s,.8,0xffaa44,null,3);fx(pos,6*s,.4,0xffffff,null,2.5);sparks(pos,30,60*s,0xffcc66,2.5,1.1);sparks(pos,14,35*s,0xff6622,4,1.3);
+for(let i=0;i<8;i++){const m=mesh(gDeb,i%2?tP:tM);m.position.copy(pos);m.rotation.set(rnd()*6,rnd()*6,rnd()*6);S.add(m);parts.push({m,v:randU().multiplyScalar(15+rnd()*30),l:1.8,x:1.8,sc:1+rnd()*2.5,g:0})}
+bl.position.copy(pos);bl.intensity=5}
+function bolt(pos,dir,spd,own){const m=new T.Mesh(gBolt,own?mBP:mBE);m.position.copy(pos);m.lookAt(pos.clone().add(dir));const s=new T.Sprite(own?hP:hE);s.scale.setScalar(own?4:5);m.add(s);S.add(m);bolts.push({m,v:dir.clone().multiplyScalar(spd),l:own?1.6:3.5,own})}
+function sd2(a,b,c){const ab=tmp.copy(b).sub(a),l=ab.lengthSq();const t=l?clamp(tmp2.copy(c).sub(a).dot(ab)/l,0,1):0;return tmp2.copy(a).addScaledVector(ab,t).distanceToSquared(c)}
+
+/* ---------- combat ---------- */
+function hurt(n){if(dead)return;lastHit=time;shake=.7;$('dmg').style.opacity=.8;
+if(shield>=n)shield-=n;else{hull-=n-shield;shield=0}
+if(hull<=0){hull=0;dead=true;state='dead';body.visible=false;boom(P.position,2.2);setTimeout(()=>{state='over';exitLock();showOv('MISSION FAILED','Your X-wing was destroyed.<br>Destroyed: '+kills+' &nbsp; Score: '+score+' &nbsp; Wave: '+wave,'RESTART',restart)},1600)}}
+function kill(e){boom(e.m.position,1);S.remove(e.m);e.el.remove();enemies.splice(enemies.indexOf(e),1);kills++;score+=100*wave}
+function hitEnemy(e,pos){e.hp-=20;hm=1;sparks(pos,10,50,0xffee88,1.8,.5);fx(pos,5,.15,0xffffff);e.dg=.9;e.dv.copy(randU());if(e.hp<=0)kill(e)}
+function shot(){P.updateMatrixWorld(true);const pr_=volley++%2?[[-1,1],[1,-1]]:[[1,1],[-1,-1]],aim=P.position.clone().addScaledVector(pf,500);
+for(const [sx,sy] of pr_){const v=new T.Vector3();mks.find(m=>m.sx===sx&&m.sy===sy).o.getWorldPosition(v);bolt(v,aim.clone().sub(v).normalize(),700,true);fx(v,3.5,.07,0x99ffaa)}}
+function spawnWave(){const n=2+2*wave;for(let i=0;i<n;i++){const m=mkTIE(),d=randU();if(i<2)d.addScaledVector(pf.copy(F).applyQuaternion(P.quaternion),1.6).normalize();
+m.position.copy(P.position).addScaledVector(d,150+rnd()*250);S.add(m);const el=document.createElement('div');el.className='br';$('brs').appendChild(el);
+enemies.push({m,dir:P.position.clone().sub(m.position).normalize(),sp:55+wave*5+rnd()*6,hp:60,st:'a',t:4+rnd()*4,cd:1.5+rnd()*2.5,ph:rnd()*6,dg:0,dv:new T.Vector3(),bo:randU(),el})}}
+function updEnemy(e,dt){const p=e.m.position,to=tmp.copy(P.position).sub(p),d=to.length();to.divideScalar(d);e.t-=dt;e.cd-=dt;e.dg-=dt;
+if(-pf.dot(to)>.996&&d<450&&e.dg<=0&&rnd()<dt*4){e.dg=.9;e.dv.copy(randU())}
+let tg=tmp2;
+if(e.st==='a'){tg.copy(P.position).addScaledVector(vel,d/e.sp*.25);if(d<50||e.t<0){e.st='b';e.t=2+rnd()*2;e.bo.copy(randU())}}
+else{tg.copy(p).addScaledVector(e.bo,200).addScaledVector(to,-60);if(e.t<0||d>350){e.st='a';e.t=5+rnd()*4}}
+if(e.st==='a')tg.x+=Math.sin(time*1.7+e.ph)*30;tg.y+=Math.cos(time*1.3+e.ph)*30;if(e.dg>0)tg.addScaledVector(e.dv,150);
+tg.sub(p).normalize();e.dir.lerp(tg,Math.min(1,(1.5+wave*.2)*dt)).normalize();
+p.addScaledVector(e.dir,e.sp*(d>300?1.4:1)*(e.dg>0?1.2:1)*dt);
+qq.setFromUnitVectors(F,e.dir);e.m.quaternion.slerp(qq,Math.min(1,10*dt));e.m.userData.i.rotation.z=Math.sin(time*.8+e.ph)*.7;
+if(!dead){if(d<7){hurt(15);e.st='b';e.t=3;sparks(p,14,50,0xff8844,3,.6)}
+else if(e.st==='a'&&d<350&&e.cd<=0&&e.dir.dot(tmp.copy(P.position).sub(p).normalize())>.93){e.cd=Math.max(.6,1.5-wave*.15)*(.8+rnd()*.6);
+for(const s of[-.7,.7]){const mz=new T.Vector3(s,-.5,-1.4).applyQuaternion(e.m.quaternion).add(p),
+aim=P.position.clone().addScaledVector(vel,d/320).add(randU().multiplyScalar(d*Math.max(.012,.045-wave*.006)));bolt(mz,aim.sub(mz).normalize(),320,false)}}}}
+
+/* ---------- game loop ---------- */
+function step(dt){time+=dt;fireCd-=dt;
+if(!dead){const pi=(keys.KeyW?1:0)-(keys.KeyS?1:0),ya=(keys.KeyA?1:0)-(keys.KeyD?1:0),ro=(keys.KeyQ?1:0)-(keys.KeyE?1:0),k=Math.min(1,6*dt);
+pr+=(pi*1.3-pr)*k;yr+=(ya*1.1-yr)*k;rr+=(ro*2.2-rr)*k;P.rotateX(pr*dt);P.rotateY(yr*dt);P.rotateZ(rr*dt);let bx=0;
+if(document.pointerLockElement){P.rotateY(-mdx*.0022);P.rotateX(-mdy*.0022);bx=-mdx*.0022/dt*.25}
+else{const ox=(mx-innerWidth/2)/(innerWidth/2),oy=(my-innerHeight/2)/(innerHeight/2),dz=v=>Math.abs(v)<.1?0:v-Math.sign(v)*.1;P.rotateY(-dz(ox)*1.5*dt);P.rotateX(-dz(oy)*1.2*dt);bx=-dz(ox)*.6}
+mdx=mdy=0;P.quaternion.normalize();body.rotation.z+=(clamp(yr*.35+bx,-.7,.7)-body.rotation.z)*Math.min(1,5*dt);
+const sh=keys.ShiftLeft||keys.ShiftRight,sl=keys.ControlLeft||keys.KeyZ;let tg=70;
+if(sh&&boost>2){tg=150;boost=Math.max(0,boost-28*dt)}else boost=Math.min(100,boost+(sh?4:10)*dt);if(sl)tg=30;
+speed+=(tg-speed)*Math.min(1,1.8*dt);pf.copy(F).applyQuaternion(P.quaternion);
+vel.lerp(tmp.copy(pf).multiplyScalar(speed),Math.min(1,3*dt));P.position.addScaledVector(vel,dt);P.updateMatrixWorld(true);
+if(time-lastHit>4)shield=Math.min(100,shield+8*dt);
+if((keys.Space||keys.Fire)&&fireCd<=0){fireCd=.11;shot()}}
+else{pf.copy(F).applyQuaternion(P.quaternion);vel.multiplyScalar(.98)}
+eng.forEach(e=>e.scale.setScalar(2.4+speed/50+rnd()*.3));
+for(let i=0;i<dN;i++)for(let a=0;a<3;a++){const j=i*3+a,d=dp[j]-P.position.getComponent(a);if(d>120)dp[j]-=240;else if(d<-120)dp[j]+=240}dg.attributes.position.needsUpdate=true;
+for(const e of enemies)updEnemy(e,dt);
+for(let i=bolts.length-1;i>=0;i--){const b=bolts[i],a=pa.copy(b.m.position);b.m.position.addScaledVector(b.v,dt);b.l-=dt;let hit=false;
+if(b.own){for(const e of enemies)if(sd2(a,b.m.position,e.m.position)<36){hitEnemy(e,b.m.position);hit=true;break}}
+else if(!dead&&sd2(a,b.m.position,P.position)<16){hurt(9+wave);sparks(b.m.position,8,40,0xff5533,2,.4);hit=true}
+if(hit||b.l<=0){S.remove(b.m);bolts.splice(i,1)}}
+for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.l-=dt;const k=Math.max(0,p.l/p.x);p.m.position.addScaledVector(p.v,dt);
+if(p.m.isMesh){p.m.rotation.x+=dt*4;p.m.rotation.y+=dt*3;p.m.scale.setScalar(p.sc*k)}else{p.m.scale.setScalar(p.sc*(1+p.g*(1-k)));p.m.material.opacity=k}
+if(p.l<=0){S.remove(p.m);if(p.m.material.dispose&&!p.m.isMesh)p.m.material.dispose();parts.splice(i,1)}}
+bl.intensity*=Math.exp(-5*dt);
+if(state==='play'&&!enemies.length&&!wt&&!ending){if(wave>=MAXW){ending=true;setTimeout(()=>{state='over';exitLock();showOv('VICTORY','The Imperial fleet is destroyed. May the Force be with you.<br>Destroyed: '+kills+' &nbsp; Score: '+score,'FLY AGAIN',restart)},1500)}else{wt=3;banner('WAVE '+(wave+1)+' INCOMING')}}
+if(wt>0){wt-=dt;if(wt<=0){wt=0;wave++;spawnWave()}}
+bt-=dt;if(bt<=0)$('bn').style.opacity=0;hm=Math.max(0,hm-dt*4);$('hm').style.opacity=hm;$('dmg').style.opacity=Math.max(0,($('dmg').style.opacity||0)-dt*1.2)}
+function banner(t){$('bn').textContent=t;$('bn').style.opacity=1;bt=3}
+const off=new T.Vector3();
+function camUpdate(dt,snap){off.set(0,cockpit?.9:2.8,cockpit?-.5:11).applyQuaternion(P.quaternion).add(P.position);const k=snap||cockpit?1:1-Math.exp(-14*dt);
+cam.position.lerp(off,k);cam.quaternion.slerp(P.quaternion,snap||cockpit?1:1-Math.exp(-16*dt));
+if(shake>0){cam.position.add(randU().multiplyScalar(shake*.5));shake=Math.max(0,shake-dt*2)}
+const f=70+clamp((speed-70)*.12,-4,10);if(Math.abs(cam.fov-f)>.05){cam.fov+=(f-cam.fov)*.1;cam.updateProjectionMatrix()}
+BG.position.copy(P.position)}
+const v3=new T.Vector3();
+function hud(){const W=innerWidth,H=innerHeight;
+$('sh').style.width=shield+'%';$('hl').style.width=hull+'%';$('shv').textContent=Math.round(shield)+'%';$('hlv').textContent=Math.round(hull)+'%';
+$('sp').textContent=Math.round(speed*10);$('th').style.width=clamp(speed/150*100,0,100)+'%';$('bo').style.width=boost+'%';$('bov').textContent=(keys.ShiftLeft||keys.ShiftRight)&&boost>2?'ACTIVE':Math.round(boost)+'%';
+$('wv').textContent=wave+' / '+MAXW;$('kl').textContent=kills;$('rm').textContent=enemies.length;$('sc').textContent=score;
+let best=1e9,lk=null,near=null,nd=1e9;
+for(const e of enemies){v3.copy(e.m.position).project(cam);const d=e.m.position.distanceTo(P.position);if(d<nd){nd=d;near=e}
+const on=v3.z<1&&Math.abs(v3.x)<1&&Math.abs(v3.y)<1;
+if(on){const x=(v3.x*.5+.5)*W,y=(-v3.y*.5+.5)*H,z=clamp(2400/d,24,80),s=e.el.style;s.display='block';s.left=x+'px';s.top=y+'px';s.width=z+'px';s.height=z+'px';const c=Math.hypot(x-W/2,y-H/2);if(c<best&&c<160){best=c;lk=e}}else e.el.style.display='none'}
+for(const e of enemies)e.el.className='br'+(e===lk?' lk':'');
+$('ret').classList.toggle('lock',!!lk);const t=lk||near;$('tgt').style.display=t?'block':'none';
+if(t){$('ts').textContent=lk?'[LOCKED]':'[TRACKING]';$('td').textContent=Math.round(nd===1e9?0:t.m.position.distanceTo(P.position));$('tb').style.width=t.hp/60*100+'%';
+v3.copy(t.m.position).project(cam);const off_=!(v3.z<1&&Math.abs(v3.x)<1&&Math.abs(v3.y)<1),a=$('arr');
+if(off_){if(v3.z>1){v3.x=-v3.x;v3.y=-v3.y}const ang=Math.atan2(-v3.y,v3.x),r=Math.min(W,H)*.38;a.style.display='block';a.style.left=W/2+Math.cos(ang)*r-12+'px';a.style.top=H/2+Math.sin(ang)*r-14+'px';a.style.transform='rotate('+(ang+Math.PI/2)+'rad)'}else a.style.display='none'}
+else $('arr').style.display='none'}
+let last=performance.now();
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1000);last=now;
+if(state==='play'||state==='dead')step(dt);
+camUpdate(dt,state==='menu');if(state!=='menu')hud();R.render(S,cam)}
+
+/* ---------- flow & input ---------- */
+function showOv(h,p,b,fn,extra){$('ovh').textContent=h;$('ovp').innerHTML=p;$('ovb').textContent=b;$('ovb').onclick=fn;$('ovr').style.display=extra?'inline-block':'none';$('ov').style.display='flex'}
+const hideOv=()=>{$('ov').style.display='none'};
+function lock(){try{const r=R.domElement.requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(e){}}
+function exitLock(){try{document.exitPointerLock()}catch(e){}}
+function clearKeys(){for(const k in keys)keys[k]=false;mdx=mdy=0}
+function reset(){enemies.splice(0).forEach(e=>{S.remove(e.m);e.el.remove()});bolts.splice(0).forEach(b=>S.remove(b.m));parts.splice(0).forEach(p=>{S.remove(p.m)});
+P.position.set(0,0,0);P.quaternion.identity();body.rotation.z=0;vel.set(0,0,-70);speed=70;shield=hull=100;boost=100;kills=score=0;wave=1;wt=0;ending=false;dead=false;body.visible=true;pr=yr=rr=0;bl.intensity=0;
+pf.copy(F);spawnWave();P.updateMatrixWorld(true);camUpdate(.016,true)}
+function restart(){reset();hideOv();state='play';lock();banner('WAVE 1')}
+function pause(){if(state!=='play')return;state='pause';clearKeys();showOv('PAUSED',CTRL,'RESUME',resume,true)}
+function resume(){hideOv();state='play';lock()}
+$('ovr').onclick=restart;
+document.addEventListener('keydown',e=>{if(e.code==='Escape'){if(state==='play')pause();else if(state==='pause')resume();return}
+if(state!=='play')return;if(['Space','ArrowUp','ArrowDown'].includes(e.code)||e.ctrlKey)e.preventDefault();
+if(e.code==='KeyV'&&!e.repeat){cockpit=!cockpit;$('ck').style.display=cockpit?'block':'none'}keys[e.code]=true});
+document.addEventListener('keyup',e=>{keys[e.code]=false});
+addEventListener('blur',()=>{clearKeys();pause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){clearKeys();pause()}});
+document.addEventListener('pointerlockchange',()=>{if(document.pointerLockElement)locked=true;else if(locked){locked=false;pause()}});
+addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;if(document.pointerLockElement){mdx+=e.movementX;mdy+=e.movementY}});
+addEventListener('mousedown',e=>{if(e.button===0&&state==='play')keys.Fire=true});
+addEventListener('mouseup',e=>{if(e.button===0)keys.Fire=false});
+addEventListener('contextmenu',e=>e.preventDefault());
+addEventListener('resize',()=>{R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()});
+reset();
+showOv('X-WING','Pilot a T-65 X-wing against Imperial TIE fighters across '+MAXW+' waves.<br><b style="color:#fc6">Destroy all Imperial TIE fighters and survive.</b>'+CTRL,'START MISSION',()=>{restart()});
+requestAnimationFrame(loop);
+})();
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

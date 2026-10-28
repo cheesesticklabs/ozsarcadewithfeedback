@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Eagle Escape — Red Light, Green Light</title>
+<style>
+:root{font-family:system-ui,Arial,sans-serif;color:#17213a;background:#f4f1e8}
+*{box-sizing:border-box}body{margin:0;padding:16px}.wrap{max-width:900px;margin:auto}
+h1{text-align:center;font-size:clamp(1.5rem,5vw,2.5rem);margin:6px 0}
+.intro{text-align:center;margin:0 0 16px;color:#536074}
+.players{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.player,.signal,.info{background:white;border:2px solid #17213a;border-radius:14px;padding:12px}
+.player strong{display:block}.keys{font-size:1.1rem;font-weight:800;margin-top:5px}
+.signal{text-align:center;background:#17213a;color:white;margin-bottom:12px}
+.bulbs{display:flex;justify-content:center;gap:10px;margin:0 0 8px}
+.bulb{width:27px;height:27px;border-radius:50%;background:#465064;border:2px solid #080d19}
+.red.on{background:#ff5364;box-shadow:0 0 12px #ff5364}.yellow.on{background:#ffcf56;box-shadow:0 0 12px #ffcf56}.green.on{background:#31d07b;box-shadow:0 0 12px #31d07b}
+#status{font-size:1.35rem;font-weight:900}#clock{min-height:1.4em;color:#d7deeb;font-weight:700}
+.arena{background:#b7e9ff;border:3px solid #17213a;border-radius:16px;overflow:hidden}
+.sky{height:48px;background:linear-gradient(#a9e1ff,#e0f7ff);text-align:right;font-size:32px;padding-right:16px}
+.track{background:#73ca70;padding:8px 0;position:relative}
+.lane{height:76px;border-bottom:2px dashed #ffffffb0;position:relative}
+.lane:last-child{border:0}.lane-label{position:absolute;left:8px;top:4px;font-size:.65rem;font-weight:900;background:#ffffffd9;padding:2px 5px;border-radius:4px}
+.runner{position:absolute;left:7%;top:28px;font-size:34px;line-height:1;transition:left .07s linear}
+.finish{position:absolute;right:5%;top:0;bottom:0;width:16px;border-left:2px solid #17213a;border-right:2px solid #17213a;background:repeating-conic-gradient(#fff 0% 25%,#20283a 0% 50%) 0/16px 16px}
+.controls{text-align:center;margin:15px 0}button{font:inherit;font-weight:900;padding:12px 24px;border:3px solid #17213a;border-radius:12px;background:#ffcf56;box-shadow:0 4px 0 #17213a;cursor:pointer}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 #17213a}
+.info{font-size:.9rem;line-height:1.5}.info b{white-space:nowrap}
+#message{text-align:center;font-weight:800;min-height:1.5em;margin:8px}
+@media(max-width:560px){body{padding:9px}.players{gap:7px}.player{padding:8px}.lane{height:68px}.runner{top:26px}.info{font-size:.82rem}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<h1>🦅 EAGLE ESCAPE</h1>
+<p class="intro">Two-player Red Light, Green Light</p>
+<div class="players">
+ <div class="player"><strong>🏃🏻 PLAYER 1</strong><div class="keys">A / D</div><small>Tap either key to run</small></div>
+ <div class="player"><strong>🏃🏽 PLAYER 2</strong><div class="keys">J / L</div><small>Tap either key to run</small></div>
+</div>
+<section class="signal" aria-live="polite">
+ <div class="bulbs"><span id="red" class="bulb red"></span><span id="yellow" class="bulb yellow"></span><span id="green" class="bulb green"></span></div>
+ <div id="status">READY?</div><div id="clock">Press Start Game</div>
+</section>
+<section class="arena">
+ <div class="sky">☁️　☀️</div>
+ <div class="track" id="track">
+  <div class="lane"><span class="lane-label">PLAYER 1</span><span class="runner" id="runner1">🏃🏻</span></div>
+  <div class="lane"><span class="lane-label">PLAYER 2</span><span class="runner" id="runner2">🏃🏽</span></div>
+  <div class="finish"></div>
+ </div>
+</section>
+<div id="message">Wait for green. Yellow lasts 1 second, then red!</div>
+<div class="controls"><button id="start">▶ START GAME</button></div>
+<div class="info"><b>🟢 Green:</b> Run! &nbsp; <b>🟡 Yellow:</b> 1-second warning. &nbsp; <b>🔴 Red:</b> Freeze or the eagle catches you.</div>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const players = [
+    {id:1, keys:['a','d'], pos:0, alive:true, runner:$('runner1'), emoji:'🏃🏻'},
+    {id:2, keys:['j','l'], pos:0, alive:true, runner:$('runner2'), emoji:'🏃🏽'}
+  ];
+  let phase='ready', light='red', gameOver=false, phaseTimer=null, countdownTimer=null;
+  function clearTimers(){clearTimeout(phaseTimer);clearInterval(countdownTimer);phaseTimer=countdownTimer=null;}
+  function setLight(color, clockText=''){
+    light=color;
+    ['red','yellow','green'].forEach(c => $(c).classList.toggle('on',c===color));
+    $('status').textContent = color==='green'?'GREEN LIGHT!':color==='yellow'?'YELLOW LIGHT!':'RED LIGHT!';
+    $('clock').textContent = clockText || (color==='green'?'RUN!':color==='yellow'?'RED SOON!':'FREEZE!');
+  }
+  function draw(){players.forEach(p=>p.runner.style.left=(7+p.pos*.82)+'%');}
+  function finish(title, msg){
+    gameOver=true;phase='over';clearTimers();
+    $('status').textContent=title;$('clock').textContent='Round over';$('message').textContent=msg;
+    $('start').disabled=false;$('start').textContent='↻ PLAY AGAIN';
+  }
+  function catchPlayer(p){
+    if(!p.alive||gameOver)return;
+    p.alive=false;p.runner.textContent='🦅';
+    $('message').textContent='The eagle caught Player '+p.id+'!';
+    const alive=players.filter(x=>x.alive);
+    if(alive.length===0)finish('EAGLE WINS!','Both players were caught. Press Play Again.');
+  }
+  function move(p){
+    if(phase!=='playing'||gameOver||!p.alive)return;
+    if(light==='red'){catchPlayer(p);return;}
+    p.pos=Math.min(100,p.pos+0.8);draw();
+    if(p.pos>=100)finish('PLAYER '+p.id+' WINS!','You escaped the eagle!');
+  }
+  function beginYellow(){
+    if(gameOver||phase!=='playing')return;
+    setLight('yellow','RED IN 1…');
+    let n=1;
+    countdownTimer=setInterval(()=>{
+      n--;
+      if(n>0){$('clock').textContent='RED IN '+n+'…';}
+      else{
+        clearInterval(countdownTimer);countdownTimer=null;
+        if(gameOver||phase!=='playing')return;
+        setLight('red','FREEZE!');
+        phaseTimer=setTimeout(beginGreen,2500+Math.random()*900);
+      }
+    },1000);
+  }
+  function beginGreen(){
+    if(gameOver||phase!=='playing')return;
+    setLight('green','MASH YOUR KEYS!');
+    phaseTimer=setTimeout(beginYellow,1800+Math.random()*1800);
+  }
+  document.addEventListener('keydown',e=>{
+    const key=e.key.toLowerCase(),p=players.find(x=>x.keys.includes(key));
+    if(!p)return;e.preventDefault();if(e.repeat)return;move(p);
+  });
+  $('start').addEventListener('click',()=>{
+    clearTimers();gameOver=false;phase='countdown';light='red';
+    players.forEach(p=>{p.pos=0;p.alive=true;p.runner.textContent=p.emoji;p.runner.style.left='7%';});
+    draw();$('start').disabled=true;$('start').textContent='GET READY…';$('message').textContent='Get ready to run!';
+    ['red','yellow','green'].forEach(c=>$(c).classList.remove('on'));
+    let n=3;setLight('red','STARTING IN 3…');
+    countdownTimer=setInterval(()=>{
+      n--;
+      if(n>0){$('clock').textContent='STARTING IN '+n+'…';}
+      else{
+        clearInterval(countdownTimer);countdownTimer=null;
+        phase='playing';$('start').disabled=false;$('start').textContent='RACE IN PROGRESS';
+        $('message').textContent='Green means run. Yellow gives 1 second before red.';
+        beginGreen();
+      }
+    },1000);
+  });
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

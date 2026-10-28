@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Shift: Haunted Supermarket</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#080d0a;color:#e7eadf;font-family:system-ui,Arial,sans-serif;padding:16px;display:flex;justify-content:center}
+main{width:min(100%,980px)}h1{margin:0;color:#e4efb4;font-size:clamp(1.5rem,4vw,2.3rem);letter-spacing:1px}.sub{color:#a8b4a4;margin:4px 0 12px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:9px}.tag{background:#172019;border:1px solid #3c4b3b;border-radius:8px;padding:7px 10px;font-size:.9rem}button{background:#d6e8a0;border:0;border-radius:8px;padding:9px 13px;font-weight:800;cursor:pointer}
+canvas{display:block;width:100%;height:auto;border:2px solid #53634c;border-radius:10px;background:#111811}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.card{background:#111a14;border:1px solid #2d3b2f;border-radius:9px;padding:10px}.card h2{font-size:1rem;margin:0 0 5px;color:#d6e8a0}.card p{margin:4px 0;font-size:.93rem;line-height:1.4}.key{color:#fff0a6;font-weight:800}#msg{background:#1a241a;border-left:4px solid #c4d97e;padding:11px;margin-top:10px;min-height:44px;border-radius:5px}.hint{font-size:.82rem;color:#9ba99b;margin-top:10px}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><main>
+<h1>☠ NIGHT SHIFT: HAUNTED SUPERMARKET</h1>
+<p class="sub">Two players. One exit. Something is hunting you between the aisles.</p>
+<div class="bar"><span class="tag" id="clues">Clues: 0 / 2</span><span class="tag" id="monsterStatus">MONSTER: searching</span><span class="tag" id="power">Lights: unstable</span><button id="restart">Restart</button></div>
+<canvas id="game" width="900" height="540"></canvas>
+<div id="msg" role="status">Find Donkey and Puss in Boots for clues. Ring the bell to distract the masked monster, then escape through the EXIT.</div>
+<div class="grid">
+<div class="card"><h2>🟢 Player 1</h2><p>Move with <span class="key">W A S D</span>.</p></div>
+<div class="card"><h2>🔵 Player 2</h2><p>Move with <span class="key">↑ ↓ ← →</span> arrows.</p></div>
+<div class="card"><h2>🫏 Donkey</h2><p>Find him in the aisles. He tells you about the emergency bell.</p></div>
+<div class="card"><h2>🥾 Puss in Boots</h2><p>Find him to learn where the exit is. Stand by the bell and press <span class="key">E</span> to distract the monster for 4 seconds.</p></div>
+</div>
+<p class="hint">Win: collect both clues and reach EXIT. Lose: the masked monster touches either player. Lights flicker at random. Stay on the move!</p>
+</main>
+<script>
+(()=>{
+const c=document.getElementById('game'),g=c.getContext('2d'),msg=document.getElementById('msg'),clueUI=document.getElementById('clues'),monsterUI=document.getElementById('monsterStatus'),powerUI=document.getElementById('power');
+const W=c.width,H=c.height,keys=new Set();
+const shelves=[
+{x:80,y:130,w:135,h:48},{x:80,y:240,w:135,h:48},{x:80,y:350,w:135,h:48},
+{x:285,y:110,w:130,h:50},{x:285,y:225,w:130,h:50},{x:285,y:340,w:130,h:50},
+{x:500,y:130,w:135,h:48},{x:500,y:240,w:135,h:48},{x:500,y:350,w:135,h:48},
+{x:705,y:150,w:110,h:50},{x:705,y:270,w:110,h:50}
+];
+let p1,p2,monster,donkey,puss,bell,exit,clues,state,stun,flicker,last,elapsed;
+function reset(){p1={x:35,y:48,r:11,color:'#8ee58b'};p2={x:35,y:85,r:11,color:'#74c9ff'};monster={x:455,y:70,r:18};donkey={x:745,y:95,found:false};puss={x:235,y:450,found:false};bell={x:455,y:465};exit={x:850,y:475};clues=0;state='playing';stun=0;flicker=0;elapsed=0;last=performance.now();say('Find Donkey and Puss in Boots for clues. Ring the bell to distract the masked monster, then escape through the EXIT.');hud()}
+function say(t){msg.textContent=t}
+function hud(){clueUI.textContent=`Clues: ${clues} / 2`;monsterUI.textContent=stun>0?'MONSTER: DISTRACTED':'MONSTER: hunting';}
+function collideWall(x,y,r){if(x-r<8||x+r>W-8||y-r<8||y+r>H-8)return true;return shelves.some(s=>x+r>s.x&&x-r<s.x+s.w&&y+r>s.y&&y-r<s.y+s.h)}
+function near(a,b){return Math.hypot(a.x-b.x,a.y-b.y)<a.r+(b.r||12)+5}
+function move(p,dx,dy,dt){if(!dx&&!dy)return;let l=Math.hypot(dx,dy);dx=dx/l*145*dt;dy=dy/l*145*dt;if(!collideWall(p.x+dx,p.y,p.r))p.x+=dx;if(!collideWall(p.x,p.y+dy,p.r))p.y+=dy}
+function useBell(){if(state!=='playing')return;if([p1,p2].some(p=>Math.hypot(p.x-bell.x,p.y-bell.y)<48)){stun=4;say('🔔 CLANG! The bell echoes through the supermarket. The masked monster turns toward the sound—RUN!');hud()}else say('The emergency bell is near the bottom of the store. Get close and press E.')}
+function update(dt){
+ if(state!=='playing')return;elapsed+=dt;flicker=Math.max(0,flicker-dt);
+ move(p1,(keys.has('d')?1:0)-(keys.has('a')?1:0),(keys.has('s')?1:0)-(keys.has('w')?1:0),dt);
+ move(p2,(keys.has('ArrowRight')?1:0)-(keys.has('ArrowLeft')?1:0),(keys.has('ArrowDown')?1:0)-(keys.has('ArrowUp')?1:0),dt);
+ for(let p of [p1,p2]){
+ if(!donkey.found&&near(p,donkey)){donkey.found=true;clues++;say('Donkey whispers: “That emergency bell can pull the monster away from you!”');}
+ if(!puss.found&&near(p,puss)){puss.found=true;clues++;say('Puss in Boots whispers: “The exit is at the far end! Get both clues and make a run for it.”');}
+ if(clues>=2&&near(p,exit)){state='won';say('YOU ESCAPED THE HAUNTED SUPERMARKET! Press Restart to play again.')}
+ }
+ if(Math.random()<dt*.7)flicker=.08+Math.random()*.22;
+ if(stun>0)stun=Math.max(0,stun-dt);else{
+ let target=[p1,p2].sort((a,b)=>Math.hypot(a.x-monster.x,a.y-monster.y)-Math.hypot(b.x-monster.x,b.y-monster.y))[0];
+ let dx=target.x-monster.x,dy=target.y-monster.y,d=Math.hypot(dx,dy)||1,spd=47+clues*8;
+ let nx=monster.x+dx/d*spd*dt,ny=monster.y+dy/d*spd*dt;
+ if(!collideWall(nx,ny,monster.r)){monster.x=nx;monster.y=ny}
+ else {let sx=monster.x-dy/d*spd*dt,sy=monster.y+dx/d*spd*dt;if(!collideWall(sx,sy,monster.r)){monster.x=sx;monster.y=sy}}
+ for(let p of [p1,p2])if(Math.hypot(p.x-monster.x,p.y-monster.y)<p.r+monster.r){state='lost';say('THE MASKED MONSTER CAUGHT YOU. The supermarket doors slam shut. Press Restart to try again.')}
+ }
+ hud();powerUI.textContent=flicker>0?'Lights: FLICKERING':'Lights: unstable';
+}
+function text(t,x,y,size=14,color='#e7eadf',align='center'){g.font=`bold ${size}px system-ui`;g.fillStyle=color;g.textAlign=align;g.fillText(t,x,y)}
+function draw(){
+ g.clearRect(0,0,W,H);
+ // tiled floor
+ g.fillStyle='#202a22';g.fillRect(0,0,W,H);
+ for(let y=0;y<H;y+=36)for(let x=0;x<W;x+=45){g.fillStyle=((x/45+y/36)%2)?'#273128':'#222b24';g.fillRect(x,y,44,35)}
+ // deep perspective shadow around edges
+ let grad=g.createRadialGradient(450,240,80,450,260,520);grad.addColorStop(0,'rgba(0,0,0,0)');grad.addColorStop(1,'rgba(0,0,0,.82)');g.fillStyle=grad;g.fillRect(0,0,W,H);
+ // shelves
+ shelves.forEach((s,i)=>{g.fillStyle='#171b18';g.fillRect(s.x+6,s.y+8,s.w,s.h);g.fillStyle='#4a3928';g.fillRect(s.x,s.y,s.w,s.h);g.fillStyle='#817055';g.fillRect(s.x,s.y,s.w,7);for(let k=0;k<5;k++){g.fillStyle=['#8c342b','#c1a35c','#526d42','#9b6d91'][((k+i)%4)];g.fillRect(s.x+8+k*23,s.y+13,14,24)}g.strokeStyle='#a08b68';g.strokeRect(s.x,s.y,s.w,s.h)});
+ // overhead fluorescent lamps
+ for(let x of [110,330,550,770]){g.fillStyle='#c8d4b1';g.fillRect(x,20,72,8);g.fillStyle='rgba(200,230,170,.12)';g.beginPath();g.moveTo(x-30,28);g.lineTo(x+100,28);g.lineTo(x+160,210);g.lineTo(x-75,210);g.fill()}
+ text('FROZEN FOODS',145,112,14,'#b6c6ad');text('DAIRY',450,95,14,'#b6c6ad');text('CHECKOUT',745,125,13,'#b6c6ad');
+ // exit
+ g.fillStyle=clues===2?'#b9ed86':'#3d5140';g.fillRect(exit.x-20,exit.y-40,35,52);g.strokeStyle='#c7eaa1';g.lineWidth=3;g.strokeRect(exit.x-20,exit.y-40,35,52);text('EXIT',exit.x-3,exit.y-47,14,clues===2?'#dfff9d':'#a4b1a1');
+ // characters / objects
+ text(donkey.found?'✓':'🫏',donkey.x,donkey.y,25,donkey.found?'#9ce58a':'#fff');text('DONKEY',donkey.x,donkey.y+20,10);
+ text(puss.found?'✓':'🥾',puss.x,puss.y,25,puss.found?'#9ce58a':'#fff');text('PUSS',puss.x,puss.y+20,10);
+ text('🔔',bell.x,bell.y,25);text('BELL (E)',bell.x,bell.y+22,10,'#fff0a6');
+ // monster shadow and masked monster, drawn original rather than emoji
+ g.save();g.translate(monster.x,monster.y);
+ g.fillStyle='rgba(0,0,0,.55)';g.beginPath();g.ellipse(0,20,26,12,0,0,Math.PI*2);g.fill();
+ g.fillStyle='#242622';g.fillRect(-13,-2,26,29);g.fillStyle='#3a3e37';g.beginPath();g.arc(0,-12,17,0,Math.PI*2);g.fill();
+ // crude unsettling pale mask
+ g.fillStyle='#c4c5a6';g.beginPath();g.moveTo(-12,-21);g.lineTo(12,-21);g.lineTo(15,-7);g.lineTo(7,2);g.lineTo(-7,2);g.lineTo(-15,-7);g.closePath();g.fill();
+ g.fillStyle='#0a0b0a';g.beginPath();g.ellipse(-6,-12,4,5,-.2,0,Math.PI*2);g.ellipse(6,-12,4,5,.2,0,Math.PI*2);g.fill();
+ g.strokeStyle='#4d1715';g.lineWidth=3;g.beginPath();g.moveTo(-7,-3);g.lineTo(0,-7);g.lineTo(7,-3);g.stroke();
+ g.fillStyle='#171b17';g.fillRect(-19,0,-1,21);g.fillRect(11,0,8,21);g.restore();
+ // flashlight cones centered on players
+ for(let p of [p1,p2]){let dx=monster.x-p.x,dy=monster.y-p.y,a=Math.atan2(dy,dx);g.save();g.translate(p.x,p.y);g.rotate(a);let beam=g.createLinearGradient(0,0,270,0);beam.addColorStop(0,'rgba(238,244,192,.23)');beam.addColorStop(1,'rgba(238,244,192,0)');g.fillStyle=beam;g.beginPath();g.moveTo(0,-7);g.lineTo(280,-90);g.lineTo(280,90);g.lineTo(0,7);g.closePath();g.fill();g.restore();
+ g.fillStyle=p.color;g.beginPath();g.arc(p.x,p.y,p.r,0,Math.PI*2);g.fill();g.strokeStyle='#101410';g.lineWidth=3;g.stroke();text(p===p1?'1':'2',p.x,p.y+4,12,'#102015')}
+ // flicker blackouts
+ if(flicker>0){g.fillStyle=Math.random()<.35?'rgba(0,0,0,.88)':'rgba(0,0,0,.48)';g.fillRect(0,0,W,H);text('LIGHTS OUT',W/2,42,17,'#d8e6c1')}
+ if(state!=='playing'){g.fillStyle='rgba(0,0,0,.82)';g.fillRect(0,0,W,H);text(state==='won'?'YOU ESCAPED!':'IT FOUND YOU',W/2,H/2-10,34,state==='won'?'#dfff9d':'#ff8b7e');text('Press Restart to play again',W/2,H/2+25,18)}
+}
+function loop(now){let dt=Math.min((now-last)/1000,.04);last=now;update(dt);draw();requestAnimationFrame(loop)}
+window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();if(e.key.toLowerCase()==='e'&&!e.repeat)useBell();keys.add(e.key.length===1?e.key.toLowerCase():e.key)});
+window.addEventListener('keyup',e=>keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
+document.getElementById('restart').onclick=reset;
+reset();requestAnimationFrame(loop);
+})();
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

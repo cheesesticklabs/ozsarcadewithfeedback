@@ -1,0 +1,612 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Dead Quiet</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Special+Elite&display=swap">
+<style>
+/* Layout: one top-down stage with a slim HUD (keys, noise reach, status) underneath. Committed single dark look; noise is the only warm color. */
+:root {
+  --bg: #0a0c11;
+  --panel: #12161e;
+  --line: #232a38;
+  --ink: #d8dde6;
+  --muted: #8791a3;
+  --floor-a: #181d28;
+  --floor-b: #151a24;
+  --wall: #2a3244;
+  --wall-edge: #3b465d;
+  --noise: #f0a73c;
+  --danger: #d8423a;
+  --key: #e7c65a;
+  --exit: #4fbf8a;
+  --player: #e8f0ff;
+  --font-display: "Special Elite", "Courier New", monospace;
+  --font-body: "Courier Prime", ui-monospace, "Courier New", monospace;
+  color-scheme: dark;
+}
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+  padding-block: 16px 28px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 960px; margin: 0 auto; display: grid; gap: 12px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 28px; letter-spacing: 0.04em; margin: 0; text-wrap: balance; }
+.tag { color: var(--muted); font-size: 13px; margin: 0; }
+.stage { position: relative; border: 1px solid var(--line); background: #000; }
+canvas { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; max-width: 100%; }
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; padding: 16px;
+  background: rgba(8, 10, 14, 0.88); text-align: center;
+}
+.card { max-width: 440px; display: grid; gap: 12px; justify-items: center; min-width: 0; }
+.card h2 { font-family: var(--font-display); font-weight: 400; font-size: 34px; margin: 0; letter-spacing: 0.04em; text-wrap: balance; }
+.card p { margin: 0; color: var(--ink); }
+.rules { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; text-align: left; color: var(--muted); font-size: 14px; }
+.rules b { color: var(--ink); font-weight: 700; }
+button {
+  font: inherit; font-weight: 700; color: var(--bg); background: var(--noise);
+  border: 0; padding: 10px 22px; cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase;
+}
+button:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+button:hover { filter: brightness(1.1); }
+.hud { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px 20px; align-items: center; background: var(--panel); border: 1px solid var(--line); padding: 12px 14px; }
+.label { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 4px; }
+.pips { display: flex; gap: 6px; }
+.pip { width: 22px; height: 22px; border: 2px solid var(--line); display: block; position: relative; }
+.pip.on { border-color: var(--key); background: var(--key); }
+.noise { min-width: 0; }
+.noise-top { display: flex; justify-content: space-between; align-items: baseline; }
+.noise-top .read { font-variant-numeric: tabular-nums; color: var(--noise); font-weight: 700; }
+.meter { position: relative; height: 12px; background: var(--bg); border: 1px solid var(--line); }
+#nfill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--noise); }
+.tick { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--muted); opacity: 0.7; }
+.ticklabels { position: relative; height: 14px; font-size: 10px; color: var(--muted); margin-top: 4px; letter-spacing: 0.06em; }
+.ticklabels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.ticklabels span.end { transform: translateX(-100%); }
+#mute { background: transparent; color: var(--muted); border: 1px solid var(--line); padding: 6px 10px; font-size: 12px; }
+.status { grid-column: 1 / -1; margin: 0; min-height: 1.45em; color: var(--ink); border-top: 1px solid var(--line); padding-top: 10px; }
+.status.warn { color: var(--noise); }
+.status.bad { color: var(--danger); }
+.help { color: var(--muted); font-size: 13px; margin: 0; }
+.touch { display: none; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; user-select: none; -webkit-user-select: none; touch-action: none; }
+@media (pointer: coarse) { .touch { display: grid; } .help.kbd { display: none; } }
+.dpad { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(3, 56px); gap: 4px; }
+.dpad button, .actions button { background: var(--panel); color: var(--ink); border: 1px solid var(--line); padding: 0; font-size: 20px; touch-action: none; }
+.dpad button:active, .actions button:active, .actions button.on { background: var(--noise); color: var(--bg); }
+.actions { display: grid; gap: 8px; justify-items: stretch; }
+.actions button { min-height: 56px; font-size: 13px; padding: 0 14px; }
+@media (max-width: 480px) { h1 { font-size: 24px; } .hud { grid-template-columns: minmax(0, 1fr) auto; } .keys { grid-column: 1 / -1; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Dead Quiet</h1>
+    <p class="tag">Find 3 keys. Reach the exit. It hears everything.</p>
+  </header>
+
+  <div class="stage">
+    <canvas id="game" aria-label="Top-down view of a dark house with a monster hunting by sound"></canvas>
+    <div class="overlay" id="overlay">
+      <div class="card">
+        <h2 id="ov-title">Dead Quiet</h2>
+        <p id="ov-text">Something lives in this house, and it listens. Find three keys, get to the exit, and keep your noise small.</p>
+        <ul class="rules" id="ov-rules">
+          <li><b>Move</b> WASD or arrow keys</li>
+          <li><b>Sneak</b> hold Shift. Slower, much quieter</li>
+          <li><b>Hide</b> E (or Space) at a locker, again to leave</li>
+          <li><b>Glass</b> on the floor crunches unless you sneak over it</li>
+        </ul>
+        <button id="start" type="button">Start</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hud">
+    <div class="keys">
+      <span class="label">Keys</span>
+      <div class="pips" id="pips"><span class="pip"></span><span class="pip"></span><span class="pip"></span></div>
+    </div>
+    <div class="noise">
+      <div class="noise-top"><span class="label">Noise reach</span><span class="read" id="nread">0 m</span></div>
+      <div class="meter"><div id="nfill"></div>
+        <i class="tick" style="left:11.7%"></i><i class="tick" style="left:41.2%"></i><i class="tick" style="left:94.1%"></i>
+      </div>
+      <div class="ticklabels"><span style="left:11.7%">sneak</span><span style="left:41.2%">walk</span><span class="end" style="left:100%">crash</span></div>
+    </div>
+    <button id="mute" type="button" aria-pressed="false">Sound on</button>
+    <p class="status" id="status" aria-live="polite">Find the keys. Keep quiet.</p>
+  </div>
+
+  <div class="touch" id="touch">
+    <div class="dpad">
+      <span></span><button type="button" data-k="u" aria-label="Up">&#9650;</button><span></span>
+      <button type="button" data-k="l" aria-label="Left">&#9664;</button><span></span><button type="button" data-k="r" aria-label="Right">&#9654;</button>
+      <span></span><button type="button" data-k="d" aria-label="Down">&#9660;</button><span></span>
+    </div>
+    <span></span>
+    <div class="actions">
+      <button type="button" id="t-sneak" aria-pressed="false">Sneak</button>
+      <button type="button" id="t-hide">Hide / Leave</button>
+    </div>
+  </div>
+  <p class="help kbd">WASD / arrows to move. Hold Shift to sneak. E or Space to hide in a locker. 1 tile = 2 m.</p>
+</div>
+
+<script>
+(function () {
+  var T = 40, COLS = 24, ROWS = 16, W = COLS * T, H = ROWS * T, M_PER_PX = 1 / 20;
+  var MAP = [
+    "########################",
+    "#P.....#.......#......K#",
+    "#......#..V....#.......#",
+    "#..L...#.......#...L...#",
+    "####.#####..#####..#####",
+    "#......................#",
+    "#..V.......L......V....#",
+    "#......................#",
+    "####.####..#####.#######",
+    "#.......#......#.......#",
+    "#...K...#..M...#...L...#",
+    "#.......#......#....V..#",
+    "#...L.......V..........#",
+    "#.......#......#.......#",
+    "#K......#......#......E#",
+    "########################"
+  ];
+  var WP = [[11,2],[19,2],[20,6],[20,12],[11,12],[3,12],[2,6],[3,2],[11,5]];
+  var DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+  var grid = MAP.map(function (r) { return r.padEnd(COLS, "#").slice(0, COLS).split(""); });
+
+  var cv = document.getElementById("game"), ctx = cv.getContext("2d");
+  cv.width = W; cv.height = H;
+  var cs = getComputedStyle(document.documentElement);
+  function tok(n) { return cs.getPropertyValue(n).trim(); }
+  var C = {
+    floorA: tok("--floor-a"), floorB: tok("--floor-b"), wall: tok("--wall"), wallEdge: tok("--wall-edge"),
+    noise: tok("--noise"), danger: tok("--danger"), key: tok("--key"), exit: tok("--exit"),
+    player: tok("--player"), ink: tok("--ink"), font: tok("--font-body")
+  };
+
+  var el = {
+    overlay: document.getElementById("overlay"), title: document.getElementById("ov-title"),
+    text: document.getElementById("ov-text"), rules: document.getElementById("ov-rules"),
+    start: document.getElementById("start"), pips: document.querySelectorAll("#pips .pip"),
+    nfill: document.getElementById("nfill"), nread: document.getElementById("nread"),
+    status: document.getElementById("status"), mute: document.getElementById("mute"),
+    tsneak: document.getElementById("t-sneak"), thide: document.getElementById("t-hide")
+  };
+
+  var mode = "menu", player, monster, keyItems, glass, lockers, exitTile, keysGot, elapsed, msg = "", msgT = 0, msgKind = "";
+  var input = { u: 0, d: 0, l: 0, r: 0, sneak: 0, sneakToggle: false };
+  var nearLocker = null, exitCooldown = 0;
+
+  /* ---------- audio ---------- */
+  var ac = null, muted = false;
+  function audio() {
+    if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; } }
+    if (ac && ac.state === "suspended") { ac.resume(); }
+  }
+  function tone(f, d, type, v, to) {
+    if (!ac || muted) return;
+    var t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || "sine"; o.frequency.setValueAtTime(f, t);
+    if (to) o.frequency.exponentialRampToValueAtTime(to, t + d);
+    g.gain.setValueAtTime(v || 0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d);
+  }
+
+  /* ---------- helpers ---------- */
+  function say(text, sec, kind) { msg = text; msgT = sec || 2; msgKind = kind || ""; }
+  function tileOf(v) { return Math.floor(v / T); }
+  function solidAt(x, y) {
+    var c = tileOf(x), r = tileOf(y);
+    if (c < 0 || r < 0 || c >= COLS || r >= ROWS) return true;
+    var ch = grid[r][c]; return ch === "#" || ch === "L";
+  }
+  function wallAt(x, y) {
+    var c = tileOf(x), r = tileOf(y);
+    if (c < 0 || r < 0 || c >= COLS || r >= ROWS) return true;
+    return grid[r][c] === "#";
+  }
+  function walk(c, r) { return c >= 0 && r >= 0 && c < COLS && r < ROWS && grid[r][c] !== "#" && grid[r][c] !== "L"; }
+  function blocked(x, y, rad) {
+    return solidAt(x - rad, y - rad) || solidAt(x + rad, y - rad) || solidAt(x - rad, y + rad) || solidAt(x + rad, y + rad);
+  }
+  function tryMove(o, dx, dy, rad) {
+    if (!blocked(o.x + dx, o.y, rad)) o.x += dx;
+    if (!blocked(o.x, o.y + dy, rad)) o.y += dy;
+  }
+  function los(ax, ay, bx, by) {
+    var d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 10);
+    for (var i = 1; i < n; i++) {
+      var t = i / n;
+      if (wallAt(ax + (bx - ax) * t, ay + (by - ay) * t)) return false;
+    }
+    return true;
+  }
+  function bfs(sc, sr, tc, tr) {
+    if (!walk(tc, tr) || !walk(sc, sr)) return [];
+    var prev = new Int16Array(COLS * ROWS).fill(-2), s = sr * COLS + sc, t = tr * COLS + tc;
+    prev[s] = -1;
+    var q = [s];
+    for (var i = 0; i < q.length; i++) {
+      var cur = q[i]; if (cur === t) break;
+      var c = cur % COLS, r = (cur / COLS) | 0;
+      for (var k = 0; k < 4; k++) {
+        var nc = c + DIRS[k][0], nr = r + DIRS[k][1];
+        if (!walk(nc, nr)) continue;
+        var n = nr * COLS + nc;
+        if (prev[n] !== -2) continue;
+        prev[n] = cur; q.push(n);
+      }
+    }
+    if (prev[t] === -2) return [];
+    var path = [];
+    for (var n2 = t; n2 !== s; n2 = prev[n2]) path.push({ x: (n2 % COLS + 0.5) * T, y: (((n2 / COLS) | 0) + 0.5) * T });
+    return path.reverse();
+  }
+  function freeSpotNear(l) {
+    for (var k = 0; k < 4; k++) {
+      var c = l.c + DIRS[k][0], r = l.r + DIRS[k][1];
+      if (walk(c, r)) return { x: (c + 0.5) * T, y: (r + 0.5) * T };
+    }
+    return { x: l.x, y: l.y };
+  }
+
+  /* ---------- setup ---------- */
+  function load() {
+    keyItems = []; glass = []; lockers = []; exitTile = null; keysGot = 0; elapsed = 0; nearLocker = null; exitCooldown = 0;
+    player = { x: T * 1.5, y: T * 1.5, noise: 0, burst: 0, hidden: false, lock: null, hideT: 0, sneak: false, moving: false };
+    monster = { x: T * 11.5, y: T * 10.5, state: "patrol", path: [], wp: 0, wait: 1, timer: 0, repath: 0, face: 0, alertT: 0, target: null, heard: false };
+    for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++) {
+      var ch = grid[r][c], x = (c + 0.5) * T, y = (r + 0.5) * T;
+      if (ch === "K") keyItems.push({ x: x, y: y, got: false });
+      else if (ch === "V") glass.push({ x: x, y: y, s: 0 });
+      else if (ch === "L") lockers.push({ x: x, y: y, c: c, r: r });
+      else if (ch === "E") exitTile = { x: x, y: y, c: c, r: r };
+    }
+    input.sneakToggle = false; el.tsneak.classList.remove("on"); el.tsneak.setAttribute("aria-pressed", "false");
+  }
+
+  /* ---------- game logic ---------- */
+  function interact() {
+    var p = player;
+    if (p.hidden) {
+      var spot = freeSpotNear(p.lock);
+      p.x = spot.x; p.y = spot.y; p.hidden = false; p.lock = null; p.hideT = 0; p.burst = Math.max(p.burst, 30);
+      tone(160, 0.1, "square", 0.04);
+      say("You slip out of the locker.", 1.5);
+      return;
+    }
+    var best = null, bd = 46;
+    for (var i = 0; i < lockers.length; i++) {
+      var d = Math.hypot(lockers[i].x - p.x, lockers[i].y - p.y);
+      if (d < bd) { bd = d; best = lockers[i]; }
+    }
+    if (best) {
+      p.hidden = true; p.lock = best; p.x = best.x; p.y = best.y; p.hideT = 0; p.burst = Math.max(p.burst, 50);
+      tone(200, 0.12, "square", 0.05);
+      say("Hidden. Hold still.", 2);
+    }
+  }
+
+  function updatePlayer(dt) {
+    var p = player;
+    p.burst = Math.max(0, p.burst - 260 * dt);
+    if (p.hidden) { p.noise = 0; p.moving = false; return; }
+    var dx = input.r - input.l, dy = input.d - input.u, mv = dx !== 0 || dy !== 0;
+    if (mv) { var len = Math.hypot(dx, dy); dx /= len; dy /= len; }
+    var sneak = !!(input.sneak || input.sneakToggle);
+    p.sneak = sneak; p.moving = mv;
+    var sp = sneak ? 58 : 115;
+    if (mv) tryMove(p, dx * sp * dt, dy * sp * dt, 9);
+    var target = mv ? (sneak ? 40 : 140) : 0;
+    p.noise += (target - p.noise) * Math.min(1, dt * (target > p.noise ? 14 : 6));
+    if (p.noise < 1) p.noise = 0;
+
+    for (var i = 0; i < keyItems.length; i++) {
+      var k = keyItems[i];
+      if (!k.got && Math.hypot(k.x - p.x, k.y - p.y) < 20) {
+        k.got = true; keysGot++; p.burst = Math.max(p.burst, 110);
+        tone(880, 0.18, "triangle", 0.08, 1320);
+        say(keysGot < 3 ? "Key " + keysGot + " of 3. The rattle carries." : "All three keys. Find the exit.", 2.2, "warn");
+      }
+    }
+    for (var g = 0; g < glass.length; g++) {
+      var v = glass[g];
+      if (v.s === 0 && Math.hypot(v.x - p.x, v.y - p.y) < 16) {
+        if (sneak) { v.s = 2; p.burst = Math.max(p.burst, 60); say("You ease over the glass.", 2); tone(1400, 0.05, "square", 0.015); }
+        else { v.s = 1; p.burst = Math.max(p.burst, 320); say("Glass crunches. That was loud.", 2.4, "bad"); tone(2400, 0.25, "square", 0.06, 500); }
+      }
+    }
+    exitCooldown = Math.max(0, exitCooldown - dt);
+    if (exitTile && Math.hypot(exitTile.x - p.x, exitTile.y - p.y) < 26) {
+      if (keysGot >= 3) { win(); return; }
+      if (exitCooldown <= 0) { say("Locked. You need all 3 keys.", 2); exitCooldown = 2; }
+    }
+    nearLocker = null;
+    for (var j = 0; j < lockers.length; j++) {
+      if (Math.hypot(lockers[j].x - p.x, lockers[j].y - p.y) < 46) { nearLocker = lockers[j]; break; }
+    }
+  }
+
+  function follow(m, dt, speed) {
+    while (m.path.length) {
+      var n = m.path[0], dx = n.x - m.x, dy = n.y - m.y, d = Math.hypot(dx, dy);
+      if (d < 3) { m.path.shift(); continue; }
+      var step = Math.min(d, speed * dt);
+      m.x += dx / d * step; m.y += dy / d * step; m.face = Math.atan2(dy, dx);
+      return true;
+    }
+    return false;
+  }
+  function setPath(m, tx, ty) { m.path = bfs(tileOf(m.x), tileOf(m.y), tileOf(tx), tileOf(ty)); }
+
+  function updateMonster(dt) {
+    var m = monster, p = player;
+    var d = Math.hypot(p.x - m.x, p.y - m.y);
+    var eff = p.hidden ? Math.min(p.burst, 60) : Math.max(p.noise, p.burst);
+    var reach = eff * (los(m.x, m.y, p.x, p.y) ? 1 : 0.55);
+    var heard = reach > 0 && d < reach;
+    m.heard = heard;
+    m.alertT = Math.max(0, m.alertT - dt);
+
+    if (heard) {
+      var tgt = p.hidden ? freeSpotNear(p.lock) : { x: p.x, y: p.y };
+      m.target = tgt;
+      if (m.state !== "hunt") {
+        m.state = "hunt"; m.repath = 0; m.alertT = 1.2;
+        tone(90, 0.7, "sawtooth", 0.09, 45);
+        say("It heard you.", 2, "bad");
+      }
+    }
+
+    if (m.state === "patrol") {
+      if (m.wait > 0) { m.wait -= dt; }
+      else if (!m.path.length) {
+        var w = WP[m.wp]; m.wp = (m.wp + 1) % WP.length;
+        setPath(m, (w[0] + 0.5) * T, (w[1] + 0.5) * T);
+        if (!m.path.length) m.wait = 0.5;
+      } else if (!follow(m, dt, 62)) { m.wait = 1.2; }
+    } else if (m.state === "hunt") {
+      m.repath -= dt;
+      if ((heard && m.repath <= 0) || (!m.path.length && m.target && m.repath <= 0)) {
+        setPath(m, m.target.x, m.target.y); m.repath = 0.35;
+      }
+      var speed = (heard && d < 150) ? 122 : 100;
+      var moved = follow(m, dt, speed);
+      if (!moved && !heard) { m.state = "search"; m.timer = 4.5; m.path = []; }
+    } else if (m.state === "search") {
+      m.timer -= dt; m.face += dt * 1.6;
+      if (m.timer <= 0) { m.state = "patrol"; m.path = []; m.wait = 0.6; say("It lost the trail.", 2); }
+    }
+
+    if (!p.hidden && d < 24) { lose("It found you."); return; }
+    if (p.hidden && d < 70) {
+      p.hideT += dt;
+      if (p.hideT > 0.3) say("It is right outside. Do not move.", 0.4, "warn");
+      if (p.hideT > 3.2) { lose("It tore the locker open."); return; }
+    } else { p.hideT = Math.max(0, p.hideT - dt * 0.6); }
+  }
+
+  function update(dt) {
+    elapsed += dt;
+    if (msgT > 0) msgT -= dt;
+    updatePlayer(dt);
+    if (mode !== "play") return;
+    updateMonster(dt);
+  }
+
+  /* ---------- end states ---------- */
+  function showOverlay(title, text, btn, rules) {
+    el.title.textContent = title; el.text.textContent = text; el.start.textContent = btn;
+    el.rules.hidden = !rules; el.overlay.hidden = false;
+  }
+  function lose(reason) {
+    mode = "lost"; tone(140, 0.9, "sawtooth", 0.1, 40);
+    showOverlay("Caught", reason + " Keys found: " + keysGot + " of 3.", "Try again", false);
+  }
+  function win() {
+    mode = "won";
+    [523, 659, 784, 1047].forEach(function (f, i) { setTimeout(function () { tone(f, 0.25, "triangle", 0.07); }, i * 130); });
+    var s = Math.round(elapsed);
+    showOverlay("You got out", "Out in " + Math.floor(s / 60) + "m " + (s % 60) + "s without waking the dead.", "Play again", false);
+  }
+  function startGame() {
+    audio(); load(); mode = "play"; el.overlay.hidden = true;
+    say("Find the keys. Keep quiet.", 3);
+  }
+
+  /* ---------- drawing ---------- */
+  function drawWorld(now) {
+    var p = player, m = monster, r, c, x, y;
+    for (r = 0; r < ROWS; r++) for (c = 0; c < COLS; c++) {
+      var ch = grid[r][c]; x = c * T; y = r * T;
+      if (ch === "#") {
+        ctx.fillStyle = C.wall; ctx.fillRect(x, y, T, T);
+        ctx.fillStyle = C.wallEdge; ctx.fillRect(x, y, T, 2); ctx.fillRect(x, y, 2, T);
+      } else {
+        ctx.fillStyle = ((r + c) & 1) ? C.floorA : C.floorB; ctx.fillRect(x, y, T, T);
+        if (r > 0 && grid[r - 1][c] === "#") { ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fillRect(x, y, T, 8); }
+      }
+    }
+    // exit
+    if (exitTile) {
+      var open = keysGot >= 3;
+      ctx.fillStyle = open ? C.exit : "#4a2a2c"; ctx.fillRect(exitTile.c * T + 4, exitTile.r * T + 3, T - 8, T - 6);
+      ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.fillRect(exitTile.c * T + 8, exitTile.r * T + 7, T - 16, T - 14);
+      ctx.fillStyle = C.ink; ctx.font = "bold 9px " + C.font; ctx.textAlign = "center"; ctx.fillText("EXIT", exitTile.x, exitTile.y + 3);
+    }
+    // glass
+    for (var g = 0; g < glass.length; g++) {
+      var v = glass[g];
+      ctx.fillStyle = v.s === 0 ? "rgba(170,225,255,0.85)" : "rgba(170,225,255,0.25)";
+      var sp = v.s === 1 ? 8 : 5;
+      ctx.beginPath(); ctx.moveTo(v.x - sp, v.y - 2); ctx.lineTo(v.x - 1, v.y - sp); ctx.lineTo(v.x + 1, v.y + 1); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(v.x + 2, v.y + 2); ctx.lineTo(v.x + sp + 2, v.y - 1); ctx.lineTo(v.x + 5, v.y + sp); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(v.x - 8, v.y + 6); ctx.lineTo(v.x - 2, v.y + 4); ctx.lineTo(v.x - 5, v.y + 10); ctx.closePath(); ctx.fill();
+    }
+    // lockers
+    for (var i = 0; i < lockers.length; i++) {
+      var l = lockers[i], shake = (p.hidden && p.lock === l && p.hideT > 0.3) ? Math.sin(now * 60) * 1.5 : 0;
+      ctx.fillStyle = "#2f3a4d"; ctx.fillRect(l.x - 14 + shake, l.y - 17, 28, 34);
+      ctx.fillStyle = "#222b3a";
+      for (var s = 0; s < 4; s++) ctx.fillRect(l.x - 10 + shake, l.y - 12 + s * 5, 20, 2);
+      ctx.fillStyle = C.wallEdge; ctx.fillRect(l.x + 8 + shake, l.y + 4, 3, 6);
+      if (p.hidden && p.lock === l) {
+        ctx.fillStyle = C.player; ctx.fillRect(l.x - 6 + shake, l.y - 7, 3, 3); ctx.fillRect(l.x + 3 + shake, l.y - 7, 3, 3);
+      }
+    }
+    // keys
+    for (var k = 0; k < keyItems.length; k++) {
+      var it = keyItems[k]; if (it.got) continue;
+      var pulse = 0.7 + 0.3 * Math.sin(now * 4 + k);
+      ctx.strokeStyle = C.key; ctx.fillStyle = C.key; ctx.globalAlpha = pulse; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(it.x - 5, it.y, 5, 0, 7); ctx.stroke();
+      ctx.fillRect(it.x, it.y - 1.5, 11, 3); ctx.fillRect(it.x + 7, it.y, 2, 5); ctx.fillRect(it.x + 3, it.y, 2, 4);
+      ctx.globalAlpha = 1;
+    }
+    // noise ring
+    var eff = p.hidden ? 0 : Math.max(p.noise, p.burst);
+    if (eff > 2) {
+      ctx.fillStyle = "rgba(240,167,60,0.07)"; ctx.beginPath(); ctx.arc(p.x, p.y, eff, 0, 7); ctx.fill();
+      ctx.strokeStyle = C.noise; ctx.globalAlpha = 0.55 + 0.25 * Math.sin(now * 10); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y, eff, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    // player
+    if (!p.hidden) {
+      ctx.fillStyle = "rgba(0,0,0,0.4)"; ctx.beginPath(); ctx.ellipse(p.x, p.y + 6, 9, 4, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = C.player; ctx.beginPath(); ctx.arc(p.x, p.y, p.sneak ? 7 : 9, 0, 7); ctx.fill();
+      if (p.sneak) { ctx.strokeStyle = C.player; ctx.globalAlpha = 0.5; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }
+    }
+    // monster body
+    ctx.save(); ctx.translate(m.x, m.y);
+    ctx.fillStyle = "#050609"; ctx.strokeStyle = "#3a1a1c"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, 14, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = "#050609"; ctx.lineWidth = 3;
+    for (var a = 0; a < 6; a++) {
+      var ang = a * 1.047 + Math.sin(now * 3 + a) * 0.3;
+      ctx.beginPath(); ctx.moveTo(Math.cos(ang) * 12, Math.sin(ang) * 12); ctx.lineTo(Math.cos(ang) * 23, Math.sin(ang) * 23); ctx.stroke();
+    }
+    ctx.fillStyle = C.danger;
+    ctx.beginPath(); ctx.arc(Math.cos(m.face - 0.4) * 7, Math.sin(m.face - 0.4) * 7, 2.6, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(Math.cos(m.face + 0.4) * 7, Math.sin(m.face + 0.4) * 7, 2.6, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawOverFog(now) {
+    var p = player, m = monster, d = Math.hypot(p.x - m.x, p.y - m.y);
+    // key glimmers in the dark
+    for (var k = 0; k < keyItems.length; k++) {
+      var it = keyItems[k]; if (it.got) continue;
+      ctx.fillStyle = C.key; ctx.globalAlpha = 0.25 + 0.25 * Math.sin(now * 3 + k * 2);
+      ctx.beginPath(); ctx.arc(it.x, it.y, 3, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    // monster eyes visible through the dark
+    var lightR = p.hidden ? 90 : 235;
+    if (d > lightR * 0.8 && d < 380 && los(p.x, p.y, m.x, m.y)) {
+      ctx.fillStyle = C.danger; ctx.globalAlpha = Math.min(1, (380 - d) / 160);
+      ctx.beginPath(); ctx.arc(m.x + Math.cos(m.face - 0.4) * 7, m.y + Math.sin(m.face - 0.4) * 7, 2.6, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(m.x + Math.cos(m.face + 0.4) * 7, m.y + Math.sin(m.face + 0.4) * 7, 2.6, 0, 7); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    // alert ping
+    if (m.alertT > 0) {
+      var t = 1.2 - m.alertT;
+      ctx.strokeStyle = C.danger; ctx.globalAlpha = m.alertT / 1.2; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(m.x, m.y, 20 + t * 90, 0, 7); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.fillStyle = C.danger; ctx.font = "bold 22px " + C.font; ctx.textAlign = "center"; ctx.fillText("!", m.x, m.y - 28);
+    }
+    // locker prompt
+    if (mode === "play" && (nearLocker || player.hidden)) {
+      var px = player.hidden ? player.lock.x : nearLocker.x, py = (player.hidden ? player.lock.y : nearLocker.y) - 26;
+      ctx.fillStyle = C.ink; ctx.font = "bold 12px " + C.font; ctx.textAlign = "center";
+      ctx.fillText(player.hidden ? "E to leave" : "E to hide", px, py);
+    }
+    // danger vignette
+    if (mode === "play" && d < 240) {
+      var a = (1 - d / 240) * 0.45;
+      var vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.35, W / 2, H / 2, H * 0.85);
+      vg.addColorStop(0, "rgba(216,66,58,0)"); vg.addColorStop(1, "rgba(216,66,58," + a.toFixed(3) + ")");
+      ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  function draw(now) {
+    drawWorld(now);
+    var p = player, lr = p.hidden ? 90 : 235;
+    var g = ctx.createRadialGradient(p.x, p.y, lr * 0.25, p.x, p.y, lr);
+    g.addColorStop(0, "rgba(5,6,10,0)"); g.addColorStop(1, "rgba(5,6,10,0.96)");
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    drawOverFog(now);
+  }
+
+  /* ---------- HUD ---------- */
+  var lastKeys = -1, lastRead = "", lastStatus = "", lastKind = "";
+  function hud() {
+    var p = player, eff = p.hidden ? 0 : Math.max(p.noise, p.burst);
+    el.nfill.style.width = Math.min(100, eff / 340 * 100).toFixed(1) + "%";
+    var read = Math.round(eff * M_PER_PX) + " m";
+    if (read !== lastRead) { el.nread.textContent = read; lastRead = read; }
+    if (keysGot !== lastKeys) {
+      for (var i = 0; i < el.pips.length; i++) el.pips[i].classList.toggle("on", i < keysGot);
+      lastKeys = keysGot;
+    }
+    var text, kind = "";
+    if (mode !== "play") { text = mode === "menu" ? "Find the keys. Keep quiet." : el.text.textContent; kind = mode === "lost" ? "bad" : ""; }
+    else if (msgT > 0) { text = msg; kind = msgKind; }
+    else if (p.hidden) { text = "Hidden. Press E to leave."; }
+    else if (nearLocker) { text = "Locker nearby. Press E to hide."; }
+    else if (monster.state === "hunt") { text = "It is hunting. Hide or go quiet."; kind = "warn"; }
+    else if (monster.state === "search") { text = "It is searching. Stay still or sneak away."; kind = "warn"; }
+    else { text = keysGot >= 3 ? "Get to the exit." : "Find the keys. Keep quiet."; }
+    if (text !== lastStatus) { el.status.textContent = text; lastStatus = text; }
+    if (kind !== lastKind) { el.status.className = "status" + (kind ? " " + kind : ""); lastKind = kind; }
+  }
+
+  /* ---------- input ---------- */
+  var KM = { KeyW: "u", ArrowUp: "u", KeyS: "d", ArrowDown: "d", KeyA: "l", ArrowLeft: "l", KeyD: "r", ArrowRight: "r", ShiftLeft: "sneak", ShiftRight: "sneak" };
+  window.addEventListener("keydown", function (e) {
+    if (KM[e.code]) { input[KM[e.code]] = 1; if (mode === "play") e.preventDefault(); }
+    if ((e.code === "KeyE" || e.code === "Space") && !e.repeat && mode === "play") { e.preventDefault(); interact(); }
+  });
+  window.addEventListener("keyup", function (e) { if (KM[e.code]) input[KM[e.code]] = 0; });
+  window.addEventListener("blur", function () { input.u = input.d = input.l = input.r = input.sneak = 0; });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".dpad button"), function (b) {
+    var k = b.getAttribute("data-k");
+    b.addEventListener("pointerdown", function (e) { e.preventDefault(); input[k] = 1; });
+    ["pointerup", "pointercancel", "pointerleave"].forEach(function (n) { b.addEventListener(n, function () { input[k] = 0; }); });
+  });
+  el.tsneak.addEventListener("click", function () {
+    input.sneakToggle = !input.sneakToggle;
+    el.tsneak.classList.toggle("on", input.sneakToggle);
+    el.tsneak.setAttribute("aria-pressed", String(input.sneakToggle));
+  });
+  el.thide.addEventListener("click", function () { if (mode === "play") interact(); });
+  el.start.addEventListener("click", startGame);
+  el.mute.addEventListener("click", function () {
+    muted = !muted; el.mute.textContent = muted ? "Sound off" : "Sound on"; el.mute.setAttribute("aria-pressed", String(muted));
+  });
+
+  /* ---------- loop ---------- */
+  load();
+  var last = 0;
+  function frame(ts) {
+    var dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts;
+    if (mode === "play") update(dt);
+    draw(ts / 1000);
+    hud();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

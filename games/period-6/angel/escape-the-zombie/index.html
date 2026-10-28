@@ -1,0 +1,556 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Escape the Zombie</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Special+Elite&display=swap">
+<style>
+/* Layout: una sola pantalla de juego centrada; HUD arriba, arena en canvas, paneles superpuestos para menú, revivir y fin. */
+:root {
+  --bg: #0d1210;
+  --panel: #151d19;
+  --line: #2a3a32;
+  --fg: #dde7d6;
+  --muted: #8da093;
+  --blood: #d23b2f;
+  --toxic: #9bd05a;
+  --p1: #4f9be0;
+  --p2: #f0a340;
+  --floor: #101a15;
+  --font-display: "Special Elite", "Courier New", monospace;
+  --font-body: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  padding-block: 20px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 720px; margin: 0 auto; display: grid; gap: 14px; }
+h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(28px, 6vw, 44px);
+  letter-spacing: 0.02em;
+  margin: 0;
+  text-wrap: balance;
+}
+h1 em { color: var(--blood); font-style: normal; }
+.hud {
+  display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center;
+  font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+}
+.hud b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pl { display: inline-flex; align-items: center; gap: 8px; }
+.pl .tag { font-weight: 600; }
+.pl.p1 .tag { color: var(--p1); }
+.pl.p2 .tag { color: var(--p2); }
+.pips { display: inline-flex; gap: 6px; vertical-align: middle; }
+.pip { width: 12px; height: 12px; border-radius: 50%; background: var(--c); border: 2px solid var(--c); }
+.pip.off { background: transparent; border-color: var(--line); }
+.stage { position: relative; border: 2px solid var(--line); background: var(--floor); line-height: 0; }
+canvas { width: 100%; height: auto; display: block; touch-action: none; }
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+  background: rgba(8, 12, 10, 0.86); padding: 16px; line-height: 1.5;
+}
+.card { max-width: 460px; display: grid; gap: 14px; justify-items: center; }
+.card h2 { font-family: var(--font-display); font-weight: 400; font-size: clamp(24px, 5vw, 34px); margin: 0; }
+.card p { margin: 0; color: var(--muted); font-size: 14px; }
+.card p b { color: var(--fg); }
+.row { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.label { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+button {
+  font: 600 14px var(--font-body); letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 12px 20px; border: 2px solid var(--toxic); background: transparent; color: var(--toxic);
+  cursor: pointer; min-height: 44px;
+}
+button:hover { background: var(--toxic); color: var(--bg); }
+button.danger { border-color: var(--blood); color: var(--blood); }
+button.danger:hover { background: var(--blood); color: var(--bg); }
+button.opt { border-color: var(--line); color: var(--muted); }
+button.opt:hover { background: transparent; border-color: var(--fg); color: var(--fg); }
+button.opt[aria-pressed="true"] { border-color: var(--fg); color: var(--fg); background: var(--panel); }
+button:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+.hint { font-size: 12px; color: var(--muted); }
+.big { font-size: 40px; font-family: var(--font-display); color: var(--blood); }
+[hidden] { display: none !important; }
+</style>
+
+<main>
+  <h1>Escape the <em>Zombie</em></h1>
+  <div class="hud">
+    <span>Mode <b id="hudMode">-</b></span>
+    <span>Key <b id="hudKey">NOT FOUND</b></span>
+    <span>Levels <b id="hudLevel">0</b></span>
+    <span>Zombies <b id="hudZ">0</b></span>
+    <span id="hudPlayers"></span>
+  </div>
+  <div class="stage">
+    <canvas id="cv" width="640" height="400"></canvas>
+
+    <div class="overlay" id="menu">
+      <div class="card">
+        <h2>Reach the Exit</h2>
+        <p>Find the <b>golden key</b> hidden in the arena first! Then reach the <b>green exit</b> on the right without getting caught. Watch for the <b>spikes</b> and flashing, colorful lights. The lights blink on and off. Spikes can also eliminate zombies. Each player gets <b>3 revives</b>. In 2-player mode, both players must reach the exit after the key is collected.</p>
+        <div class="label">Players</div>
+        <div class="row">
+          <button class="opt" id="n1" aria-pressed="true">1 Player</button>
+          <button class="opt" id="n2" aria-pressed="false">2 Players</button>
+        </div>
+        <div class="label">Choose a mode to start</div>
+        <div class="row">
+          <button id="easy">Easy</button>
+          <button id="hard" class="danger">Hard</button>
+        </div>
+        <p class="hint" id="menuHint">Move with the arrow keys or WASD. On mobile, touch and drag.</p>
+      </div>
+    </div>
+
+    <div class="overlay" id="dead" hidden>
+      <div class="card">
+        <div class="big">You Got Caught!</div>
+        <p id="deadText"></p>
+        <button id="revive">Revive</button>
+      </div>
+    </div>
+
+    <div class="overlay" id="over" hidden>
+      <div class="card">
+        <div class="big">Game Over</div>
+        <p id="overText"></p>
+        <button id="restart" class="danger">Restart</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  var W = 640, H = 400;
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var $ = function (id) { return document.getElementById(id); };
+  var MAX_REVIVES = 3;
+  var MODES = {
+    // start: zombis en la primera salida; every: cada cuántas salidas suma uno más; max: tope de la horda.
+    easy: { name: 'Easy', zBase: 175, zStep: 10, zMax: 245, start: 6, every: 1, max: 14, traps: 6 },
+    hard: { name: 'Hard', zBase: 245, zStep: 13, zMax: 325, start: 10, every: 1, max: 24, traps: 9 }
+  };
+  var PLAYER_SPEED = 260, PR = 11, ZR = 11; // Player speed increased to 260 px/s; challenge increased with faster, larger zombie hordes and more traps.
+  var EXIT = { x: W - 30, y: 140, w: 30, h: 120 };
+  var COLORS = ['#4f9be0', '#f0a340'];
+  var NAMES = ['Player 1', 'Player 2'];
+
+  var state = 'menu', mode = null, level = 0, nPlayers = 1, pendingN = 1;
+  var players = [], zombies = [], obstacles = [], traps = [];
+  var keyItem = { x: 300, y: 200, found: false };
+  var lightColors = ['#ff3b6b', '#35d9ff', '#ffe45e', '#b65cff', '#56ff8a', '#ff9f43'];
+  var deadIdx = -1, grace = 0, keys = {}, targets = {}, last = 0, t = 0;
+
+  function startPos(i) {
+    if (nPlayers === 1) return { x: 36, y: H / 2 };
+    return { x: 36, y: i === 0 ? H / 2 - 40 : H / 2 + 40 };
+  }
+  function makePlayers() {
+    players = [];
+    for (var i = 0; i < nPlayers; i++) {
+      var s = startPos(i);
+      players.push({ x: s.x, y: s.y, revives: MAX_REVIVES, safe: false });
+    }
+  }
+  function placePlayers() {
+    players.forEach(function (p, i) { var s = startPos(i); p.x = s.x; p.y = s.y; p.safe = false; });
+  }
+
+  function hud() {
+    $('hudMode').textContent = mode ? mode.name : '-';
+    $('hudLevel').textContent = level;
+    $('hudZ').textContent = zombies.length;
+    if ($('hudKey')) $('hudKey').textContent = keyItem.found ? 'FOUND' : 'NOT FOUND';
+    var h = '';
+    var list = players.length ? players : [{ revives: MAX_REVIVES }];
+    list.forEach(function (p, i) {
+      var pips = '';
+      for (var k = 0; k < MAX_REVIVES; k++) {
+        pips += '<span class="pip' + (k < p.revives ? '' : ' off') + '" style="--c:' + COLORS[i] + '"></span>';
+      }
+      h += '<span class="pl p' + (i + 1) + '">' + (list.length > 1 ? '<span class="tag">P' + (i + 1) + '</span>' : 'Lives') +
+        ' <span class="pips" aria-label="Revives restantes">' + pips + '</span></span> ';
+    });
+    $('hudPlayers').innerHTML = h;
+  }
+  function show(id) {
+    ['menu', 'dead', 'over'].forEach(function (k) { $(k).hidden = k !== id; });
+  }
+
+  function hitRect(x, y, r, o) {
+    var cx = Math.max(o.x, Math.min(x, o.x + o.w));
+    var cy = Math.max(o.y, Math.min(y, o.y + o.h));
+    var dx = x - cx, dy = y - cy;
+    return dx * dx + dy * dy < r * r;
+  }
+  function blocked(x, y, r) {
+    if (x < r || x > W - r || y < r || y > H - r) return true;
+    for (var i = 0; i < obstacles.length; i++) if (hitRect(x, y, r, obstacles[i])) return true;
+    return false;
+  }
+
+  function makeObstacles() {
+    obstacles = [];
+    var n = 7 + Math.min(level, 5), tries = 0;
+    while (obstacles.length < n && tries++ < 200) {
+      var w = 34 + Math.random() * 40, h = 34 + Math.random() * 60;
+      var o = { x: 110 + Math.random() * (W - 220), y: 20 + Math.random() * (H - 40 - h), w: w, h: h };
+      var ok = true;
+      for (var i = 0; i < obstacles.length; i++) {
+        var p = obstacles[i];
+        if (o.x < p.x + p.w + 36 && o.x + o.w + 36 > p.x && o.y < p.y + p.h + 36 && o.y + o.h + 36 > p.y) ok = false;
+      }
+      if (ok) obstacles.push(o);
+    }
+  }
+
+  // Trampas de pinchos: ciclo de 2.4 s (1 s arriba, 0.4 s de aviso). Mata a jugadores y zombis.
+  function trapUp(tr) { return ((t + tr.ph) % 2.4) > 1.4; }
+  function trapWarn(tr) { var m = (t + tr.ph) % 2.4; return m > 1.0 && m <= 1.4; }
+  function makeTraps() {
+    traps = [];
+    var n = mode.traps + Math.min(level, 4), tries = 0;
+    while (traps.length < n && tries++ < 300) {
+      var x = 130 + Math.random() * (W - 200), y = 30 + Math.random() * (H - 60), ok = true, i;
+      for (i = 0; i < obstacles.length; i++) if (hitRect(x, y, 28, obstacles[i])) ok = false;
+      for (i = 0; ok && i < traps.length; i++) if (Math.hypot(traps[i].x - x, traps[i].y - y) < 70) ok = false;
+      if (ok) traps.push({ x: x, y: y, r: 17, ph: Math.random() * 2.4 });
+    }
+  }
+
+  function zombieCount() {
+    var n = mode.start + Math.floor(level / mode.every) + (nPlayers === 2 ? 2 : 0);
+    return Math.min(mode.max + (nPlayers === 2 ? 2 : 0), n);
+  }
+  function spawnZombies() {
+    var count = zombieCount();
+    zombies = [];
+    for (var i = 0; i < count; i++) {
+      var z = null, tries = 0;
+      while (!z && tries++ < 100) {
+        var x = W * 0.38 + Math.random() * W * 0.5, y = 24 + Math.random() * (H - 48);
+        var ok = !blocked(x, y, ZR) && !(x > EXIT.x - 30 && y > EXIT.y - 30 && y < EXIT.y + EXIT.h + 30);
+        for (var q = 0; ok && q < zombies.length; q++) if (Math.hypot(zombies[q].x - x, zombies[q].y - y) < ZR * 2.2) ok = false;
+        for (var w = 0; ok && w < traps.length; w++) if (Math.hypot(traps[w].x - x, traps[w].y - y) < traps[w].r + ZR + 6) ok = false;
+        if (ok) z = { x: x, y: y };
+      }
+      zombies.push(z || { x: W * 0.6, y: 40 });
+    }
+  }
+
+  function speedZ() { return Math.min(mode.zMax, mode.zBase + mode.zStep * level); }
+
+  function newRound() {
+    placePlayers();
+    makeObstacles();
+    makeTraps();
+    keyItem.found = false;
+    var keyTries = 0, keyOk = false;
+    while (!keyOk && keyTries++ < 300) {
+      keyItem.x = 100 + Math.random() * (W - 210);
+      keyItem.y = 28 + Math.random() * (H - 56);
+      keyOk = !blocked(keyItem.x, keyItem.y, 16) &&
+        traps.every(function (tr) { return Math.hypot(tr.x - keyItem.x, tr.y - keyItem.y) > tr.r + 32; });
+    }
+    spawnZombies();
+    grace = 1.2;
+    targets = {};
+  }
+
+  function startGame(key) {
+    mode = MODES[key]; level = 0; nPlayers = pendingN;
+    makePlayers(); newRound(); hud(); show(null); state = 'play';
+  }
+
+  function caught(i) {
+    state = 'dead'; deadIdx = i;
+    var p = players[i], who = nPlayers === 2 ? NAMES[i] + ': ' : '';
+    if (p.revives > 0) {
+      $('deadText').innerHTML = who + 'te quedan <b>' + p.revives + '</b> ' + (p.revives === 1 ? 'revive' : 'revives') + ' left. ' +
+        (nPlayers === 2 ? 'Both players return to the start.' : 'You return to the start.');
+      show('dead');
+    } else {
+      var tail = nPlayers === 2 ? ' ran out of revives. The team reached ' : ' ran out of revives. You reached ';
+      $('overText').innerHTML = (nPlayers === 2 ? NAMES[i] : 'You') + tail + '<b>' + level + '</b> ' +
+        (level === 1 ? ' level' : ' levels') + ' on <b>' + mode.name + '</b> mode.';
+      show('over');
+    }
+  }
+
+  function revive() {
+    players[deadIdx].revives--;
+    placePlayers(); spawnZombies();
+    grace = 1.5; targets = {};
+    hud(); show(null); state = 'play';
+  }
+
+  function toMenu() {
+    keyItem.found = false;
+    mode = null; level = 0; players = []; zombies = []; obstacles = []; traps = []; deadIdx = -1;
+    hud(); show('menu'); state = 'menu';
+  }
+
+  function moveInput(i) {
+    var dx = 0, dy = 0, p = players[i];
+    // Con 2 jugadores: J1 usa WASD y J2 usa flechas. Con 1 jugador sirven ambas.
+    var useWasd = nPlayers === 1 || i === 0, useArrows = nPlayers === 1 || i === 1;
+    if (useWasd) { if (keys.a) dx -= 1; if (keys.d) dx += 1; if (keys.w) dy -= 1; if (keys.s) dy += 1; }
+    if (useArrows) { if (keys.ArrowLeft) dx -= 1; if (keys.ArrowRight) dx += 1; if (keys.ArrowUp) dy -= 1; if (keys.ArrowDown) dy += 1; }
+    if (!dx && !dy) {
+      var tg = null;
+      Object.keys(targets).forEach(function (id) { if (targets[id].who === i) tg = targets[id]; });
+      if (tg) {
+        var tx = tg.x - p.x, ty = tg.y - p.y, d = Math.hypot(tx, ty);
+        if (d > 5) { dx = tx / d; dy = ty / d; }
+      }
+    }
+    return { dx: dx, dy: dy };
+  }
+
+  function update(dt) {
+    if (state !== 'play') return;
+    if (grace > 0) grace -= dt;
+
+    players.forEach(function (p, i) {
+      if (p.safe) return;
+      var m = moveInput(i), len = Math.hypot(m.dx, m.dy);
+      if (len > 0) {
+        var dx = m.dx / len, dy = m.dy / len;
+        var nx = p.x + dx * PLAYER_SPEED * dt, ny = p.y + dy * PLAYER_SPEED * dt;
+        if (!blocked(nx, p.y, PR)) p.x = nx;
+        if (!blocked(p.x, ny, PR)) p.y = ny;
+      }
+      if (!keyItem.found && Math.hypot(p.x - keyItem.x, p.y - keyItem.y) < PR + 14) {
+        keyItem.found = true; hud();
+      }
+      if (keyItem.found && p.x > EXIT.x && p.y > EXIT.y && p.y < EXIT.y + EXIT.h) p.safe = true;
+    });
+
+    if (players.every(function (p) { return p.safe; })) { level++; newRound(); hud(); return; }
+
+    // trampas: los pinchos eliminan zombis y también a los jugadores
+    var before = zombies.length;
+    zombies = zombies.filter(function (z) {
+      for (var k = 0; k < traps.length; k++) {
+        if (trapUp(traps[k]) && Math.hypot(traps[k].x - z.x, traps[k].y - z.y) < traps[k].r + ZR - 3) return false;
+      }
+      return true;
+    });
+    if (zombies.length !== before) $('hudZ').textContent = zombies.length;
+    if ($('hudKey')) $('hudKey').textContent = keyItem.found ? 'FOUND' : 'NOT FOUND';
+    if (grace <= 0) {
+      for (var pi = 0; pi < players.length; pi++) {
+        if (players[pi].safe) continue;
+        for (var tk = 0; tk < traps.length; tk++) {
+          if (trapUp(traps[tk]) && Math.hypot(traps[tk].x - players[pi].x, traps[tk].y - players[pi].y) < traps[tk].r + PR - 4) {
+            caught(pi); return;
+          }
+        }
+      }
+    }
+
+    var sp = speedZ();
+    for (var i = 0; i < zombies.length; i++) {
+      var z = zombies[i], near = null, nd = 1e9;
+      players.forEach(function (p, k) {
+        if (p.safe) return;
+        var d = Math.hypot(p.x - z.x, p.y - z.y);
+        if (d < nd) { nd = d; near = k; }
+      });
+      if (near === null) continue;
+      var pl = players[near];
+      if (grace <= 0) {
+        var zx = pl.x - z.x, zy = pl.y - z.y, zd = Math.hypot(zx, zy) || 1;
+        var sx = z.x + (zx / zd) * sp * dt, sy = z.y + (zy / zd) * sp * dt;
+        var moved = false;
+        if (!blocked(sx, z.y, ZR)) { z.x = sx; moved = true; }
+        if (!blocked(z.x, sy, ZR)) { z.y = sy; moved = true; }
+        if (!moved) {
+          var side = (zy >= 0 ? 1 : -1) * sp * dt;
+          if (!blocked(z.x, z.y + side, ZR)) z.y += side;
+        }
+        // la horda no se apila: los zombis se empujan entre sí
+        for (var j = 0; j < i; j++) {
+          var o = zombies[j], ox = z.x - o.x, oy = z.y - o.y, od = Math.hypot(ox, oy);
+          if (od > 0 && od < ZR * 2) {
+            var push = (ZR * 2 - od) / 2;
+            var ax = z.x + (ox / od) * push, ay = z.y + (oy / od) * push;
+            if (!blocked(ax, z.y, ZR)) z.x = ax;
+            if (!blocked(z.x, ay, ZR)) z.y = ay;
+          }
+        }
+        if (nd < PR + ZR - 3) { caught(near); return; }
+      }
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#101a15'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#17241d'; ctx.lineWidth = 1;
+    for (var gx = 0; gx <= W; gx += 40) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, H); ctx.stroke(); }
+    for (var gy = 0; gy <= H; gy += 40) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(W, gy); ctx.stroke(); }
+
+    // Colorful border lights blink on and off like arcade warning lights.
+    for (var li = 0; li < 22; li++) {
+      var lx = 12 + li * 29;
+      [[lx, 12, Math.floor(t * 3 + li * 0.7) % 3 !== 0], [lx, H - 12, Math.floor(t * 3 + li * 0.7 + 1) % 3 !== 0]].forEach(function (lamp) {
+        ctx.globalAlpha = lamp[2] ? 1 : 0.16;
+        ctx.fillStyle = lightColors[li % lightColors.length];
+        ctx.shadowColor = lightColors[li % lightColors.length]; ctx.shadowBlur = lamp[2] ? 14 : 0;
+        ctx.beginPath(); ctx.arc(lamp[0], lamp[1], 5, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+    for (var lj = 0; lj < 12; lj++) {
+      var ly = 28 + lj * 31;
+      [12, W - 12].forEach(function (lx2, side) {
+        var activeLamp = Math.floor(t * 3 + lj * 0.8 + side) % 3 !== 0;
+        ctx.globalAlpha = activeLamp ? 1 : 0.14;
+        ctx.fillStyle = lightColors[(lj + side * 2) % lightColors.length];
+        ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = activeLamp ? 12 : 0;
+        ctx.beginPath(); ctx.arc(lx2, ly, 5, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+    var glow = 0.55 + 0.25 * Math.sin(t * 3);
+    ctx.fillStyle = 'rgba(155,208,90,' + glow + ')';
+    ctx.fillRect(EXIT.x, EXIT.y, EXIT.w, EXIT.h);
+    ctx.fillStyle = '#0d1210'; ctx.font = '600 12px "IBM Plex Mono", monospace'; ctx.textAlign = 'center';
+    ctx.save(); ctx.translate(EXIT.x + 19, EXIT.y + EXIT.h / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('EXIT', 0, 0); ctx.restore();
+
+    // Draw the key until a player picks it up.
+    if (mode && !keyItem.found) {
+      ctx.save(); ctx.translate(keyItem.x, keyItem.y); ctx.rotate(-0.25);
+      ctx.shadowColor = '#ffd84d'; ctx.shadowBlur = 16; ctx.strokeStyle = '#ffd84d'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(6, 4); ctx.lineTo(17, 15); ctx.lineTo(12, 20); ctx.moveTo(12, 10); ctx.lineTo(8, 14); ctx.stroke();
+      ctx.restore(); ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ffeaa0'; ctx.font = '600 11px "IBM Plex Mono", monospace'; ctx.textAlign = 'center'; ctx.fillText('KEY', keyItem.x, keyItem.y - 20);
+    }
+
+    obstacles.forEach(function (o) {
+      ctx.fillStyle = '#26352d'; ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.strokeStyle = '#3d5446'; ctx.lineWidth = 2; ctx.strokeRect(o.x + 1, o.y + 1, o.w - 2, o.h - 2);
+      ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(o.x + o.w, o.y + o.h); ctx.moveTo(o.x + o.w, o.y); ctx.lineTo(o.x, o.y + o.h); ctx.stroke();
+    });
+
+    traps.forEach(function (tr) {
+      var up = trapUp(tr), warn = trapWarn(tr);
+      ctx.fillStyle = '#0b110e'; ctx.beginPath(); ctx.arc(tr.x, tr.y, tr.r, 0, 7); ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = up ? '#d23b2f' : (warn && Math.floor(t * 12) % 2 === 0 ? '#f0a340' : '#3d5446');
+      ctx.beginPath(); ctx.arc(tr.x, tr.y, tr.r, 0, 7); ctx.stroke();
+      if (up) {
+        ctx.fillStyle = '#e24a3d';
+        for (var s = 0; s < 8; s++) {
+          var a = s * Math.PI / 4, a1 = a - 0.22, a2 = a + 0.22;
+          ctx.beginPath();
+          ctx.moveTo(tr.x + Math.cos(a1) * 5, tr.y + Math.sin(a1) * 5);
+          ctx.lineTo(tr.x + Math.cos(a) * (tr.r + 4), tr.y + Math.sin(a) * (tr.r + 4));
+          ctx.lineTo(tr.x + Math.cos(a2) * 5, tr.y + Math.sin(a2) * 5);
+          ctx.fill();
+        }
+      } else {
+        ctx.fillStyle = '#3d5446';
+        for (var d = 0; d < 6; d++) {
+          ctx.beginPath(); ctx.arc(tr.x + Math.cos(d * 1.047) * 8, tr.y + Math.sin(d * 1.047) * 8, 1.6, 0, 7); ctx.fill();
+        }
+      }
+    });
+
+    if (!mode) return;
+
+    var active = players.filter(function (p) { return !p.safe; });
+    zombies.forEach(function (z) {
+      var tgt = active[0] || { x: z.x + 1, y: z.y }, bd = 1e9;
+      active.forEach(function (p) { var d = Math.hypot(p.x - z.x, p.y - z.y); if (d < bd) { bd = d; tgt = p; } });
+      var ang = Math.atan2(tgt.y - z.y, tgt.x - z.x);
+      ctx.fillStyle = '#6f9a45';
+      [-0.5, 0.5].forEach(function (s) {
+        ctx.beginPath(); ctx.arc(z.x + Math.cos(ang + s) * 14, z.y + Math.sin(ang + s) * 14, 4, 0, 7); ctx.fill();
+      });
+      ctx.fillStyle = '#86b556'; ctx.beginPath(); ctx.arc(z.x, z.y, ZR, 0, 7); ctx.fill();
+      ctx.fillStyle = '#d23b2f';
+      ctx.beginPath(); ctx.arc(z.x + Math.cos(ang - 0.45) * 6, z.y + Math.sin(ang - 0.45) * 6, 2.4, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(z.x + Math.cos(ang + 0.45) * 6, z.y + Math.sin(ang + 0.45) * 6, 2.4, 0, 7); ctx.fill();
+    });
+
+    players.forEach(function (p, i) {
+      if (p.safe) return;
+      if (grace <= 0 || Math.floor(t * 10) % 2 === 0) {
+        ctx.fillStyle = '#e8d9b8'; ctx.beginPath(); ctx.arc(p.x, p.y, PR, 0, 7); ctx.fill();
+        ctx.fillStyle = COLORS[i]; ctx.beginPath(); ctx.arc(p.x, p.y, PR - 4, 0, 7); ctx.fill();
+      }
+      if (nPlayers === 2) {
+        ctx.fillStyle = COLORS[i]; ctx.font = '600 11px "IBM Plex Mono", monospace'; ctx.textAlign = 'center';
+        ctx.fillText('J' + (i + 1), p.x, p.y - PR - 5);
+      }
+    });
+    if (grace > 0 && state === 'play') {
+      ctx.fillStyle = '#dde7d6'; ctx.font = '600 14px "IBM Plex Mono", monospace'; ctx.textAlign = 'center';
+      ctx.fillText('RUN!', W / 2, 30);
+    }
+  }
+
+  function loop(ts) {
+    var dt = Math.min(0.05, (ts - last) / 1000 || 0); last = ts; t += dt;
+    update(dt); draw();
+    requestAnimationFrame(loop);
+  }
+
+  // Táctil: con 2 jugadores, la mitad izquierda mueve a J1 y la derecha a J2.
+  function pt(e) {
+    var r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * W / r.width, y: (e.clientY - r.top) * H / r.height };
+  }
+  function whoFor(p) { return nPlayers === 2 ? (p.x < W / 2 ? 0 : 1) : 0; }
+  cv.addEventListener('pointerdown', function (e) {
+    var p = pt(e); targets[e.pointerId] = { x: p.x, y: p.y, who: whoFor(p) };
+    try { cv.setPointerCapture(e.pointerId); } catch (x) {}
+  });
+  cv.addEventListener('pointermove', function (e) {
+    var g = targets[e.pointerId]; if (!g) return;
+    var p = pt(e); g.x = p.x; g.y = p.y;
+  });
+  function up(e) { delete targets[e.pointerId]; }
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+
+  window.addEventListener('keydown', function (e) {
+    var k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].indexOf(e.key) > -1) e.preventDefault();
+    keys[k] = true;
+  });
+  window.addEventListener('keyup', function (e) { keys[e.key.length === 1 ? e.key.toLowerCase() : e.key] = false; });
+  window.addEventListener('blur', function () { keys = {}; });
+
+  function pick(n) {
+    pendingN = n;
+    $('n1').setAttribute('aria-pressed', n === 1);
+    $('n2').setAttribute('aria-pressed', n === 2);
+    $('menuHint').textContent = n === 1
+      ? 'Move with the arrow keys or WASD. On mobile, touch and drag.'
+      : 'P1 (blue) uses WASD and P2 (orange) uses the arrow keys. On mobile, touch and drag on your half: left for P1, right for P2. Find the key first, then both players must reach the exit.';
+  }
+  $('n1').addEventListener('click', function () { pick(1); });
+  $('n2').addEventListener('click', function () { pick(2); });
+  $('easy').addEventListener('click', function () { startGame('easy'); });
+  $('hard').addEventListener('click', function () { startGame('hard'); });
+  $('revive').addEventListener('click', revive);
+  $('restart').addEventListener('click', toMenu);
+
+  hud();
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

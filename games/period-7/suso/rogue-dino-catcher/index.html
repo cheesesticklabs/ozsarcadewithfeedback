@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rogue Dino Catcher</title>
+<style>
+:root{color-scheme:dark;--bg:#14211c;--ink:#f3ecd2;--hot:#ff7a3d}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:"Trebuchet MS",Verdana,sans-serif;overflow:hidden}
+canvas{display:block;width:100%;height:100%;cursor:none;touch-action:none}
+#bar{position:fixed;left:0;right:0;bottom:0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px))}
+button{font:inherit;font-weight:700;color:var(--ink);background:#0008;border:2px solid #f3ecd255;border-radius:10px;padding:8px 14px;cursor:pointer}
+button.on{background:var(--hot);border-color:var(--hot);color:#1a0d05}
+#team{position:fixed;left:8px;top:40px;max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:4px;width:min(250px,64vw)}
+.row{display:flex;align-items:center;gap:6px;background:#000b;padding:4px 6px;border-radius:8px;font-size:13px}
+.row.act{outline:2px solid #6fe3ff}
+.row button{padding:2px 8px;font-size:12px;border-width:1px}
+.hp{flex:1;height:5px;background:#444;border-radius:3px;min-width:30px}.hp i{display:block;height:100%;background:#7ddc6a;border-radius:3px}
+#intro{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a1410ee;text-align:center;padding:24px;gap:10px}
+#intro h1{font-size:clamp(28px,6vw,52px);margin:0}
+#intro p{max-width:480px;line-height:1.5;margin:0}
+#intro button{background:var(--hot);color:#1a0d05;border-color:var(--hot);font-size:18px;margin-top:10px}
+</style></head><body>
+<canvas id="c"></canvas>
+<div id="team"></div>
+<div id="bar"><button id="b1" class="on">1 · Ball</button><button id="b2">2 · Rock</button><button id="b3">3 · Send partner</button></div>
+<div id="intro"><h1>Rogue Dino Catcher</h1>
+<p>Move the mouse to the screen edges to turn. Click to throw a ball and add a creature to your team. Battered creatures are easy to catch.</p>
+<p>Switch to <b>Send partner</b> (key 3) and click a wild creature to fight it with your lead. Winners gain XP and level up. In the team list, <b>Fuse</b> a spare creature into your lead for a big XP boost. Rock (key 2) provokes wild fights.</p>
+<button id="go">Start hunting</button></div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+let W,H;function rs(){W=cv.width=innerWidth;H=cv.height=innerHeight}rs();addEventListener('resize',rs);
+const T={raptor:{e:'🦎',n:'Raptor',hp:10,atk:2,spd:2.4,s:42,c:.75,w:4},
+trike:{e:'🦕',n:'Longneck',hp:20,atk:3,spd:1.3,s:62,c:.55,w:3},
+rex:{e:'🦖',n:'Rex',hp:36,atk:6,spd:1.1,s:90,c:.38,w:1.2},
+gator:{e:'🐊',n:'Gator',hp:16,atk:4,spd:1.6,s:50,c:.6,w:2},
+turtle:{e:'🐢',n:'Shellback',hp:26,atk:2,spd:.7,s:50,c:.65,w:2},
+bird:{e:'🦅',n:'Skyrake',hp:9,atk:3,spd:2.8,s:40,c:.6,w:2.5},
+rhino:{e:'🦏',n:'Hornbeast',hp:28,atk:5,spd:1.5,s:75,c:.45,w:1.6},
+mammoth:{e:'🐘',n:'Mammoth',hp:42,atk:5,spd:.9,s:100,c:.33,w:.8},
+scorp:{e:'🦂',n:'Stingtail',hp:8,atk:4,spd:2,s:34,c:.7,w:2}};
+const names=Object.keys(T),R=Math.random,TAU=Math.PI*2;
+const norm=a=>{while(a>Math.PI)a-=TAU;while(a<-Math.PI)a+=TAU;return a};
+let yaw=0,mx=innerWidth/2,my=innerHeight/2,balls=8,mode=1,started=false,dinos=[],flights=[],fx=[],refill=0,hpT=0;
+let team=[],active=null,deployed=null;const seen=new Set();
+const lvS=(k,lv)=>({max:T[k].hp*(1+.3*(lv-1)),atk:T[k].atk*(1+.25*(lv-1))});
+function pick(){let t=0;for(const n of names)t+=T[n].w;let r=R()*t;for(const n of names){r-=T[n].w;if(r<=0)return n}return'raptor'}
+function spawn(){const k=pick(),lv=1+(R()*3|0),s=lvS(k,lv),th=R()*TAU,d=9+R()*8;
+dinos.push({k,lv,x:Math.sin(th)*d,y:Math.cos(th)*d,hp:s.max,max:s.max,atk:s.atk,spd:T[k].spd,st:'wander',tx:0,ty:0,opp:null,cd:0,ex:false,box:null,tm:0})}
+for(let i=0;i<8;i++)spawn();
+function say(x,y,txt,col){fx.push({x,y,txt,col:col||'#fff',t:1.4})}
+function setMode(m){mode=m;[b1,b2,b3].forEach((b,i)=>b.classList.toggle('on',i+1==m))}
+b1.onclick=()=>setMode(1);b2.onclick=()=>setMode(2);b3.onclick=()=>setMode(3);
+addEventListener('keydown',e=>{if('123'.includes(e.key))setMode(+e.key)});
+go.onclick=()=>{intro.style.display='none';started=true};
+cv.addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});
+cv.addEventListener('pointerdown',e=>{mx=e.clientX;my=e.clientY;if(started)fire()});
+// team
+function addTeam(k){const r={k,lv:1,xp:0,hp:lvS(k,1).max};team.push(r);if(!active)active=r;seen.add(k);render()}
+function gain(r,xp){r.xp+=xp;while(r.xp>=r.lv*10){r.xp-=r.lv*10;r.lv++;r.hp=lvS(r.k,r.lv).max;say(W/2,H*.3,T[r.k].n+' reached Lv '+r.lv+'!','#8ff')}render()}
+function render(){const el=document.getElementById('team');el.innerHTML='';
+for(const r of team){const d=document.createElement('div');d.className='row'+(r===active?' act':'');
+d.innerHTML='<span>'+T[r.k].e+' Lv'+r.lv+'</span><span class="hp"><i></i></span><span style="opacity:.7">'+r.xp+'/'+r.lv*10+'</span>';
+r.bar=d.querySelector('i');
+if(r!==active){const a=document.createElement('button');a.textContent='Lead';a.onclick=()=>{if(deployed)return;active=r;render()};d.appendChild(a);
+const f=document.createElement('button');f.textContent='Fuse';f.onclick=()=>{if(deployed||!active)return;const xp=6+r.lv*4;team=team.filter(o=>o!==r);say(W/2,H*.3,'Fused! +'+xp+' XP','#8ff');gain(active,xp)};d.appendChild(f)}
+el.appendChild(d)}}
+function bars(){for(const r of team)if(r.bar)r.bar.style.width=Math.max(0,r.hp/lvS(r.k,r.lv).max*100)+'%'}
+function deploy(t){if(!active){say(mx,my,'Catch a creature first','#ffb199');return}
+if(deployed){say(mx,my,'Partner is fighting','#ffb199');return}
+const s=lvS(active.k,active.lv);if(active.hp<s.max*.5){say(mx,my,'Partner needs rest','#ffb199');return}
+if(t.st!='wander'){say(mx,my,'Target busy','#ddd');return}
+const d={k:active.k,lv:active.lv,rec:active,mine:true,x:Math.sin(yaw)*4,y:Math.cos(yaw)*4,hp:active.hp,max:s.max,atk:s.atk,spd:T[active.k].spd,st:'wander',opp:null,cd:0,ex:false,box:null,tm:0};
+dinos.push(d);deployed=d;startFight(d,t);say(mx,my,'Go!','#8ff')}
+function chance(d){let p=T[d.k].c*(1-.08*(d.lv-1))*(1.35-.95*d.hp/d.max)+(d.ex?.25:0);return Math.max(.05,Math.min(.97,p))}
+function fire(){
+if(mode==3){const d=hitAt(mx,my);if(d&&!d.mine)deploy(d);else say(mx,my,'Aim at a wild creature','#ddd');return}
+if(mode==1){if(balls<1){say(mx,my,'No balls left','#ffb199');return}balls--}
+flights.push({t:0,sx:W/2,sy:H,ex:mx,ey:my,m:mode})}
+function hitAt(px,py){let b=null,bd=1e9;for(const d of dinos){if(!d.box)continue;const dd=Math.hypot(px-d.box.x,py-d.box.y);if(dd<d.box.r&&dd<bd){bd=dd;b=d}}return b}
+function startFight(a,b){if(a===b||a.st=='flee'||b.st=='flee')return;a.st=b.st='fight';a.opp=b;b.opp=a;a.cd=b.cd=.5}
+function land(f){const d=hitAt(f.ex,f.ey);
+if(!d||d.mine){say(f.ex,f.ey,'Missed','#ddd');return}
+if(f.m==2){d.hp-=2;say(f.ex,f.ey,'Provoked!','#ffb199');
+if(d.hp<=d.max*.25){d.st='flee';d.ex=true;d.opp=null}
+else{let n=null,nd=1e9;for(const o of dinos)if(o!==d&&!o.mine&&o.st!='flee'){const q=Math.hypot(o.x-d.x,o.y-d.y);if(q<nd){nd=q;n=o}}if(n)startFight(d,n)}return}
+if(R()<chance(d)){dinos=dinos.filter(o=>o!==d);dinos.forEach(o=>{if(o.opp===d){o.opp=null;o.st='wander'}});
+addTeam(d.k);say(f.ex,f.ey,'Caught '+T[d.k].n+'!','#ffe27a');setTimeout(spawn,2500)}
+else{say(f.ex,f.ey,'Broke free!','#ff8a8a');d.st='flee';d.opp=null;d.tm=0}}
+function step(d,tx,ty,sp,dt){const dx=tx-d.x,dy=ty-d.y,l=Math.hypot(dx,dy)||1;d.x+=dx/l*sp*dt;d.y+=dy/l*sp*dt;return l}
+function update(dt){
+const v=(mx/W-.5)*2;if(Math.abs(v)>.3)yaw+=Math.sign(v)*(Math.abs(v)-.3)*2.6*dt;
+refill+=dt;if(refill>5){refill=0;if(balls<10)balls++}
+for(const r of team)if(!deployed||deployed.rec!==r){const m=lvS(r.k,r.lv).max;r.hp=Math.min(m,r.hp+m*.02*dt)}
+hpT+=dt;if(hpT>.3){hpT=0;bars()}
+for(const d of dinos.slice()){
+if(d.mine&&d.st!='fight'){d.tm+=dt;if(d.tm>1.2){d.rec.hp=Math.max(1,d.hp);dinos=dinos.filter(o=>o!==d);deployed=null;render()}continue}
+if(d.st=='wander'){if(!d.tx&&!d.ty||step(d,d.tx,d.ty,d.spd*.5,dt)<.5){const th=R()*TAU,r=6+R()*10;d.tx=Math.sin(th)*r;d.ty=Math.cos(th)*r}
+for(const o of dinos)if(o!==d&&!o.mine&&o.st=='wander'&&Math.hypot(o.x-d.x,o.y-d.y)<4.5&&R()<dt*.12){startFight(d,o);break}}
+else if(d.st=='fight'){const o=d.opp;if(!o||o.st!='fight'||!dinos.includes(o)){d.st='wander';d.opp=null;continue}
+const l=Math.hypot(o.x-d.x,o.y-d.y);if(l>1.6)step(d,o.x,o.y,d.spd*1.5,dt);
+else{d.cd-=dt;if(d.cd<=0){d.cd=.9;o.hp-=d.atk*(.6+R()*.8);fx.push({x:(o.x+d.x)/2,y:(o.y+d.y)/2,w:1,txt:'💥',t:.5});
+if(o.hp<=o.max*.25){o.st='flee';o.ex=true;o.opp=null;d.st='wander';d.opp=null;d.hp=Math.min(d.max,d.hp+d.max*.2);o.tm=0;
+if(d.mine&&!o.mine){say(W/2,H*.3,'Victory! +'+(4+o.lv*3)+' XP','#8ff');gain(d.rec,4+o.lv*3);d.hp=Math.max(d.hp,d.max*.3)}
+else if(o.mine)say(W/2,H*.3,'Partner fell back','#ffb199')}}}}
+else if(d.st=='flee'){d.tm+=dt;const a=Math.atan2(d.x,d.y);step(d,Math.sin(a)*17,Math.cos(a)*17,d.spd*1.2,dt);if(!d.mine){d.hp=Math.min(d.max,d.hp+d.max*.03*dt);if(d.tm>9&&d.hp>d.max*.5){d.st='wander';d.ex=false}}}
+if(!d.mine){const l=Math.hypot(d.x,d.y);if(l<3.5){d.x*=3.5/l;d.y*=3.5/l}}}
+for(const f of flights)f.t+=dt/.4;
+for(let i=flights.length-1;i>=0;i--)if(flights[i].t>=1){land(flights[i]);flights.splice(i,1)}
+for(const f of fx)f.t-=dt;fx=fx.filter(f=>f.t>0)}
+function draw(){
+const hy=H*.42,k=H/700,F=W*.75;
+let g=ctx.createLinearGradient(0,0,0,hy);g.addColorStop(0,'#2b4a63');g.addColorStop(1,'#f0a560');ctx.fillStyle=g;ctx.fillRect(0,0,W,hy);
+g=ctx.createLinearGradient(0,hy,0,H);g.addColorStop(0,'#6b7a3a');g.addColorStop(1,'#243818');ctx.fillStyle=g;ctx.fillRect(0,hy,W,H-hy);
+ctx.fillStyle='#3a4a52';ctx.beginPath();ctx.moveTo(0,hy);for(let x=0;x<=W;x+=20){const a=yaw+Math.atan((x-W/2)/F);ctx.lineTo(x,hy-30*k-22*k*Math.sin(a*5)-12*k*Math.sin(a*13))}ctx.lineTo(W,hy);ctx.fill();
+ctx.textAlign='center';ctx.textBaseline='middle';
+const vis=[];
+for(const d of dinos){d.box=null;const ang=norm(Math.atan2(d.x,d.y)-yaw),z=Math.hypot(d.x,d.y)*Math.cos(ang);
+if(Math.abs(ang)>1.25||z<.8)continue;vis.push({d,ang,z})}
+vis.sort((a,b)=>b.z-a.z);
+for(const{d,ang,z}of vis){const px=T[d.k].s*10/z*k,sx=W/2+Math.tan(ang)*F,fy=hy+320*k/z,sy=fy-px*.45;
+d.box={x:sx,y:sy,r:px*.6};
+ctx.fillStyle='#0005';ctx.beginPath();ctx.ellipse(sx,fy,px*.5,px*.12,0,0,TAU);ctx.fill();
+if(d.mine){ctx.strokeStyle='#6fe3ff';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(sx,fy,px*.55,px*.16,0,0,TAU);ctx.stroke()}
+const sh=d.st=='fight'?Math.sin(performance.now()/40)*px*.05:0;
+ctx.font=px+'px serif';ctx.globalAlpha=d.ex?.7:1;ctx.fillText(T[d.k].e,sx+sh,sy);ctx.globalAlpha=1;
+const bw=px*.8,by=sy-px*.62;ctx.fillStyle='#000a';ctx.fillRect(sx-bw/2,by,bw,5*k);ctx.fillStyle=d.hp/d.max>.5?'#7ddc6a':d.hp/d.max>.25?'#ffd24a':'#ff5a4a';ctx.fillRect(sx-bw/2,by,bw*Math.max(0,d.hp/d.max),5*k);
+ctx.font='bold '+Math.max(10,px*.22)+'px sans-serif';ctx.fillStyle=d.mine?'#8ff':'#fff';ctx.fillText('Lv'+d.lv,sx,by-px*.12);
+if(d.st=='fight'){ctx.font=px*.35+'px serif';ctx.fillText('⚔️',sx+bw*.6,by)}
+if(d.ex){ctx.font=px*.3+'px serif';ctx.fillText('💫',sx-bw*.6,by)}}
+for(const q of fx){if(q.w){const ang=norm(Math.atan2(q.x,q.y)-yaw),z=Math.hypot(q.x,q.y)*Math.cos(ang);if(Math.abs(ang)>1.25||z<.8)continue;ctx.font=40*k+'px serif';ctx.fillText(q.txt,W/2+Math.tan(ang)*F,hy+320*k/z-30*k)}
+else{ctx.font='bold '+20*k+'px Trebuchet MS,sans-serif';ctx.fillStyle=q.col;ctx.globalAlpha=Math.min(1,q.t*2);ctx.fillText(q.txt,q.x,q.y-(1.4-q.t)*40);ctx.globalAlpha=1}}
+for(const b of flights){const t=b.t,x=b.sx+(b.ex-b.sx)*t,y=b.sy+(b.ey-b.sy)*t-Math.sin(t*Math.PI)*90*k,r=(30-18*t)*k;
+if(b.m==1){ctx.fillStyle='#e33';ctx.beginPath();ctx.arc(x,y,r,Math.PI,0);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,y,r,0,Math.PI);ctx.fill();ctx.fillStyle='#222';ctx.beginPath();ctx.arc(x,y,r*.3,0,TAU);ctx.fill()}
+else{ctx.fillStyle='#8a8378';ctx.beginPath();ctx.arc(x,y,r*.8,0,TAU);ctx.fill()}}
+for(const d of dinos)if(d.st=='fight'&&!d.box){const a=norm(Math.atan2(d.x,d.y)-yaw);ctx.font=28*k+'px serif';ctx.fillText('⚔️',a>0?W-34:34,hy-60*k);ctx.font=14*k+'px sans-serif';ctx.fillStyle='#fff';ctx.fillText(a>0?'▶':'◀',a>0?W-34:34,hy-34*k)}
+const over=hitAt(mx,my);ctx.strokeStyle=over?'#ffe27a':'#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(mx,my,16,0,TAU);ctx.moveTo(mx-24,my);ctx.lineTo(mx-8,my);ctx.moveTo(mx+8,my);ctx.lineTo(mx+24,my);ctx.moveTo(mx,my-24);ctx.lineTo(mx,my-8);ctx.moveTo(mx,my+8);ctx.lineTo(mx,my+24);ctx.stroke();
+if(over&&!over.mine){ctx.font='bold '+16*k+'px Trebuchet MS,sans-serif';ctx.fillStyle='#ffe27a';ctx.fillText(T[over.k].n+' Lv'+over.lv+(mode==1?' · catch '+Math.round(chance(over)*100)+'%':mode==3?' · send partner':''),mx,my-34)}
+ctx.textAlign='left';ctx.font='bold '+18*k+'px Trebuchet MS,sans-serif';ctx.fillStyle='#fff';
+ctx.fillText('Team '+team.length+'   Species '+seen.size+'/'+names.length,16,24);
+ctx.textAlign='right';ctx.fillText('Balls '+'●'.repeat(balls)+'○'.repeat(Math.max(0,10-balls)),W-16,24)}
+let last=performance.now();
+(function loop(n){const dt=Math.min(.05,(n-last)/1000);last=n;if(started)update(dt);draw();requestAnimationFrame(loop)})(last);
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

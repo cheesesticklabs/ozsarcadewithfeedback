@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marceline: Rise of the Vampire Queen</title>
+<style>
+:root {
+  --site-primary: #5b2a86;
+  --site-on-primary: #ffffff;
+  --site-secondary: #18233f;
+  --site-on-secondary: #f5edff;
+  --site-background: #100d1b;
+  --site-on-background: #f8f2ff;
+  --site-font-body: ui-sans-serif, system-ui, sans-serif;
+  --site-font-heading: ui-rounded, system-ui, sans-serif;
+  --site-heading-scale: 1;
+  --site-spacing-scale: 1;
+  --site-radius-scale: 1;
+  --site-decoration-opacity: 1;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: var(--site-font-body); background: var(--site-background); color: var(--site-on-background); }
+#app { min-height: 100vh; width: 100%; background-color: var(--site-background); color: var(--site-on-background); overflow: hidden; position: relative; }
+header { padding: calc(24px * var(--site-spacing-scale)) clamp(16px, 4vw, 44px); background: var(--site-secondary); border-bottom: 1px solid #51446c; display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+.brand { display:flex; align-items:center; gap:12px; }
+.brand-mark { width:44px; height:44px; border-radius:50%; background:var(--site-primary); display:grid; place-items:center; font-size:24px; border:2px solid #d7b7ff; }
+h1,h2,h3 { font-family:var(--site-font-heading); }
+h1 { margin:0; font-size:calc(clamp(22px, 3vw, 34px) * var(--site-heading-scale)); letter-spacing:.02em; }
+.subtitle { color:#cbb9e6; font-size:13px; margin-top:3px; }
+.pill { border:1px solid #7f66a0; background:#261b3b; padding:8px 12px; border-radius:999px; font-size:12px; color:#eee2ff; }
+main { max-width:1100px; margin:0 auto; padding:calc(22px * var(--site-spacing-scale)) clamp(14px, 3vw, 30px) 42px; }
+.intro { display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap; margin-bottom:20px; }
+.kicker { color:#c8a0ff; text-transform:uppercase; letter-spacing:.16em; font-weight:800; font-size:11px; }
+.intro h2 { margin:5px 0 8px; font-size:calc(26px * var(--site-heading-scale)); }
+.intro p { margin:0; color:#c9c1d7; max-width:590px; line-height:1.55; font-size:14px; }
+.stats { display:flex; gap:10px; }
+.stat { background:#201a30; border:1px solid #443458; border-radius:calc(14px * var(--site-radius-scale)); padding:10px 14px; min-width:88px; }
+.stat small { display:block; color:#b9a9ce; font-size:10px; text-transform:uppercase; letter-spacing:.1em; }
+.stat strong { font-size:22px; }
+.game-layout { display:grid; grid-template-columns:minmax(0,1.55fr) minmax(245px,.8fr); gap:18px; align-items:start; }
+.scene { background:linear-gradient(180deg,#1d1830,#11101e); border:1px solid #59436e; border-radius:calc(18px * var(--site-radius-scale)); overflow:hidden; box-shadow:0 18px 50px #0005; }
+.scene-top { display:flex; justify-content:space-between; padding:14px 16px; align-items:center; border-bottom:1px solid #443451; }
+.scene-top strong { font-size:13px; }
+.scene-top span { color:#bba6d5; font-size:11px; }
+#art { width:100%; display:block; background:#151328; }
+.scene-bottom { padding:16px; }
+.message { min-height:46px; color:#e4d9f2; font-size:14px; line-height:1.5; margin-bottom:14px; }
+.controls { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+button { border:1px solid #70568f; background:#302044; color:#fff; padding:11px 10px; border-radius:10px; font:inherit; font-weight:700; cursor:pointer; transition:transform .12s,background .12s; }
+button:hover { background:#493060; transform:translateY(-1px); }
+button:focus-visible { outline:3px solid #e6c8ff; outline-offset:2px; }
+button.primary { background:var(--site-primary); border-color:#bd8aff; }
+button:disabled { opacity:.4; cursor:not-allowed; transform:none; }
+.side { display:grid; gap:14px; }
+.panel { background:#1b1729; border:1px solid #463654; border-radius:calc(16px * var(--site-radius-scale)); padding:16px; }
+.panel h3 { margin:0 0 12px; font-size:16px; }
+.objective { display:flex; gap:10px; align-items:flex-start; color:#d9cfe6; font-size:13px; line-height:1.45; }
+.objective b { color:#fff; display:block; margin-bottom:3px; }
+.dot { flex:none; width:30px;height:30px;border-radius:9px;background:#352446;display:grid;place-items:center; }
+.meter-label { display:flex; justify-content:space-between; font-size:12px; margin:14px 0 7px; color:#c9b9dc; }
+.meter { height:8px; border-radius:99px; background:#393047; overflow:hidden; }
+.meter div { height:100%; width:100%; background:linear-gradient(90deg,#b88cff,#ff739e); transition:width .2s; }
+.log { font-size:12px; color:#c6b9d4; line-height:1.55; max-height:160px; overflow:auto; }
+.log p { margin:7px 0; padding-bottom:7px; border-bottom:1px solid #342b42; }
+.help { font-size:12px; color:#a99bbd; line-height:1.55; }
+.overlay { display:none; position:absolute; inset:0; background:#080611eF; z-index:5; align-items:center; justify-content:center; padding:20px; }
+.overlay.show { display:flex; }
+.modal { max-width:430px; width:100%; padding:28px; text-align:center; background:#20172e; border:1px solid #9d75c1; border-radius:20px; box-shadow:0 20px 80px #0009; }
+.modal .emoji { font-size:46px; }
+.modal h2 { margin:8px 0; font-size:28px; }
+.modal p { color:#d3c4e3; line-height:1.6; font-size:14px; }
+.modal button { width:100%; margin-top:8px; }
+footer { text-align:center; color:#847796; font-size:11px; padding:0 12px 24px; }
+@media(max-width:760px) { .game-layout {grid-template-columns:1fr;} .side {grid-template-columns:1fr 1fr;} .side .panel:last-child {grid-column:1/-1;} .stats {width:100%;} .stat {flex:1;} }
+@media(max-width:480px) { .side {grid-template-columns:1fr;} .side .panel:last-child {grid-column:auto;} .controls button {font-size:12px;padding:10px 4px;} .scene-bottom {padding:12px;} }
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="brand"><div class="brand-mark">🦇</div><div><h1>MARCELINE: RISE OF THE VAMPIRE QUEEN</h1><div class="subtitle">A story game inspired by Adventure Time's Stakes</div></div></div>
+  <div class="pill">🌘 BEFORE THE CROWN · STORY MODE</div>
+</header>
+<main>
+  <div class="intro">
+    <div><div class="kicker">Her origin story</div><h2>Before she became the Queen.</h2><p>Play through Marceline's fight against the Vampire King. Protect survivors, make choices, and discover how a brave half-demon became the Vampire Queen. This is a playful retelling of the show's story.</p></div>
+    <div class="stats"><div class="stat"><small>Story</small><strong id="score">1 / 4</strong></div><div class="stat"><small>Resolve</small><strong id="hearts">♥ ♥ ♥</strong></div><div class="stat"><small>Allies</small><strong id="notes">0</strong></div></div>
+  </div>
+  <div class="game-layout">
+    <section class="scene">
+      <div class="scene-top"><strong id="location">THE WORLD AFTER THE MUSHROOM WAR</strong><span id="turn">CHAPTER 1</span></div>
+      <svg id="art" viewBox="0 0 640 350" role="img" aria-label="A moonlit forest where young Marceline faces the vampire threat">
+        <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#17142f"/><stop offset="1" stop-color="#342347"/></linearGradient></defs>
+        <rect width="640" height="350" fill="url(#sky)"/>
+        <circle cx="505" cy="66" r="36" fill="#f5e9c5"/><circle cx="519" cy="54" r="34" fill="#17142f"/>
+        <g fill="#e5d8ff"><circle cx="66" cy="45" r="2"/><circle cx="155" cy="83" r="1.8"/><circle cx="284" cy="37" r="2"/><circle cx="405" cy="108" r="1.6"/><circle cx="583" cy="135" r="2"/><circle cx="346" cy="74" r="1.4"/></g>
+        <path d="M0 210 L50 135 90 210 130 118 180 220 235 150 280 220 325 130 370 220 420 158 460 220 520 125 568 220 610 150 640 205 V350 H0Z" fill="#211b38"/>
+        <path d="M0 265 Q140 210 260 270 T640 245 V350 H0Z" fill="#171626"/>
+        <g stroke="#0b0b17" stroke-width="16" stroke-linecap="round"><path d="M60 0 L55 190"/><path d="M582 0 L590 200"/><path d="M120 25 L120 165"/><path d="M535 20 L520 160"/></g>
+        <g fill="#100f1c"><path d="M24 90 L55 25 83 92Z"/><path d="M83 130 L120 42 151 130Z"/><path d="M540 95 L582 8 620 95Z"/><path d="M490 137 L520 61 555 137Z"/></g>
+        <g id="noteObjects"></g><g id="vampireObjects"></g>
+        <g id="hero" transform="translate(300 214)">
+          <ellipse cx="0" cy="103" rx="30" ry="7" fill="#090913" opacity=".7"/>
+          <path d="M-18 38 L-25 94 L-8 94 L0 57 L9 94 L25 94 L17 38Z" fill="#292438"/>
+          <path d="M-23 23 Q-38 50 -30 85 L-17 85 L-9 43 L7 43 L17 85 L31 85 Q35 51 20 23Z" fill="#16121e"/>
+          <path d="M-18 24 L-10 47 L0 39 L10 47 L20 24 L11 16 L-11 16Z" fill="#b53f68"/>
+          <path d="M-21 0 Q-25 -28 0 -30 Q25 -28 21 0 L17 19 L-17 19Z" fill="#e7c7b7"/>
+          <path d="M-24 -3 Q-29 -36 -3 -38 Q22 -40 25 -9 L16 -19 L7 -7 L-1 -20 L-13 -7Z" fill="#111019"/>
+          <path d="M-17 -1 L-7 2 L-12 8Z M17 -1 L7 2 L12 8Z" fill="#e8e0ff"/>
+          <path d="M-10 13 Q0 19 10 13" stroke="#8d3c59" stroke-width="2" fill="none"/>
+          <path d="M-21 28 L-43 55 L-36 60 L-12 43 M20 28 L38 50 L32 56 L10 43" fill="none" stroke="#e7c7b7" stroke-width="8" stroke-linecap="round"/>
+          <path d="M31 52 L46 39" stroke="#b7a5d4" stroke-width="5" stroke-linecap="round"/>
+          <path d="M-35 58 L-41 67" stroke="#d4c7e8" stroke-width="3" stroke-linecap="round"/>
+        </g>
+        <text x="300" y="334" text-anchor="middle" fill="#bba9d1" font-size="12" font-family="system-ui">MARCELINE · THE VAMPIRE QUEEN</text>
+      </svg>
+      <div class="scene-bottom">
+        <div class="message" id="message" aria-live="polite">The world is broken after the Mushroom War. Marceline is trying to survive when vampires begin hunting the living. What will she do?</div>
+        <div class="controls">
+          <button id="hunt" class="primary">⚔️ Stand and fight</button><button id="listen">🫶 Help survivors</button><button id="move">🌲 Move forward</button>
+        </div>
+      </div>
+    </section>
+    <aside class="side">
+      <section class="panel">
+        <h3>📜 Story goals</h3>
+        <div class="objective"><div class="dot">🛡️</div><div><b>Protect the living</b><span>Keep your resolve as the vampire threat grows.</span></div></div>
+        <div class="objective" style="margin-top:13px"><div class="dot">🦇</div><div><b>Face the Vampire King</b><span>Reach the final chapter to learn how Marceline became a vampire.</span></div></div>
+        <div class="meter-label"><span>Vampires found</span><span id="progressText">0%</span></div><div class="meter"><div id="progress"></div></div>
+      </section>
+      <section class="panel">
+        <h3>📖 Story journal</h3><div class="log" id="log"><p>🌙 The world has changed. Marceline's story begins.</p></div>
+      </section>
+      <section class="panel">
+        <h3>🎮 How to play</h3><div class="help">• Choose how Marceline responds to each chapter.<br>• <b>Help survivors</b> to gain allies and restore resolve.<br>• <b>Stand and fight</b> when danger arrives.<br><br>Your choices lead to the final confrontation with the Vampire King.</div>
+      </section>
+    </aside>
+  </div>
+</main>
+<footer>Fan-made story game inspired by Adventure Time: Stakes. Spooky adventure, no graphic violence.</footer>
+<div class="overlay" id="overlay"><div class="modal"><div class="emoji" id="endEmoji">🎸</div><h2 id="endTitle">Night cleared!</h2><p id="endText"></p><button class="primary" id="restart">Play again</button></div></div>
+</div>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let caught=0, hearts=3, notes=0, turn=1, clue=false, ended=false, zone=0;
+  const vampires=[
+    {x:160,y:218,found:false,label:"Cave lurker"},
+    {x:450,y:240,found:false,label:"Moonshade"},
+    {x:220,y:164,found:false,label:"Branch creeper"},
+    {x:515,y:195,found:false,label:"Night flutter"},
+    {x:390,y:255,found:false,label:"Ruins stalker"}
+  ];
+  const noteSpots=[{x:115,y:274,found:false},{x:470,y:287,found:false},{x:355,y:190,found:false}];
+  const NS="http://www.w3.org/2000/svg";
+  function svg(tag,attrs){const e=document.createElementNS(NS,tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));return e;}
+  function drawObjects(){
+    const vg=$("vampireObjects"), ng=$("noteObjects"); vg.replaceChildren();ng.replaceChildren();
+    vampires.forEach((v,i)=>{if(v.found)return;
+      const g=svg("g",{transform:`translate(${v.x} ${v.y})`,"opacity":".95"});
+      g.append(svg("ellipse",{cx:0,cy:28,rx:19,ry:5,fill:"#090812",opacity:".6"}));
+      g.append(svg("path",{d:"M-12 5 L-27 -8 L-23 17 L-10 20 L0 14 L10 20 L23 17 L27 -8 L12 5 L0 0Z",fill:"#5b2d78",stroke:"#a879d5","stroke-width":"1.5"}));
+      g.append(svg("path",{d:"M-12 -5 Q-13 -21 0 -22 Q13 -21 12 -5 L9 9 L-9 9Z",fill:"#bda7d6"}));
+      g.append(svg("path",{d:"M-10 -7 L-3 -4 L-8 0Z M10 -7 L3 -4 L8 0Z",fill:"#ff6b9c"}));
+      g.append(svg("path",{d:"M-5 6 L-2 12 L0 7 L2 12 L5 6",fill:"#fff0fb"}));
+      g.append(svg("text",{x:0,y:-29,"text-anchor":"middle",fill:"#e6d2ff","font-size":"10","font-family":"system-ui"}).appendChild(document.createTextNode("?")));
+      vg.append(g);
+    });
+    noteSpots.forEach(n=>{if(n.found)return;const g=svg("g",{transform:`translate(${n.x} ${n.y})`});
+      g.append(svg("circle",{cx:0,cy:0,r:10,fill:"#f4cf75",opacity:".2"}));
+      g.append(svg("text",{x:0,y:5,"text-anchor":"middle",fill:"#ffe7a1","font-size":"18","font-family":"system-ui"}).appendChild(document.createTextNode("♪")));
+      ng.append(g);
+    });
+  }
+  function update(){
+    $("score").textContent=`${caught} / 5`; $("hearts").textContent=hearts?("♥ ".repeat(hearts)).trim():"♡";
+    $("notes").textContent=notes; $("turn").textContent=`TURN ${turn}`;
+    $("progressText").textContent=`${caught*20}%`; $("progress").style.width=`${caught*20}%`;
+    $("hunt").disabled=ended;$("listen").disabled=ended;$("move").disabled=ended;
+    drawObjects();
+  }
+  function log(msg){const p=document.createElement("p");p.textContent=msg;$("log").prepend(p);}
+  function say(msg){$("message").textContent=msg;}
+  function next(){turn++;if(turn>20 && !ended){hearts--;turn=1;log("🌘 The night grows colder. You lose a heart.");say("The shadows are closing in. Keep moving!");if(hearts<=0)finish(false);}update();}
+  function finish(win){
+    ended=true; $("endEmoji").textContent=win?"🎸":"🌑";$("endTitle").textContent=win?"The night is yours!":"The forest goes quiet...";
+    $("endText").textContent=win?`Amazing hunting! Marceline found all five vampires and collected ${notes} music notes. Ooo is safe until the next moonrise.`:"Marceline needs a breather. The vampires slipped back into the shadows — try another hunt and use Listen to get clues.";
+    $("overlay").classList.add("show");update();
+  }
+  $("hunt").addEventListener("click",()=>{
+    if(ended)return;const hidden=vampires.filter(v=>!v.found);
+    if(!hidden.length){finish(true);return;}
+    const chance=clue?.82:.52;
+    if(Math.random()<chance){
+      const v=hidden[Math.floor(Math.random()*hidden.length)];v.found=true;caught++;clue=false;
+      say(`Gotcha! Marceline outsmarted a vampire — ${v.label}. ${caught===5?"The clearing is safe!":"Keep hunting, there are more in the trees."}`);
+      log(`🦇 Vampire tagged: ${v.label}.`);if(caught===5){update();finish(true);return;}
+    }else{
+      hearts--;clue=false;say("A vampire dodges into the mist! Marceline loses a heart, but she's still in the hunt.");log("🌫️ A vampire escaped and drained one heart.");
+      if(hearts<=0){update();finish(false);return;}
+    }next();
+  });
+  $("listen").addEventListener("click",()=>{
+    if(ended)return;turn++;
+    const hidden=noteSpots.filter(n=>!n.found);
+    if(hidden.length && Math.random()<.78){hidden[0].found=true;notes++;say("Marceline hears a strange rhythm in the trees and finds a glowing music note! The vampire sounds are clearer now.");log("🎵 Found a night note. Listen closely!");}
+    else {clue=true;say("Marceline plucks a low bass note. You hear fluttering to the east — your next hunt has a better chance!");log("🎶 Bass clue found. Your next Hunt is boosted.");}
+    update();
+  });
+  $("move").addEventListener("click",()=>{
+    if(ended)return;turn++;zone=(zone+1)%3;
+    const names=["THE HAUNTED CLEARING","THE THORNWOOD PATH","THE MOONLIT RUINS"];
+    $("location").textContent=names[zone];
+    if(hearts<3 && Math.random()<.55){hearts++;say("Marceline finds a glowing berry and regains a heart.");log("💜 A little magic restored one heart.");}
+    else {say(["Branches creak as Marceline drifts deeper into the forest.","A ruined tower rises ahead. Something flaps behind the stones.","Silver mist curls around the path. The hunt continues!"][zone]);log("🌲 Marceline explored a new part of the forest.");}
+    clue=false;update();
+  });
+  $("restart").addEventListener("click",()=>{
+    caught=0;hearts=3;notes=0;turn=1;clue=false;ended=false;zone=0;
+    vampires.forEach(v=>v.found=false);noteSpots.forEach(n=>n.found=false);
+    $("location").textContent="THE HAUNTED CLEARING";$("log").replaceChildren();
+    log("🌙 The moon is up. The hunt begins.");say("A chilly wind rattles the trees. A vampire is hiding nearby. Choose your move!");
+    $("overlay").classList.remove("show");update();
+  });
+  update();
+})();
+/* Story-mode controller: overrides the original hunt buttons with the origin story. */
+(() => {
+  const $ = id => document.getElementById(id);
+  const chapters = [
+    {place:"THE WORLD AFTER THE MUSHROOM WAR", story:"The Mushroom War has left the world changed. Young Marceline travels through the ruins, trying to survive. Strange shapes move in the distance.", fight:"Investigate the threat", help:"Look for survivors", move:"Continue onward"},
+    {place:"THE VAMPIRES DESCEND", story:"Vampires are preying on the remaining humans. Marceline refuses to abandon them. Her half-demon heritage gives her unusual strength, but the vampires are dangerous.", fight:"Drive them back", help:"Lead people to safety", move:"Track their leader"},
+    {place:"THE VAMPIRE KING'S DOMAIN", story:"Marceline confronts the Vampire King. The fight is fierce, and he bites her. She is frightened, but she refuses to let him control what happens next.", fight:"Fight back bravely", help:"Remember your purpose", move:"Make your final move"},
+    {place:"THE BIRTH OF THE VAMPIRE QUEEN", story:"In the show's story, Marceline ultimately defeats the Vampire King and drinks his blood, gaining his vampiric powers. She survives the transformation—and becomes the Vampire Queen. Her story is not over; this is the beginning of her legend.", fight:"Accept your power", help:"Protect the survivors", move:"Begin a new chapter"}
+  ];
+  let chapter=0, hearts=3, allies=0, ended=false;
+  const log = msg => { const p=document.createElement("p"); p.textContent=msg; $("log").prepend(p); };
+  function render(){
+    const c=chapters[chapter];
+    $("score").textContent=`${chapter+1} / 4`;
+    $("hearts").textContent=hearts?Array(hearts).fill("♥").join(" "):"♡";
+    $("notes").textContent=allies;
+    $("turn").textContent=`CHAPTER ${chapter+1}`;
+    $("location").textContent=c.place;
+    $("progressText").textContent=`${chapter*25}%`;
+    $("progress").style.width=`${chapter*25}%`;
+    $("message").textContent=c.story;
+    $("hunt").textContent="⚔️ "+c.fight; $("listen").textContent="🫶 "+c.help; $("move").textContent="🌲 "+c.move;
+    ["hunt","listen","move"].forEach(id=>$(id).disabled=ended);
+  }
+  function choose(action){
+    if(ended)return;
+    if(action==="help"){allies++;hearts=Math.min(3,hearts+1);log("🫶 Marceline helped survivors. Her resolve grows.");}
+    if(action==="fight"){hearts=Math.max(1,hearts-1);log("⚔️ Marceline stands her ground against the vampire threat.");}
+    if(action==="move")log("🌲 Marceline presses on toward the Vampire King's lair.");
+    if(chapter===2 && action==="fight"){
+      $("message").textContent="The Vampire King bites Marceline during the battle. She staggers, but keeps going. The final chapter is ahead.";
+      log("🦇 The Vampire King bites Marceline. The transformation has begun.");
+    }
+    if(chapter<3){chapter++;render();return;}
+    ended=true;
+    $("endEmoji").textContent="🦇"; $("endTitle").textContent="The Vampire Queen is born!";
+    $("endText").textContent=`You played through Marceline's origin story, helping ${allies} group${allies===1?"":"s"} of survivors. In the show, Marceline becomes the Vampire Queen after defeating the Vampire King and drinking his blood.`;
+    $("overlay").classList.add("show");render();
+  }
+  [["hunt","fight"],["listen","help"],["move","move"]].forEach(([id,action])=>$(id).addEventListener("click",e=>{e.stopImmediatePropagation();choose(action);},true));
+  $("restart").addEventListener("click",()=>{
+    chapter=0;hearts=3;allies=0;ended=false;$("log").replaceChildren();
+    log("🌙 The world has changed. Marceline's story begins.");$("overlay").classList.remove("show");render();
+  },true);
+  render();
+})();
+</script>
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body>
+</html>

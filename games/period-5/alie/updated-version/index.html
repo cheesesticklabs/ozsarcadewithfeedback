@@ -1,0 +1,939 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Escape Mr Pino</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Work+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: title row, status chips, one first-person game stage with overlays, touch buttons below. After-hours school look, single theme by choice. */
+:root {
+  --ink: #14172a;
+  --panel: #1f2340;
+  --line: #343a63;
+  --paper: #efe9d6;
+  --muted: #a7abc9;
+  --pass: #f4c542;
+  --alert: #ef5b45;
+  --go: #4cc38a;
+  --font-display: 'Bowlby One SC', Impact, 'Arial Black', sans-serif;
+  --font-body: 'Work Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-body);
+  font-size: 15px;
+  padding-block: 20px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(26px, 5vw, 38px); margin: 0; line-height: 1; text-wrap: balance; }
+h1 span { color: var(--alert); }
+.sub { color: var(--muted); font-size: 13px; margin: 0; }
+.hud { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { background: var(--panel); border: 1px solid var(--line); padding: 6px 10px; border-radius: 6px; font-weight: 600; font-size: 13px; font-variant-numeric: tabular-nums; display: flex; gap: 8px; align-items: center; min-width: 0; }
+.chip b { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }
+.chip.alert { border-color: var(--alert); color: var(--alert); }
+.chip.alert b { color: var(--alert); }
+.stage { position: relative; width: 100%; aspect-ratio: 16 / 10; max-height: 72vh; background: #07080f; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; touch-action: none; }
+@media (max-width: 600px) { .stage { aspect-ratio: 3 / 4; max-height: 70vh; } }
+canvas { display: block; width: 100%; height: 100%; }
+.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(7, 8, 15, 0.88); text-align: center; overflow-y: auto; }
+.overlay[hidden] { display: none; }
+.card { max-width: 480px; display: flex; flex-direction: column; gap: 12px; align-items: center; margin: auto; }
+.card h2 { font-family: var(--font-display); font-weight: 400; font-size: clamp(24px, 5vw, 34px); margin: 0; line-height: 1.05; text-wrap: balance; }
+.card p { margin: 0; line-height: 1.45; font-size: 14px; }
+.card .muted { color: var(--muted); font-size: 13px; }
+.stat { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+.stat span b { color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; margin-right: 6px; }
+button { font: inherit; cursor: pointer; }
+button.primary { font-weight: 700; background: var(--pass); color: #1a1530; border: 0; padding: 10px 24px; border-radius: 6px; min-height: 44px; }
+button:focus-visible { outline: 3px solid var(--paper); outline-offset: 2px; }
+.controls { display: none; gap: 10px; }
+.controls button { flex: 1; min-height: 52px; background: var(--panel); color: var(--paper); border: 1px solid var(--line); border-radius: 8px; font-weight: 700; }
+.controls button[aria-pressed="true"] { background: var(--pass); color: #1a1530; border-color: var(--pass); }
+.touch { display: none; }
+@media (pointer: coarse) {
+  .controls { display: flex; }
+  .touch { display: block; }
+  .kbd { display: none; }
+}
+.help { color: var(--muted); font-size: 13px; line-height: 1.5; margin: 0; }
+</style>
+
+<div class="app">
+  <header>
+    <h1>Escape Mr <span>Pino</span></h1>
+    <p class="sub">The bell rang an hour ago. He is still walking the halls.</p>
+  </header>
+
+  <div class="hud">
+    <div class="chip"><b>Hall passes</b><span id="hPasses">0 / 3</span></div>
+    <div class="chip"><b>Floor</b><span id="hFloor">1F</span></div>
+    <div class="chip"><b>Time</b><span id="hTime">0:00</span></div>
+    <div class="chip" id="hPinoChip"><b>Mr Pino</b><span id="hPino">patrolling</span></div>
+    <div class="chip"><b>You</b><span id="hMode">walking</span></div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="cv"></canvas>
+
+    <div class="overlay" id="ovStart">
+      <div class="card">
+        <h2>Escape Mr Pino</h2>
+        <p>You are alone in a huge two-floor school after hours, and Mr Pino is hunting you. If he catches you, it is game over.</p>
+        <p>Collect the 3 hall passes (one is upstairs), then reach the green EXIT on the first floor. Hide in lockers when he cannot see you.</p>
+        <p><b>Watch for the red alert.</b> When the screen turns red you have 10 seconds to reach a green SAFE ROOM, on either floor.</p>
+        <p class="muted kbd">W A S D move. Mouse or the arrow keys look around (click the game for mouse look). Hold Shift to sneak. E or Space hides in a locker or takes the stairs.</p>
+        <p class="muted touch">Drag the left side of the screen to move and the right side to look. Use the buttons below to sneak and to hide or take stairs.</p>
+        <button class="primary" id="btnStart">Start</button>
+        <p class="muted" id="bestStart" hidden></p>
+      </div>
+    </div>
+
+    <div class="overlay" id="ovEnd" hidden>
+      <div class="card">
+        <h2 id="endTitle">Game over</h2>
+        <p id="endText"></p>
+        <div class="stat"><span><b>Time</b><span id="endTime">0:00</span></span><span><b>Passes</b><span id="endPasses">0 / 3</span></span><span><b>Best</b><span id="endBest">-</span></span></div>
+        <button class="primary" id="btnRetry">Try again</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btnSneak" aria-pressed="false">Sneak</button>
+    <button id="btnHide">Hide / Stairs</button>
+  </div>
+  <p class="help kbd">Move: W A S D. Look: mouse or arrow keys. Sneak: hold Shift (slower, but he spots you from less far away). Hide or take stairs: E or Space.</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Settings you can tweak ---------- */
+  var TEACHER = 'Mr Pino';
+  var LINES_SEE = ['Stop right there!', 'No running in the halls!', 'Get back here!', 'I see you!', 'You are not leaving!'];
+  var LINES_LOST = ['Hmm. Where did you go?', 'I know you are around here.', 'Come out, come out...'];
+  var LINES_IDLE = ['Hall passes, please.', 'Anyone out of class?', 'Hmm.', 'Phones away.'];
+  var WALK = 150, SNEAK = 80, PATROL = 50, CHASE = 100;
+  var PASSES_NEEDED = 3;
+  var ALERT_SECONDS = 10;
+
+  /* ---------- Map (two floors, same layout): big open spaces ---------- */
+  var T = 32, COLS = 64, ROWS = 44;
+  var FOV = Math.PI / 3;
+  var FONT = '"Work Sans", system-ui, sans-serif';
+  var map0 = [];
+  for (var yy = 0; yy < ROWS; yy++) { map0.push(new Array(COLS).fill(1)); }
+  function carve(x1, y1, x2, y2) { for (var y = y1; y <= y2; y++) for (var x = x1; x <= x2; x++) map0[y][x] = 0; }
+  function put(v, list) { list.forEach(function (p) { map0[p[1]][p[0]] = v; }); }
+  // big rooms: NW, library (N), NE / cafeteria (W), atrium (middle), gym (E) / SW, S, SE
+  carve(1, 1, 16, 10); carve(18, 1, 45, 10); carve(47, 1, 62, 10);
+  carve(1, 12, 16, 31); carve(18, 12, 45, 31); carve(47, 12, 62, 31);
+  carve(1, 33, 16, 42); carve(18, 33, 45, 42); carve(47, 33, 62, 42);
+  // wide doorways
+  [[7, 10], [29, 34], [53, 56]].forEach(function (d) { carve(d[0], 11, d[1], 11); carve(d[0], 32, d[1], 32); });
+  [[4, 7], [18, 23], [36, 39]].forEach(function (d) { carve(17, d[0], 17, d[1]); carve(46, d[0], 46, d[1]); });
+  // classroom desks (north and south corner rooms) and library shelves
+  [[1, 1], [47, 1], [1, 33], [47, 33]].forEach(function (r) {
+    [3, 6].forEach(function (dy) { [2, 3, 6, 7, 10, 11].forEach(function (dx) { map0[r[1] + dy][r[0] + dx] = 3; }); });
+  });
+  [[1, 3, 6], [33, 3, 6]].forEach(function (r) {
+    for (var c = 20; c <= 43; c++) { if (c >= 28 && c <= 35) continue; if (c % 4 > 1) continue; map0[r[0] + r[1]][c] = 3; map0[r[0] + r[2]][c] = 3; }
+  });
+  // cafeteria and gym tables
+  [15, 27].forEach(function (row) {
+    [4, 5, 8, 9, 12, 13, 49, 50, 53, 54, 57, 58].forEach(function (c) { map0[row][c] = 3; });
+  });
+  // pillars and a centre fountain in the atrium
+  put(1, [[23, 16], [23, 27], [40, 16], [40, 27], [31, 21], [32, 21], [31, 22], [32, 22]]);
+  // lockers (hiding spots)
+  put(4, [[3, 1], [4, 1], [5, 1], [22, 1], [23, 1], [40, 1], [41, 1], [50, 1], [51, 1], [58, 1],
+          [1, 14], [1, 15], [1, 28], [1, 29], [62, 14], [62, 15], [62, 28], [62, 29],
+          [18, 13], [18, 14], [18, 29], [18, 30], [45, 13], [45, 14], [45, 29], [45, 30],
+          [3, 42], [4, 42], [30, 42], [31, 42], [32, 42], [58, 42], [59, 42]]);
+  var STAIRS = [{ x: 24, y: 32 }, { x: 39, y: 32 }];          // two staircases in the atrium's south wall
+  var STAIRS_FRONT = [{ x: 24, y: 31 }, { x: 39, y: 31 }];    // where you arrive
+  STAIRS.forEach(function (s) { map0[s.y][s.x] = 5; });
+  var maps = [map0, map0.map(function (r) { return r.slice(); })];
+  map0[21][COLS - 1] = 2; map0[22][COLS - 1] = 2;     // exit on floor 1, east wall of the gym
+  var EXIT_ROWS = [21, 22];
+  var map = maps[0];
+
+  var lockers = [];
+  for (var ly = 0; ly < ROWS; ly++) for (var lx = 0; lx < COLS; lx++) if (map0[ly][lx] === 4) lockers.push({ x: lx, y: ly });
+
+  var PASS_POS = [{ f: 0, x: 14, y: 9 }, { f: 1, x: 31, y: 5 }, { f: 1, x: 60, y: 41 }];
+  // two safe rooms on each floor, in opposite corners
+  var SAFE = [
+    { f: 0, x1: 47, y1: 1, x2: 62, y2: 10, sx: 55 * T, sy: 11 * T + 16 },
+    { f: 0, x1: 1, y1: 33, x2: 16, y2: 42, sx: 9 * T, sy: 32 * T + 16 },
+    { f: 1, x1: 1, y1: 1, x2: 16, y2: 10, sx: 9 * T, sy: 11 * T + 16 },
+    { f: 1, x1: 47, y1: 33, x2: 62, y2: 42, sx: 55 * T, sy: 32 * T + 16 }
+  ];
+
+  var WAYPOINTS = [[20, 20], [26, 13], [26, 29], [36, 13], [36, 29], [43, 21], [31, 25], [28, 18], [35, 24],
+    [5, 9], [14, 9], [14, 2], [22, 9], [31, 5], [40, 9], [44, 2], [50, 9], [58, 9], [60, 3],
+    [3, 13], [8, 21], [12, 29], [60, 13], [55, 21], [52, 29],
+    [5, 41], [14, 41], [8, 34], [22, 41], [31, 35], [40, 41], [50, 41], [58, 38], [60, 35]];
+
+  /* ---------- State ---------- */
+  var P = { x: 0, y: 0, r: 9, ang: 0, floor: 0, hidden: null, prev: null, sneak: false, moving: false, bob: 0 };
+  var pino = null;
+  var passes = 0, passTaken = [false, false, false];
+  var time = 0, state = 'title', toastObj = null, nearSpot = null, sneakToggle = false;
+  var joyMove = null, joyLook = null, mouseDown = false;
+  var keys = {};
+  var alertS = { on: false, t: 0, next: 30 };
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+  function tileOf(v) { return Math.floor(v / T); }
+  function wrapA(a) { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function fmt(t) { var s = Math.floor(t); return Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+
+  function solidT(tx, ty, forPino) {
+    if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return true;
+    var v = map[ty][tx];
+    if (v === 1 || v === 3 || v === 4 || v === 5) return true;
+    if (v === 2) return forPino || passes < PASSES_NEEDED;
+    return false;
+  }
+  function collides(x, y, r, forPino) {
+    var o = r * 0.9;
+    return solidT(tileOf(x - o), tileOf(y - o), forPino) || solidT(tileOf(x + o), tileOf(y - o), forPino) ||
+           solidT(tileOf(x - o), tileOf(y + o), forPino) || solidT(tileOf(x + o), tileOf(y + o), forPino);
+  }
+  function tryMove(e, dx, dy, forPino) {
+    var nx = e.x + dx; if (!collides(nx, e.y, e.r || 10, forPino)) e.x = nx;
+    var ny = e.y + dy; if (!collides(e.x, ny, e.r || 10, forPino)) e.y = ny;
+  }
+  function blocksLOS(x, y) {
+    var tx = tileOf(x), ty = tileOf(y);
+    if (tx < 0 || ty < 0 || tx >= COLS || ty >= ROWS) return true;
+    var v = map[ty][tx];
+    return v === 1 || v === 4 || v === 2 || v === 5;
+  }
+  function hasLOS(ax, ay, bx, by) {
+    var d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 8);
+    for (var i = 1; i < n; i++) { var t = i / n; if (blocksLOS(ax + (bx - ax) * t, ay + (by - ay) * t)) return false; }
+    return true;
+  }
+  function clearPath(ax, ay, bx, by, w) {
+    var dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy) || 1, nx = -dy / d * w, ny = dx / d * w;
+    var n = Math.ceil(d / 8);
+    for (var o = -1; o <= 1; o++) {
+      for (var i = 1; i <= n; i++) {
+        var t = i / n;
+        if (solidT(tileOf(ax + nx * o + dx * t), tileOf(ay + ny * o + dy * t), true)) return false;
+      }
+    }
+    return true;
+  }
+
+  var D4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  function bfs(sx, sy, tx, ty) {
+    if (sx === tx && sy === ty) return [];
+    var start = sy * COLS + sx, tgt = ty * COLS + tx;
+    var prev = new Int16Array(COLS * ROWS).fill(-2);
+    var q = [start]; prev[start] = -1;
+    for (var i = 0; i < q.length; i++) {
+      var c = q[i]; if (c === tgt) break;
+      var cx = c % COLS, cy = (c / COLS) | 0;
+      for (var k = 0; k < 4; k++) {
+        var nx = cx + D4[k][0], ny = cy + D4[k][1];
+        if (solidT(nx, ny, true)) continue;
+        var n = ny * COLS + nx;
+        if (prev[n] !== -2) continue;
+        prev[n] = c; q.push(n);
+      }
+    }
+    if (prev[tgt] === -2) return [];
+    var path = [];
+    for (var c2 = tgt; c2 !== start; c2 = prev[c2]) path.push([c2 % COLS, (c2 / COLS) | 0]);
+    return path.reverse();
+  }
+
+  /* ---------- Reset / flow ---------- */
+  function reset() {
+    P.floor = 0; map = maps[0];
+    P.x = 4 * T + T / 2; P.y = 21 * T + T / 2; P.ang = 0; P.hidden = null; P.prev = null; P.sneak = false; P.bob = 0;
+    passes = 0; passTaken = [false, false, false]; time = 0; toastObj = null; joyMove = null; joyLook = null; nearSpot = null;
+    alertS.on = false; alertS.next = 25 + Math.random() * 20;
+    pino = { x: 36 * T + T / 2, y: 25 * T + T / 2, r: 10, floor: 0, face: Math.PI, state: 'patrol', path: [], wait: 1, t: 0, seeing: false,
+             last: { x: 0, y: 0 }, lose: 0, timer: 0, repath: 0, speech: '', speechT: 0, alert: 0, mutter: 6,
+             useStairs: false, stairsI: 0, followT: 0, followTo: 0, followStairs: 0 };
+    map = maps[pino.floor]; pickWaypoint(); map = maps[P.floor];
+  }
+  function startGame() {
+    reset();
+    state = 'play';
+    ovStart.hidden = true; ovEnd.hidden = true;
+    toast('Find ' + PASSES_NEEDED + ' hall passes, then reach the EXIT', 4);
+  }
+  function startFromClick() {
+    startGame();
+    try { var pr = cv.requestPointerLock && cv.requestPointerLock(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
+  }
+  function getBest() { try { var v = localStorage.getItem('escape-mr-pino-best'); return v ? parseFloat(v) : null; } catch (e) { return null; } }
+  function setBest(v) { try { localStorage.setItem('escape-mr-pino-best', String(v)); } catch (e) {} }
+  function endGame(win, reason) {
+    state = win ? 'won' : 'lost';
+    alertS.on = false;
+    var best = getBest();
+    if (win && (best === null || time < best)) { best = time; setBest(time); }
+    document.getElementById('endTitle').textContent = win ? 'Escaped!' : 'Game over';
+    document.getElementById('endText').textContent = win
+      ? 'Out the east doors with all ' + PASSES_NEEDED + ' hall passes. Class dismissed.'
+      : (reason === 'locker'
+        ? TEACHER + ' opened the locker. Hiding right where he last saw you does not work.'
+        : reason === 'red'
+          ? 'The red alert ran out before you reached a safe room.'
+          : TEACHER + ' caught you in the hall.');
+    document.getElementById('endTime').textContent = fmt(time);
+    document.getElementById('endPasses').textContent = passes + ' / ' + PASSES_NEEDED;
+    document.getElementById('endBest').textContent = best === null ? '-' : fmt(best);
+    document.getElementById('btnRetry').textContent = win ? 'Play again' : 'Try again';
+    try { if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock(); } catch (e) {}
+    ovEnd.hidden = false;
+  }
+  function toast(text, dur) { toastObj = { text: text, t: dur || 2.4 }; }
+  function say(text, dur) { pino.speech = text; pino.speechT = dur; }
+
+  /* ---------- Interact: lockers and stairs ---------- */
+  function lockerCx(s) { return s.x * T + T / 2; }
+  function lockerCy(s) { return s.y * T + T / 2; }
+  function leaveLocker() {
+    if (!P.hidden) return;
+    if (P.prev) { P.x = P.prev.x; P.y = P.prev.y; }
+    P.hidden = null; P.prev = null;
+  }
+  function interact() {
+    if (state !== 'play') return;
+    if (P.hidden) { leaveLocker(); return; }
+    if (!nearSpot) { toast('Get next to a locker or the stairs, then press E'); return; }
+    if (nearSpot.type === 'stairs') { takeStairs(nearSpot.i); return; }
+    if (pino.state === 'chase' && pino.seeing) { toast('He is watching you. Break his line of sight first!'); return; }
+    P.prev = { x: P.x, y: P.y };
+    P.hidden = nearSpot;
+    P.x = lockerCx(nearSpot); P.y = lockerCy(nearSpot);
+    P.ang = Math.atan2(P.prev.y - P.y, P.prev.x - P.x);
+    toast('Hidden. Press E to come out.', 2);
+  }
+  function takeStairs(i) {
+    var chasing = pino.state === 'chase' && pino.floor === P.floor && pino.seeing;
+    P.floor = 1 - P.floor; map = maps[P.floor];
+    P.x = STAIRS_FRONT[i].x * T + T / 2; P.y = STAIRS_FRONT[i].y * T + T / 2; P.ang = -Math.PI / 2;
+    if (chasing) { pino.followT = 2.2; pino.followTo = P.floor; pino.followStairs = i; pino.path = []; }
+    else if (P.floor === pino.floor) pino.followT = 0;
+    toast('Floor ' + (P.floor + 1), 1.6);
+  }
+
+  /* ---------- Pino ---------- */
+  function vis() {
+    var chase = pino.state === 'chase';
+    var range = P.sneak ? 150 : 270, half = 0.72, prox = P.sneak ? 28 : 48;
+    if (chase) { range *= 1.25; half = 1.05; prox *= 1.2; }
+    return { range: range, half: half, prox: prox };
+  }
+  function pinoSees(d) {
+    if (P.hidden || pino.floor !== P.floor) return false;
+    var v = vis();
+    if (d > v.range) return false;
+    if (!hasLOS(pino.x, pino.y, P.x, P.y)) return false;
+    if (d < v.prox) return true;
+    var a = Math.atan2(P.y - pino.y, P.x - pino.x);
+    return Math.abs(wrapA(a - pino.face)) < v.half;
+  }
+  function turnTo(target, rate, dt) {
+    var d = wrapA(target - pino.face), m = rate * dt;
+    pino.face = wrapA(pino.face + Math.max(-m, Math.min(m, d)));
+  }
+  function stepToward(x, y, speed, dt) {
+    var dx = x - pino.x, dy = y - pino.y, d = Math.hypot(dx, dy) || 1, st = Math.min(speed * dt, d);
+    tryMove(pino, dx / d * st, dy / d * st, true);
+    turnTo(Math.atan2(dy, dx), pino.state === 'chase' ? 9 : 5, dt);
+  }
+  function followPath(dt, speed) {
+    if (!pino.path.length) return true;
+    var p = pino.path[0], cx = p[0] * T + T / 2, cy = p[1] * T + T / 2;
+    if (Math.hypot(cx - pino.x, cy - pino.y) < 4) { pino.path.shift(); return pino.path.length === 0; }
+    stepToward(cx, cy, speed, dt);
+    return false;
+  }
+  function pickWaypoint() {
+    var w;
+    pino.useStairs = Math.random() < 0.14;
+    pino.stairsI = Math.floor(Math.random() * STAIRS.length);
+    w = pino.useStairs ? [STAIRS_FRONT[pino.stairsI].x, STAIRS_FRONT[pino.stairsI].y] : pick(WAYPOINTS);
+    pino.path = bfs(tileOf(pino.x), tileOf(pino.y), w[0], w[1]);
+    if (!pino.path.length) pino.useStairs = false;
+  }
+  function startSearch() {
+    pino.state = 'search'; pino.timer = 3.5; pino.path = [];
+    say(pick(LINES_LOST), 2.4);
+  }
+  function updatePino(dt) {
+    var pn = pino;
+    map = maps[pn.floor];
+    pn.t += dt; pn.speechT -= dt; pn.alert -= dt;
+    if (pn.followT > 0) {
+      pn.followT -= dt;
+      if (pn.followT <= 0) {
+        pn.floor = pn.followTo; pn.x = STAIRS_FRONT[pn.followStairs].x * T + T / 2; pn.y = STAIRS_FRONT[pn.followStairs].y * T + T / 2;
+        pn.state = 'search'; pn.timer = 2.5; pn.path = []; say('Upstairs, downstairs... I will find you!', 2.6);
+      }
+      return;
+    }
+    var same = pn.floor === P.floor;
+    var dist = same ? Math.hypot(P.x - pn.x, P.y - pn.y) : 1e9;
+    var sees = pinoSees(dist);
+    pn.seeing = sees;
+    if (sees) {
+      if (pn.state !== 'chase') { pn.state = 'chase'; pn.path = []; say(pick(LINES_SEE), 2.2); pn.alert = 1; }
+      pn.last.x = P.x; pn.last.y = P.y; pn.lose = 0;
+    }
+    if (pn.state === 'chase') {
+      if (!sees) pn.lose += dt;
+      var tgt = sees ? P : pn.last;
+      if (sees && clearPath(pn.x, pn.y, P.x, P.y, 9)) {
+        stepToward(P.x, P.y, CHASE, dt); pn.path = [];
+      } else {
+        pn.repath -= dt;
+        if (pn.repath <= 0 || !pn.path.length) {
+          pn.repath = 0.25;
+          pn.path = bfs(tileOf(pn.x), tileOf(pn.y), tileOf(tgt.x), tileOf(tgt.y));
+        }
+        if (pn.path.length) followPath(dt, CHASE); else stepToward(tgt.x, tgt.y, CHASE, dt);
+      }
+      if (!sees && Math.hypot(pn.last.x - pn.x, pn.last.y - pn.y) < 22) {
+        if (P.hidden && same && Math.hypot(lockerCx(P.hidden) - pn.last.x, lockerCy(P.hidden) - pn.last.y) < 90) { endGame(false, 'locker'); return; }
+        startSearch();
+      } else if (pn.lose > 6) { startSearch(); }
+    } else if (pn.state === 'search') {
+      pn.timer -= dt;
+      pn.face = wrapA(pn.face + Math.sin(pn.t * 3) * dt * 2.2);
+      if (P.hidden && same && Math.hypot(lockerCx(P.hidden) - pn.x, lockerCy(P.hidden) - pn.y) < 46) { endGame(false, 'locker'); return; }
+      if (pn.timer <= 0) { pn.state = 'patrol'; pn.wait = 0; pickWaypoint(); }
+    } else {
+      pn.mutter -= dt;
+      if (pn.mutter <= 0) { if (same) say(pick(LINES_IDLE), 2); pn.mutter = 9 + Math.random() * 9; }
+      if (pn.wait > 0) {
+        pn.wait -= dt;
+        pn.face = wrapA(pn.face + Math.sin(pn.t * 2.2) * dt * 1.3);
+        if (pn.wait <= 0) pickWaypoint();
+      } else if (followPath(dt, PATROL)) {
+        if (pn.useStairs) {
+          pn.useStairs = false; pn.floor = 1 - pn.floor;
+          pn.x = STAIRS_FRONT[pn.stairsI].x * T + T / 2; pn.y = STAIRS_FRONT[pn.stairsI].y * T + T / 2; pn.wait = 1.5;
+        } else pn.wait = 1.2;
+      }
+    }
+    if (same && !P.hidden && dist < 19 && hasLOS(pn.x, pn.y, P.x, P.y)) endGame(false, 'seen');
+  }
+
+  /* ---------- Red alert ---------- */
+  function inSafeRoom() {
+    for (var i = 0; i < SAFE.length; i++) {
+      var s = SAFE[i];
+      if (s.f === P.floor && P.x >= s.x1 * T && P.x < (s.x2 + 1) * T && P.y >= s.y1 * T && P.y < (s.y2 + 1) * T) return true;
+    }
+    return false;
+  }
+  function updateAlert(dt) {
+    if (alertS.on) {
+      alertS.t -= dt;
+      if (inSafeRoom()) { alertS.on = false; alertS.next = 35 + Math.random() * 30; toast('Safe! The red alert is over.', 2.8); }
+      else if (alertS.t <= 0) { endGame(false, 'red'); }
+    } else {
+      alertS.next -= dt;
+      if (alertS.next <= 0) {
+        if (inSafeRoom()) { alertS.next = 8; return; }
+        alertS.on = true; alertS.t = ALERT_SECONDS;
+        if (P.hidden) leaveLocker();
+        toast('RED ALERT! Reach a safe room in ' + ALERT_SECONDS + ' seconds!', 3);
+      }
+    }
+  }
+
+  /* ---------- Update ---------- */
+  function update(dt) {
+    if (state !== 'play') return;
+    time += dt;
+    map = maps[P.floor];
+    if (keys.ArrowLeft) P.ang -= 2.3 * dt;
+    if (keys.ArrowRight) P.ang += 2.3 * dt;
+    var mv = 0, st = 0;
+    if (keys.KeyW || keys.ArrowUp) mv += 1;
+    if (keys.KeyS || keys.ArrowDown) mv -= 1;
+    if (keys.KeyD) st += 1;
+    if (keys.KeyA) st -= 1;
+    if (joyMove) { mv = -joyMove.vy; st = joyMove.vx; }
+    var len = Math.hypot(mv, st);
+    if (len > 1) { mv /= len; st /= len; len = 1; }
+    P.sneak = !!(keys.ShiftLeft || keys.ShiftRight || sneakToggle);
+    P.moving = false;
+    if (!P.hidden && len > 0.05) {
+      var sp = P.sneak ? SNEAK : WALK, dx = Math.cos(P.ang), dy = Math.sin(P.ang);
+      tryMove(P, (dx * mv - dy * st) * sp * dt, (dy * mv + dx * st) * sp * dt, false);
+      P.moving = true; P.bob += dt * (P.sneak ? 6 : 10);
+    }
+    for (var i = 0; i < PASS_POS.length; i++) {
+      var pp = PASS_POS[i];
+      if (passTaken[i] || pp.f !== P.floor) continue;
+      if (Math.hypot(P.x - (pp.x * T + T / 2), P.y - (pp.y * T + T / 2)) < 24) {
+        passTaken[i] = true; passes++;
+        toast(passes === PASSES_NEEDED ? 'All passes found. Run for the EXIT on floor 1!' : 'Hall pass ' + passes + ' of ' + PASSES_NEEDED, 2.6);
+      }
+    }
+    var ptx = tileOf(P.x), pty = tileOf(P.y);
+    if (P.floor === 0 && map[pty] && map[pty][ptx] === 2) { endGame(true); return; }
+    if (P.floor === 0 && passes < PASSES_NEEDED && P.x > (COLS - 2) * T + 14 && pty >= 21 && pty <= 22 && (!toastObj || toastObj.t < 0.3)) toast('The exit is locked. Find all ' + PASSES_NEEDED + ' hall passes.', 2);
+    nearSpot = null;
+    if (!P.hidden) {
+      var best = 46;
+      for (var j = 0; j < lockers.length; j++) {
+        var d = Math.hypot(P.x - lockerCx(lockers[j]), P.y - lockerCy(lockers[j]));
+        if (d < best) { best = d; nearSpot = { type: 'locker', x: lockers[j].x, y: lockers[j].y }; }
+      }
+      for (var si2 = 0; si2 < STAIRS.length; si2++) {
+        var sd = Math.hypot(P.x - (STAIRS[si2].x * T + T / 2), P.y - (STAIRS[si2].y * T + T / 2));
+        if (sd < 54 && sd < best) { best = sd; nearSpot = { type: 'stairs', i: si2, x: STAIRS[si2].x, y: STAIRS[si2].y }; }
+      }
+    }
+    updateAlert(dt);
+    if (state !== 'play') return;
+    updatePino(dt);
+    map = maps[P.floor];
+    if (toastObj) { toastObj.t -= dt; if (toastObj.t <= 0) toastObj = null; }
+  }
+
+  /* ---------- Rendering setup ---------- */
+  var cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  var stage = document.getElementById('stage');
+  var ovStart = document.getElementById('ovStart'), ovEnd = document.getElementById('ovEnd');
+  var view = { w: 800, h: 500, dpr: 1 };
+
+  function resize() {
+    view.w = stage.clientWidth || 800; view.h = stage.clientHeight || 500;
+    view.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(view.w * view.dpr); cv.height = Math.round(view.h * view.dpr);
+  }
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(stage); else window.addEventListener('resize', resize);
+  resize();
+
+  function rr(g, x, y, w, h, r) { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); }
+
+  /* minimaps */
+  var mmaps = maps.map(function (mp) {
+    var c = document.createElement('canvas'); c.width = COLS; c.height = ROWS;
+    var m = c.getContext('2d');
+    for (var y = 0; y < ROWS; y++) for (var x = 0; x < COLS; x++) {
+      var v = mp[y][x];
+      m.fillStyle = v === 1 ? '#15182b' : v === 4 ? '#3f7fd0' : v === 2 ? '#4cc38a' : v === 5 ? '#e0a050' : v === 3 ? '#6c7894' : '#5d6a86';
+      m.fillRect(x, y, 1, 1);
+    }
+    return c;
+  });
+
+  /* sprites */
+  function makePino(variant) {
+    var c = document.createElement('canvas'); c.width = 64; c.height = 128;
+    var g = c.getContext('2d');
+    g.fillStyle = '#23283d'; g.fillRect(20, 86, 10, 38); g.fillRect(34, 86, 10, 38);
+    g.fillStyle = '#0e0e14'; g.fillRect(17, 122, 15, 6); g.fillRect(33, 122, 15, 6);
+    g.fillStyle = '#3b4a6b'; rr(g, 12, 38, 40, 54, 6); g.fill();
+    g.fillRect(5, 42, 10, 46); g.fillRect(49, 42, 10, 46);
+    g.fillStyle = '#e6b48f'; g.beginPath(); g.arc(10, 91, 5, 0, 6.283); g.arc(54, 91, 5, 0, 6.283); g.fill();
+    if (variant !== 'back') {
+      g.fillStyle = '#f1efe6'; g.beginPath(); g.moveTo(24, 38); g.lineTo(40, 38); g.lineTo(32, 66); g.closePath(); g.fill();
+      g.fillStyle = '#c9362b'; g.beginPath(); g.moveTo(30, 40); g.lineTo(34, 40); g.lineTo(36, 66); g.lineTo(32, 72); g.lineTo(28, 66); g.closePath(); g.fill();
+      g.fillStyle = '#f1efe6'; g.fillRect(38, 58, 11, 6);
+      g.fillStyle = '#222'; g.fillRect(40, 60, 7, 1.5);
+    }
+    g.fillStyle = '#e6b48f'; g.fillRect(28, 30, 8, 10);
+    g.beginPath(); g.arc(32, 21, 15, 0, 6.283); g.fill();
+    g.fillStyle = '#2a211d';
+    if (variant === 'back') { g.beginPath(); g.arc(32, 21, 15.5, 0, 6.283); g.fill(); }
+    else { g.beginPath(); g.arc(32, 19, 15.5, Math.PI, 0); g.fill(); g.fillRect(16.5, 18, 3, 8); g.fillRect(44.5, 18, 3, 8); }
+    if (variant !== 'back') {
+      g.strokeStyle = '#15151c'; g.lineWidth = 1.6;
+      g.beginPath(); g.arc(25.5, 23, 5, 0, 6.283); g.arc(38.5, 23, 5, 0, 6.283); g.stroke();
+      g.beginPath(); g.moveTo(30.5, 23); g.lineTo(33.5, 23); g.stroke();
+      if (variant === 'angry') {
+        g.fillStyle = '#ff3b2a'; g.beginPath(); g.arc(25.5, 23.5, 2, 0, 6.283); g.arc(38.5, 23.5, 2, 0, 6.283); g.fill();
+        g.strokeStyle = '#1a1210'; g.lineWidth = 2.4;
+        g.beginPath(); g.moveTo(18, 14); g.lineTo(29, 19); g.moveTo(46, 14); g.lineTo(35, 19); g.stroke();
+        g.fillStyle = '#3a0d0d'; g.beginPath(); g.ellipse(32, 33, 5, 3.4, 0, 0, 6.283); g.fill();
+      } else {
+        g.fillStyle = '#15151c'; g.beginPath(); g.arc(25.5, 23.5, 1.5, 0, 6.283); g.arc(38.5, 23.5, 1.5, 0, 6.283); g.fill();
+        g.strokeStyle = '#7a4a3a'; g.lineWidth = 1.6; g.beginPath(); g.moveTo(27, 33); g.lineTo(37, 33); g.stroke();
+      }
+    }
+    return c;
+  }
+  function makeSign(lines, bg, fg, w, h) {
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var g = c.getContext('2d');
+    g.fillStyle = bg; rr(g, 2, 2, w - 4, h - 4, 10); g.fill();
+    g.strokeStyle = fg; g.lineWidth = 3; rr(g, 6, 6, w - 12, h - 12, 7); g.stroke();
+    g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
+    var lh = (h - 12) / lines.length;
+    lines.forEach(function (t, i) { g.font = '800 ' + Math.floor(lh * 0.6) + 'px Arial, sans-serif'; g.fillText(t, w / 2, 6 + lh * (i + 0.5)); });
+    return c;
+  }
+  function makePassSprite() {
+    var c = document.createElement('canvas'); c.width = 48; c.height = 48;
+    var g = c.getContext('2d');
+    g.fillStyle = '#f4c542'; rr(g, 4, 10, 40, 28, 4); g.fill();
+    g.fillStyle = '#14172a'; g.fillRect(10, 17, 28, 3); g.fillRect(10, 24, 20, 3); g.fillRect(10, 31, 14, 3);
+    g.fillStyle = '#fff6c9'; g.beginPath(); g.arc(24, 6, 3, 0, 6.283); g.fill();
+    return c;
+  }
+  var sprPino = { front: makePino('front'), back: makePino('back'), angry: makePino('angry') };
+  var sprPass = makePassSprite();
+  var sprSafe = makeSign(['SAFE', 'ROOM'], '#1f8f5c', '#eafff4', 160, 64);
+  var sprStairsUp = makeSign(['STAIRS', 'UP TO 2F'], '#a8672a', '#fff3e0', 160, 64);
+  var sprStairsDown = makeSign(['STAIRS', 'DOWN TO 1F'], '#a8672a', '#fff3e0', 160, 64);
+
+  /* ---------- First-person renderer ---------- */
+  var MAXRAYS = 420;
+  var zbuf = new Float32Array(MAXRAYS);
+  var deskCols = new Array(MAXRAYS);
+  var WALLC = [[178, 172, 150], [146, 160, 188]];
+  var POSTER = [[200, 80, 70], [70, 140, 200], [230, 190, 70], [90, 170, 120]];
+  function shade(c, b) { return 'rgb(' + ((c[0] * b) | 0) + ',' + ((c[1] * b) | 0) + ',' + ((c[2] * b) | 0) + ')'; }
+  function fogB(d) { return Math.max(0.1, Math.min(1, 1.08 - d * 0.07)); }
+
+  function render3D(t) {
+    var w = view.w, h = view.h, mp = maps[P.floor];
+    var numRays = Math.min(Math.floor(w / 2), MAXRAYS), colW = w / numRays;
+    var dirx = Math.cos(P.ang), diry = Math.sin(P.ang), pl = Math.tan(FOV / 2);
+    var plx = -diry * pl, ply = dirx * pl;
+    var px = P.x / T, py = P.y / T;
+    var projD = (w / 2) / pl * 0.85;
+    var bobY = (reduceMotion || !P.moving) ? 0 : Math.sin(P.bob) * 3;
+    var horizon = h / 2 + bobY;
+
+    var gc = ctx.createLinearGradient(0, 0, 0, horizon);
+    gc.addColorStop(0, '#05060c'); gc.addColorStop(1, '#262a46');
+    ctx.fillStyle = gc; ctx.fillRect(0, 0, w, horizon + 1);
+    var gf = ctx.createLinearGradient(0, horizon, 0, h);
+    gf.addColorStop(0, '#1b1d2c'); gf.addColorStop(1, '#8e8b78');
+    ctx.fillStyle = gf; ctx.fillRect(0, horizon, w, h - horizon);
+
+    function drawDesk(x, dk) {
+      var lhd = projD / dk.d, bottom = horizon + lhd / 2, dh = lhd * 0.4;
+      var b = fogB(dk.d) * (dk.side ? 0.78 : 1);
+      ctx.fillStyle = shade([184, 133, 85], b); ctx.fillRect(x, bottom - dh, colW + 0.6, dh);
+      ctx.fillStyle = shade([212, 160, 108], b); ctx.fillRect(x, bottom - dh, colW + 0.6, dh * 0.14);
+      ctx.fillStyle = shade([110, 76, 46], b); ctx.fillRect(x, bottom - dh * 0.2, colW + 0.6, dh * 0.2);
+    }
+
+    for (var i = 0; i < numRays; i++) {
+      var camX = 2 * i / numRays - 1, rdx = dirx + plx * camX, rdy = diry + ply * camX;
+      var mx = Math.floor(px), my = Math.floor(py);
+      var ddx = Math.abs(1 / (rdx || 1e-9)), ddy = Math.abs(1 / (rdy || 1e-9));
+      var stx, sty, sdx, sdy;
+      if (rdx < 0) { stx = -1; sdx = (px - mx) * ddx; } else { stx = 1; sdx = (mx + 1 - px) * ddx; }
+      if (rdy < 0) { sty = -1; sdy = (py - my) * ddy; } else { sty = 1; sdy = (py < 0 ? 0 : (my + 1 - py)) * ddy; }
+      var side = 0, hit = 0, perp = 0, desks = null, steps = 0, wx = 0, hmx = 0, hmy = 0;
+      while (!hit && steps++ < 90) {
+        if (sdx < sdy) { sdx += ddx; mx += stx; side = 0; } else { sdy += ddy; my += sty; side = 1; }
+        var v = (mx < 0 || my < 0 || mx >= COLS || my >= ROWS) ? 1 : mp[my][mx];
+        if (v === 0) continue;
+        var pd = side === 0 ? sdx - ddx : sdy - ddy;
+        if (v === 3) { (desks || (desks = [])).push({ d: pd, side: side }); continue; }
+        hit = v; perp = pd; hmx = mx; hmy = my;
+        wx = side === 0 ? py + pd * rdy : px + pd * rdx; wx -= Math.floor(wx);
+      }
+      if (!hit) { hit = 1; perp = 40; }
+      if (perp < 0.05) perp = 0.05;
+      zbuf[i] = perp;
+      deskCols[i] = desks;
+      var x = i * colW, lh = projD / perp, top = horizon - lh / 2;
+      var b = fogB(perp) * (side ? 0.8 : 1);
+      if (hit === 1) {
+        ctx.fillStyle = shade(WALLC[P.floor], b); ctx.fillRect(x, top, colW + 0.6, lh);
+        ctx.fillStyle = shade([112, 106, 94], b); ctx.fillRect(x, top, colW + 0.6, lh * 0.05);
+        ctx.fillStyle = shade([66, 62, 58], b); ctx.fillRect(x, top + lh * 0.88, colW + 0.6, lh * 0.12);
+        var hs = ((hmx * 73856093) ^ (hmy * 19349663) ^ (side * 83492791)) >>> 0;
+        if (hs % 6 === 0 && wx > 0.2 && wx < 0.8) {
+          ctx.fillStyle = shade(POSTER[(hs >>> 3) % 4], b); ctx.fillRect(x, top + lh * 0.26, colW + 0.6, lh * 0.4);
+          ctx.fillStyle = shade([240, 236, 220], b); ctx.fillRect(x, top + lh * 0.3, colW + 0.6, lh * 0.04);
+        }
+        if (wx < 0.02 || wx > 0.98) { ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(x, top, colW + 0.6, lh); }
+      } else if (hit === 4) {
+        ctx.fillStyle = shade([63, 127, 208], b); ctx.fillRect(x, top, colW + 0.6, lh);
+        ctx.fillStyle = shade([30, 60, 110], b);
+        if (wx < 0.05 || wx > 0.95) ctx.fillRect(x, top, colW + 0.6, lh);
+        else if (wx > 0.2 && wx < 0.8) {
+          ctx.fillRect(x, top + lh * 0.12, colW + 0.6, lh * 0.025);
+          ctx.fillRect(x, top + lh * 0.18, colW + 0.6, lh * 0.025);
+          ctx.fillRect(x, top + lh * 0.24, colW + 0.6, lh * 0.025);
+        }
+        if (wx > 0.68 && wx < 0.76) { ctx.fillStyle = shade([220, 215, 195], b); ctx.fillRect(x, top + lh * 0.5, colW + 0.6, lh * 0.1); }
+      } else if (hit === 2) {
+        var ok = passes >= PASSES_NEEDED;
+        var glow = ok ? 0.75 + 0.25 * Math.sin(t * 6) : 0.5;
+        ctx.fillStyle = shade([76, 195, 138], Math.max(b, 0.5) * glow); ctx.fillRect(x, top, colW + 0.6, lh);
+        ctx.fillStyle = shade([245, 255, 250], Math.max(b, 0.6)); ctx.fillRect(x, top + lh * 0.06, colW + 0.6, lh * 0.12);
+      } else if (hit === 5) {
+        ctx.fillStyle = shade([160, 104, 52], b); ctx.fillRect(x, top, colW + 0.6, lh);
+        ctx.fillStyle = shade([208, 150, 84], b);
+        for (var k = 0; k < 6; k++) ctx.fillRect(x, top + lh * (0.12 + 0.14 * k), colW + 0.6, lh * 0.06);
+      }
+      if (desks) { for (var di = desks.length - 1; di >= 0; di--) { if (desks[di].d < perp) drawDesk(x, desks[di]); } }
+    }
+
+    // sprites
+    var sprites = [];
+    if (pino.floor === P.floor) {
+      var toP = Math.atan2(P.y - pino.y, P.x - pino.x);
+      var front = Math.abs(wrapA(toP - pino.face)) < 1.4;
+      var img = front ? (pino.state === 'chase' ? sprPino.angry : sprPino.front) : sprPino.back;
+      sprites.push({ x: pino.x / T, y: pino.y / T, img: img, hf: 0.8, zo: 0, asp: 0.5, pino: true });
+    }
+    for (var q = 0; q < PASS_POS.length; q++) {
+      var pp = PASS_POS[q];
+      if (passTaken[q] || pp.f !== P.floor) continue;
+      sprites.push({ x: pp.x + 0.5, y: pp.y + 0.5, img: sprPass, hf: 0.2, zo: 0.14 + (reduceMotion ? 0 : Math.sin(t * 3 + q) * 0.02), asp: 1 });
+    }
+    SAFE.forEach(function (s) {
+      if (s.f === P.floor) sprites.push({ x: s.sx / T, y: s.sy / T, img: sprSafe, hf: 0.22, zo: 0.74, asp: 2.5, pulse: true });
+    });
+    STAIRS.forEach(function (st) {
+      sprites.push({ x: st.x + 0.5, y: st.y - 0.04, img: P.floor === 0 ? sprStairsUp : sprStairsDown, hf: 0.2, zo: 0.64, asp: 2.5 });
+    });
+    sprites.forEach(function (s) {
+      var ox = s.x - px, oy = s.y - py;
+      s.depth = ox * dirx + oy * diry;
+      s.lat = -ox * diry + oy * dirx;
+    });
+    sprites.sort(function (a, b2) { return b2.depth - a.depth; });
+    for (var si = 0; si < sprites.length; si++) {
+      var s = sprites[si];
+      if (s.depth < 0.15) continue;
+      var lh2 = projD / s.depth, sh = lh2 * s.hf, sw = sh * s.asp;
+      var scx = (w / 2) * (1 + s.lat / (s.depth * pl));
+      var bottom = horizon + lh2 / 2 - lh2 * s.zo, top2 = bottom - sh, left = scx - sw / 2;
+      var c0 = Math.max(0, Math.floor(left / colW)), c1 = Math.min(numRays - 1, Math.floor((left + sw) / colW));
+      ctx.globalAlpha = s.pulse && alertS.on ? 0.6 + 0.4 * Math.sin(t * 9) : 1;
+      for (var c = c0; c <= c1; c++) {
+        if (s.depth >= zbuf[c]) continue;
+        var u = (c * colW + colW / 2 - left) / sw;
+        if (u < 0 || u >= 1) continue;
+        ctx.drawImage(s.img, Math.floor(u * s.img.width), 0, 1, s.img.height, c * colW, top2, colW + 0.6, sh);
+        var dl = deskCols[c];
+        if (dl) { for (var d2 = dl.length - 1; d2 >= 0; d2--) { if (dl[d2].d < s.depth) drawDesk(c * colW, dl[d2]); } }
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  /* ---------- HUD drawing ---------- */
+  function drawHUD(t) {
+    var w = view.w, h = view.h;
+    // vignette
+    var vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.75);
+    vg.addColorStop(0, 'rgba(3,4,10,0)'); vg.addColorStop(1, 'rgba(3,4,10,0.6)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+
+    if (state === 'play' && pino.state === 'chase' && pino.floor === P.floor) {
+      ctx.strokeStyle = 'rgba(239,91,69,' + (0.3 + 0.2 * Math.sin(t * 8)) + ')'; ctx.lineWidth = 6;
+      ctx.strokeRect(3, 3, w - 6, h - 6);
+    }
+
+    if (alertS.on) {
+      ctx.fillStyle = 'rgba(210,25,25,' + (0.16 + 0.09 * Math.sin(t * 7)) + ')'; ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = 'rgba(235,45,45,0.95)'; ctx.lineWidth = 8; ctx.strokeRect(4, 4, w - 8, h - 8);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#ff7a68'; ctx.font = '800 46px ' + FONT;
+      ctx.fillText(String(Math.max(0, Math.ceil(alertS.t))), w / 2, 52);
+      ctx.fillStyle = '#fff'; ctx.font = '700 13px ' + FONT;
+      ctx.fillText('RED ALERT: GET TO A SAFE ROOM', w / 2, 90);
+      var tg = null, tgd = 1e9;
+      SAFE.forEach(function (s) {
+        var dd = Math.hypot(s.sx - P.x, s.sy - P.y);
+        if (s.f === P.floor && dd < tgd) { tgd = dd; tg = s; }
+      });
+      if (tg) {
+        var rel = wrapA(Math.atan2(tg.sy - P.y, tg.sx - P.x) - P.ang);
+        ctx.save(); ctx.translate(w / 2, 132); ctx.rotate(rel);
+        ctx.fillStyle = '#4cc38a'; ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(16, 14); ctx.lineTo(0, 7); ctx.lineTo(-16, 14); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      ctx.fillStyle = '#ffd9d3'; ctx.font = '600 12px ' + FONT;
+      ctx.fillText('Every floor has two safe rooms. The arrow points to the nearest.', w / 2, 168);
+    }
+
+    if (P.hidden) {
+      ctx.fillStyle = 'rgba(5,6,12,0.94)';
+      var sy = h * 0.36, slit = 7, gap = 16, n = 6;
+      ctx.fillRect(0, 0, w, sy);
+      for (var k = 0; k < n; k++) ctx.fillRect(0, sy + k * gap + slit, w, gap - slit);
+      ctx.fillRect(0, sy + n * gap, w, h);
+      ctx.fillRect(0, 0, w * 0.1, h); ctx.fillRect(w * 0.9, 0, w * 0.1, h);
+      ctx.fillStyle = '#efe9d6'; ctx.font = '600 13px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('Hiding in a locker. Press E to come out.', w / 2, h * 0.36 + n * gap + 34);
+    } else {
+      ctx.fillStyle = 'rgba(239,233,214,0.8)'; ctx.beginPath(); ctx.arc(w / 2, h / 2, 2, 0, 6.283); ctx.fill();
+    }
+
+    // minimap
+    var m = w < 500 ? 2 : 3, mx0 = w - COLS * m - 10, my0 = 10;
+    ctx.fillStyle = 'rgba(7,8,15,0.8)'; ctx.fillRect(mx0 - 3, my0 - 3, COLS * m + 6, ROWS * m + 6);
+    ctx.imageSmoothingEnabled = false; ctx.drawImage(mmaps[P.floor], mx0, my0, COLS * m, ROWS * m);
+    SAFE.forEach(function (s) {
+      if (s.f !== P.floor) return;
+      ctx.fillStyle = alertS.on ? 'rgba(76,195,138,0.55)' : 'rgba(76,195,138,0.3)';
+      ctx.fillRect(mx0 + s.x1 * m, my0 + s.y1 * m, (s.x2 - s.x1 + 1) * m, (s.y2 - s.y1 + 1) * m);
+    });
+    for (var q = 0; q < PASS_POS.length; q++) if (!passTaken[q] && PASS_POS[q].f === P.floor) { ctx.fillStyle = '#f4c542'; ctx.fillRect(mx0 + PASS_POS[q].x * m - 1, my0 + PASS_POS[q].y * m - 1, m + 2, m + 2); }
+    var pxm = mx0 + (P.x / T) * m, pym = my0 + (P.y / T) * m;
+    ctx.fillStyle = '#efe9d6'; ctx.beginPath(); ctx.arc(pxm, pym, 2.5, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = '#efe9d6'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(pxm, pym); ctx.lineTo(pxm + Math.cos(P.ang) * 8, pym + Math.sin(P.ang) * 8); ctx.stroke();
+    ctx.fillStyle = '#efe9d6'; ctx.font = '700 10px ' + FONT; ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText('FLOOR ' + (P.floor + 1), mx0 + COLS * m, my0 + ROWS * m + 6);
+
+    // prompt
+    if (nearSpot && !P.hidden && state === 'play') {
+      var pt = nearSpot.type === 'stairs' ? 'E: take the stairs to floor ' + (2 - P.floor) : 'E: hide in locker';
+      ctx.font = '700 13px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var pw = ctx.measureText(pt).width + 24;
+      ctx.fillStyle = 'rgba(244,197,66,0.95)'; rr(ctx, w / 2 - pw / 2, h * 0.64, pw, 28, 8); ctx.fill();
+      ctx.fillStyle = '#1a1530'; ctx.fillText(pt, w / 2, h * 0.64 + 14);
+    }
+
+    // Pino subtitle
+    if (pino.speechT > 0 && pino.speech && pino.floor === P.floor && state === 'play') {
+      var line = TEACHER.toUpperCase() + ': ' + pino.speech;
+      ctx.font = '700 13px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var lw = Math.min(w - 20, ctx.measureText(line).width + 24);
+      ctx.fillStyle = 'rgba(120,20,20,0.9)'; rr(ctx, w / 2 - lw / 2, h - 92, lw, 30, 8); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillText(line, w / 2, h - 77, lw - 12);
+    }
+
+    // toast
+    if (toastObj) {
+      ctx.font = '600 13px ' + FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      var tw = Math.min(w - 20, ctx.measureText(toastObj.text).width + 24);
+      ctx.fillStyle = 'rgba(20,23,42,0.92)'; rr(ctx, w / 2 - tw / 2, h - 52, tw, 30, 8); ctx.fill();
+      ctx.fillStyle = '#efe9d6'; ctx.fillText(toastObj.text, w / 2, h - 37, tw - 12);
+    }
+
+    // touch sticks
+    if (joyMove) {
+      ctx.strokeStyle = 'rgba(239,233,214,0.4)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(joyMove.ox, joyMove.oy, 45, 0, 6.283); ctx.stroke();
+      ctx.fillStyle = 'rgba(239,233,214,0.35)'; ctx.beginPath(); ctx.arc(joyMove.ox + joyMove.vx * 45, joyMove.oy + joyMove.vy * 45, 18, 0, 6.283); ctx.fill();
+    }
+  }
+
+  function draw() {
+    var dpr = view.dpr, t = performance.now() / 1000;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#07080f'; ctx.fillRect(0, 0, view.w, view.h);
+    render3D(t);
+    drawHUD(t);
+  }
+
+  /* ---------- HUD chips ---------- */
+  var hudCache = {};
+  function setText(id, text) { if (hudCache[id] !== text) { hudCache[id] = text; document.getElementById(id).textContent = text; } }
+  function hud() {
+    setText('hPasses', passes + ' / ' + PASSES_NEEDED);
+    setText('hFloor', (P.floor + 1) + 'F');
+    setText('hTime', fmt(time));
+    var ps = pino.floor !== P.floor ? 'on ' + (pino.floor + 1) + 'F' : pino.state === 'chase' ? 'chasing you!' : pino.state === 'search' ? 'searching' : 'patrolling';
+    setText('hPino', ps);
+    var chip = document.getElementById('hPinoChip');
+    var alertOn = pino.state === 'chase' && pino.floor === P.floor;
+    if (hudCache.alert !== alertOn) { hudCache.alert = alertOn; chip.classList.toggle('alert', alertOn); }
+    setText('hMode', P.hidden ? 'hidden' : P.sneak ? 'sneaking' : 'walking');
+  }
+
+  /* ---------- Input ---------- */
+  window.addEventListener('keydown', function (e) {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].indexOf(e.code) >= 0) e.preventDefault();
+    if (e.repeat) return;
+    keys[e.code] = true;
+    var onButton = e.target && e.target.tagName === 'BUTTON';
+    if (state === 'play') {
+      if (e.code === 'KeyE' || (e.code === 'Space' && !onButton)) interact();
+    } else if (!onButton && (e.code === 'Enter' || e.code === 'Space')) {
+      startGame();
+    }
+  });
+  window.addEventListener('keyup', function (e) { keys[e.code] = false; });
+  window.addEventListener('blur', function () { keys = {}; mouseDown = false; });
+
+  document.addEventListener('mousemove', function (e) {
+    if (state !== 'play') return;
+    var locked = document.pointerLockElement === cv;
+    if (locked || mouseDown) P.ang += (e.movementX || 0) * 0.0026;
+  });
+  cv.addEventListener('mousedown', function () {
+    mouseDown = true;
+    if (state === 'play' && document.pointerLockElement !== cv) {
+      try { var pr = cv.requestPointerLock && cv.requestPointerLock(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
+    }
+  });
+  window.addEventListener('mouseup', function () { mouseDown = false; });
+
+  cv.addEventListener('pointerdown', function (e) {
+    if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+    var r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (x < r.width / 2) { if (!joyMove) joyMove = { id: e.pointerId, ox: x, oy: y, vx: 0, vy: 0 }; }
+    else if (!joyLook) joyLook = { id: e.pointerId, lx: x };
+    try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  cv.addEventListener('pointermove', function (e) {
+    var r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+    if (joyMove && joyMove.id === e.pointerId) {
+      var dx = x - joyMove.ox, dy = y - joyMove.oy, d = Math.hypot(dx, dy), k = d > 45 ? 45 / d : 1;
+      joyMove.vx = dx * k / 45; joyMove.vy = dy * k / 45;
+      if (d < 7) { joyMove.vx = 0; joyMove.vy = 0; }
+    } else if (joyLook && joyLook.id === e.pointerId) {
+      P.ang += (x - joyLook.lx) * 0.007; joyLook.lx = x;
+    }
+  });
+  function endPointer(e) {
+    if (joyMove && joyMove.id === e.pointerId) joyMove = null;
+    if (joyLook && joyLook.id === e.pointerId) joyLook = null;
+  }
+  cv.addEventListener('pointerup', endPointer);
+  cv.addEventListener('pointercancel', endPointer);
+
+  document.getElementById('btnStart').addEventListener('click', startFromClick);
+  document.getElementById('btnRetry').addEventListener('click', startFromClick);
+  document.getElementById('btnHide').addEventListener('click', interact);
+  var btnSneak = document.getElementById('btnSneak');
+  btnSneak.addEventListener('click', function () {
+    sneakToggle = !sneakToggle;
+    btnSneak.setAttribute('aria-pressed', sneakToggle ? 'true' : 'false');
+  });
+
+  var best0 = getBest();
+  if (best0 !== null) { var bs = document.getElementById('bestStart'); bs.textContent = 'Best escape: ' + fmt(best0); bs.hidden = false; }
+
+  /* ---------- Loop ---------- */
+  reset();
+  var lastTs = 0;
+  function frame(ts) {
+    var dt = Math.min(0.05, (ts - lastTs) / 1000 || 0);
+    lastTs = ts;
+    update(dt); draw(); hud();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+
+<script>document.addEventListener("keydown",function(e){if(e.key==="Escape"&&parent!==window){e.preventDefault();document.exitPointerLock?.();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>

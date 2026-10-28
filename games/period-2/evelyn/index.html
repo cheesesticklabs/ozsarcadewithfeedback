@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sky Obby</title>
+<style>
+:root{--card:rgba(255,255,255,.9);--fg:#1b1f2a;--acc:#ff5a5f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--card:rgba(24,28,40,.88);--fg:#fff}}
+:root[data-theme="dark"]{--card:rgba(24,28,40,.88);--fg:#fff}
+html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;user-select:none;-webkit-user-select:none}
+canvas{display:block;touch-action:none}
+#hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);left:10px;right:10px;display:flex;gap:8px;justify-content:center;pointer-events:none;flex-wrap:wrap}
+#hud span{background:var(--card);color:var(--fg);padding:6px 12px;border-radius:999px;font-weight:700;font-size:14px}
+#toast{position:fixed;top:25%;left:0;right:0;text-align:center;font-size:28px;font-weight:800;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.5);opacity:0;transition:opacity .4s;pointer-events:none}
+#ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);padding:16px;box-sizing:border-box}
+.card{background:var(--card);color:var(--fg);border-radius:20px;padding:24px 28px;max-width:380px;text-align:center}
+.card h1{margin:0 0 8px;font-size:30px}.card p{margin:6px 0;line-height:1.4;font-size:15px}
+button{margin-top:14px;background:var(--acc);color:#fff;border:0;border-radius:12px;padding:12px 28px;font-size:17px;font-weight:800;cursor:pointer}
+#touch{display:none}
+@media (pointer:coarse){#touch{display:block}}
+#stick{position:fixed;left:calc(env(safe-area-inset-left,0px) + 24px);bottom:calc(env(safe-area-inset-bottom,0px) + 28px);width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.3);border:2px solid rgba(255,255,255,.6);touch-action:none}
+#knob{position:absolute;left:35px;top:35px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.85)}
+#jb{position:fixed;right:calc(env(safe-area-inset-right,0px) + 28px);bottom:calc(env(safe-area-inset-bottom,0px) + 40px);width:90px;height:90px;border-radius:50%;margin:0;padding:0;background:rgba(255,90,95,.85);touch-action:none}
+</style></head><body>
+<div id="hud"><span id="h1"></span><span id="h2"></span><span id="h3"></span></div>
+<div id="toast"></div>
+<div id="touch"><div id="stick"><div id="knob"></div></div><button id="jb">JUMP</button></div>
+<div id="ov"><div class="card"><h1 id="tt">Sky Obby</h1><p id="tx">Collect coins and reach the golden pad at the end of 9 stages. Lava and the void send you back to your last checkpoint.</p><p><b>WASD / arrows</b> move · <b>Space</b> jump<br><b>Drag</b> or <b>Q / E</b> to turn the camera</p><button id="go">Play</button></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const T=THREE;
+const R=new T.WebGLRenderer({antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));document.body.appendChild(R.domElement);
+const S=new T.Scene();S.background=new T.Color(0x8fd3ff);S.fog=new T.Fog(0x8fd3ff,90,320);
+const cam=new T.PerspectiveCamera(65,1,.1,600);
+S.add(new T.HemisphereLight(0xffffff,0x667799,.95));
+const sun=new T.DirectionalLight(0xffffff,.7);sun.position.set(30,60,20);S.add(sun);
+function rs(){R.setSize(innerWidth,innerHeight);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+addEventListener('resize',rs);rs();
+
+/* ---------- level ---------- */
+const L=[],C=[0xff5a5f,0xffb400,0x3ddc97,0x4dabf7,0xb48cff,0xff7ac8];let ci=0;
+function add(x,y,z,w,d,c,o={}){
+  const b=Object.assign({x,y,z,w,d,h:1,ox:x,oy:y,oz:z,st:0,t:0,on:true},o);
+  const m=new T.Mesh(new T.BoxGeometry(w,b.h,d),b.lava?new T.MeshBasicMaterial({color:0xff4a1a}):new T.MeshLambertMaterial({color:c}));
+  m.add(new T.LineSegments(new T.EdgesGeometry(m.geometry),new T.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.35})));
+  m.position.set(x,y-b.h/2,z);S.add(m);b.m=m;L.push(b);return b}
+const pad=(x,y,z,w,d,o)=>add(x,y,z,w,d,C[ci++%6],o);
+const lava=(x,y,z,w,d,o)=>add(x,y,z,w,d,0,Object.assign({lava:true},o));
+const CP=0x9aa6b8;
+add(0,0,0,14,14,CP,{cp:0});
+// 1 - gaps
+[-2,2,-2,0,2,-2,0].forEach((x,i)=>pad(x,0,-10-i*6,5,5));
+add(0,0,-54,10,8,CP,{cp:1});
+// 2 - lava stepping stones
+lava(0,-1.5,-76,34,44);
+[[0,0],[3,0],[-2,0],[2,1],[-3,1],[0,1],[3,1]].forEach(([x,y],i)=>pad(x,y,-61-i*4,3.5,3.5));
+add(0,1,-93,10,8,CP,{cp:2});
+// 3 - moving platforms
+lava(0,-1.5,-111,34,36);
+[0,1,2].forEach(i=>pad(0,2,-101-i*7,5,5,{mv:{a:'x',amp:3,spd:.7,ph:i*2.1}}));
+add(0,2,-124,10,8,CP,{cp:3});
+// 4 - sweepers
+lava(0,-1.5,-150,34,60);
+pad(0,2,-149.5,10,43);
+[-139,-147,-155,-163].forEach((z,i)=>lava(0,3,z,10,1,{h:1,mv:{a:'z',amp:2,spd:1.1,ph:i*1.7}}));
+add(0,2,-175,10,8,CP,{cp:4});
+// 5 - disappearing tiles
+for(let i=0;i<6;i++)[-4,0,4].forEach(x=>pad(x,2,-183-i*4,3.6,3.6,{fall:true}));
+add(0,2,-210,10,8,CP,{cp:5});
+// 6 - beam + stairs + finish
+lava(0,-1.5,-250,40,100);
+pad(0,2,-221,2.5,14);
+for(let i=0;i<6;i++)pad(i%2?1.5:-1.5,3+i,-232-i*5,4,4);
+add(0,9,-266,12,10,CP,{cp:6});
+const trophy=new T.Mesh(new T.OctahedronGeometry(1),new T.MeshLambertMaterial({color:0xfff1a8,emissive:0x886600}));
+trophy.position.set(0,18.5,-370);S.add(trophy);
+// 7 - bounce pad
+lava(0,-1.5,-330,80,160);
+add(0,9,-276,4,4,0xff3df2,{bounce:true});
+add(0,16,-288,8,8,CP,{cp:7});
+// 8 - elevators
+[0,1,2].forEach(i=>pad(0,16,-297-i*7,4,4,{mv:{a:'y',amp:2.5,spd:.8,ph:i*2}}));
+add(0,16,-319,10,8,CP,{cp:8});
+// 9 - zigzag crumbling bridge
+for(let i=0;i<8;i++)pad(i%2?2.5:-2.5,16,-327-i*5,4,4,{fall:true});
+add(0,16,-370,12,10,0xffd700,{finish:true});
+// coins
+const coinL=[];let coins=0;
+function coin(x,y,z){const c=new T.Mesh(new T.CylinderGeometry(.4,.4,.12,16).rotateX(Math.PI/2),new T.MeshLambertMaterial({color:0xffd23f,emissive:0x8a6a00}));c.position.set(x,y,z);S.add(c);coinL.push(c)}
+L.forEach(b=>{if(!b.lava&&b.cp===undefined&&!b.finish&&!b.fall&&!b.bounce&&!b.mv&&b.w<=6)coin(b.x,b.y+1.6,b.z)});
+[-143,-151,-159].forEach(z=>coin(0,3.6,z));
+[[-2.5,-327],[2.5,-342],[-2.5,-357]].forEach(([x,z])=>coin(x,17.6,z));
+
+/* ---------- player ---------- */
+const P={x:0,y:0,z:0,vx:0,vy:0,vz:0},HW=.35,H=2,SP=9,JV=14,G=36;
+const pg=new T.Group();S.add(pg);
+function bx(w,h,d,c,x,y,z,par){const m=new T.Mesh(new T.BoxGeometry(w,h,d),new T.MeshLambertMaterial({color:c}));m.position.set(x,y,z);(par||pg).add(m);return m}
+function limb(x,y,c){const g=new T.Group();g.position.set(x,y,0);pg.add(g);bx(.34,.7,.4,c,0,-.35,0,g);return g}
+bx(.8,.8,.45,0x2f7bff,0,1.2,0);bx(.55,.55,.55,0xffd23f,0,1.88,0);
+bx(.08,.12,.05,0x111111,-.13,1.92,.28);bx(.08,.12,.05,0x111111,.13,1.92,.28);
+const lL=limb(-.2,.8,0x3b3b52),lR=limb(.2,.8,0x3b3b52),aL=limb(-.58,1.58,0xffd23f),aR=limb(.58,1.58,0xffd23f);
+
+/* ---------- state ---------- */
+let sp={x:0,y:0,z:0},stage=0,deaths=0,time=0,playing=false,won=false,stand=null,ground=false,coyote=0,jbuf=0,yaw=0,pitch=.4,face=0;
+const K={},joy={x:0,y:0};
+const $=id=>document.getElementById(id);
+function upd(){$('h1').textContent='Stage '+(stage+1)+' / 9';$('h2').textContent='Deaths '+deaths+' · Coins '+coins+'/'+coinL.length;$('h3').textContent=time.toFixed(1)+'s'}
+function toast(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(toast.i);toast.i=setTimeout(()=>e.style.opacity=0,1200)}
+function respawn(){P.x=sp.x;P.y=sp.y+.05;P.z=sp.z;P.vx=P.vy=P.vz=0;stand=null}
+function die(){deaths++;respawn();L.forEach(b=>{if(b.fall){b.st=0;b.on=true;b.m.visible=true;b.m.position.x=b.x}});upd()}
+const ov=b=>b.on&&P.x+HW>b.x-b.w/2&&P.x-HW<b.x+b.w/2&&P.z+HW>b.z-b.d/2&&P.z-HW<b.z+b.d/2&&P.y<b.y&&P.y+H>b.y-b.h;
+
+function step(dt){
+  L.forEach(b=>{
+    if(b.mv){const o=b.mv,s=Math.sin(time*o.spd+o.ph)*o.amp,nx=o.a=='x'?b.ox+s:b.x,nz=o.a=='z'?b.oz+s:b.z,ny=o.a=='y'?b.oy+s:b.y;
+      if(b===stand){P.x+=nx-b.x;P.z+=nz-b.z;P.y+=ny-b.y}b.x=nx;b.z=nz;b.y=ny;b.m.position.set(nx,ny-b.h/2,nz)}
+    if(b.fall){
+      if(b.st==1){b.t-=dt;b.m.position.x=b.x+(Math.random()-.5)*.12;if(b.t<=0){b.st=2;b.on=false;b.m.visible=false;b.t=4}}
+      else if(b.st==2){b.t-=dt;if(b.t<=0){b.st=0;b.on=true;b.m.visible=true;b.m.position.x=b.x}}}
+  });
+  let fx=(K.d||K.arrowright?1:0)-(K.a||K.arrowleft?1:0)+joy.x,fy=(K.w||K.arrowup?1:0)-(K.s||K.arrowdown?1:0)-joy.y;
+  const l=Math.hypot(fx,fy);if(l>1){fx/=l;fy/=l}
+  const sy=Math.sin(yaw),cy=Math.cos(yaw);
+  const tx=(-sy*fy+cy*fx)*SP,tz=(-cy*fy-sy*fx)*SP,k=1-Math.exp(-(ground?18:5)*dt);
+  P.vx+=(tx-P.vx)*k;P.vz+=(tz-P.vz)*k;
+  coyote=ground?.15:coyote-dt;jbuf-=dt;
+  if(jbuf>0&&coyote>0){P.vy=JV;jbuf=coyote=0;ground=false}
+  P.vy=Math.max(P.vy-G*dt,-50);
+  P.x+=P.vx*dt;
+  for(const b of L)if(!b.lava&&ov(b)){if(P.vx>0)P.x=b.x-b.w/2-HW;else if(P.vx<0)P.x=b.x+b.w/2+HW;P.vx=0}
+  P.z+=P.vz*dt;
+  for(const b of L)if(!b.lava&&ov(b)){if(P.vz>0)P.z=b.z-b.d/2-HW;else if(P.vz<0)P.z=b.z+b.d/2+HW;P.vz=0}
+  const py=P.y;P.y+=P.vy*dt;ground=false;stand=null;
+  for(const b of L)if(!b.lava&&ov(b)){
+    if(P.vy<=0&&py>=b.y-.3){P.y=b.y;P.vy=0;ground=true;stand=b}
+    else if(P.vy>0&&py+H<=b.y-b.h+.3){P.y=b.y-b.h-H;P.vy=0}}
+  if(stand){
+    if(stand.cp!==undefined&&stand.cp>stage){stage=stand.cp;sp={x:stand.x,y:stand.y,z:stand.z};stand.m.material.color.set(0x4ade80);upd();toast('Checkpoint!')}
+    if(stand.fall&&stand.st==0){stand.st=1;stand.t=1.2}
+    if(stand.finish&&!won)win();if(stand.bounce){P.vy=26;ground=false;stand=null}
+  }
+  for(const b of L)if(b.lava&&ov(b)){die();return}
+  if(P.y<-14)die();
+}
+function win(){won=true;playing=false;$('tt').textContent='You made it! 🏆';
+  $('tx').textContent='Time '+time.toFixed(1)+'s with '+deaths+' death'+(deaths==1?'':'s')+' and '+coins+'/'+coinL.length+' coins. Can you do it faster?';
+  $('go').textContent='Play again';$('ov').style.display='flex'}
+function reset(){stage=0;deaths=0;time=0;won=false;coins=0;coinL.forEach(c=>c.visible=true);sp={x:0,y:0,z:0};L.forEach(b=>{if(b.cp>0)b.m.material.color.set(CP)});die();deaths=0;upd()}
+
+/* ---------- input ---------- */
+$('go').onclick=()=>{if(won||time>0&&!playing&&stage===0&&deaths===0&&false)reset();if(won)reset();playing=true;$('ov').style.display='none'};
+addEventListener('keydown',e=>{const k=e.key.toLowerCase();K[k]=1;if(k==' '){jbuf=.12;e.preventDefault()}if(k.startsWith('arrow'))e.preventDefault()});
+addEventListener('keyup',e=>K[e.key.toLowerCase()]=0);
+let drag=null;const cv=R.domElement;
+cv.addEventListener('pointerdown',e=>{drag=e.pointerId;cv.setPointerCapture(e.pointerId)});
+cv.addEventListener('pointermove',e=>{if(e.pointerId===drag){yaw-=e.movementX*.006;pitch=Math.max(.05,Math.min(1.3,pitch+e.movementY*.006))}});
+cv.addEventListener('pointerup',()=>drag=null);cv.addEventListener('pointercancel',()=>drag=null);
+const st=$('stick'),kn=$('knob');let sid=null;
+function mvj(e){const r=st.getBoundingClientRect();let dx=(e.clientX-r.left-r.width/2)/(r.width/2),dy=(e.clientY-r.top-r.height/2)/(r.height/2);const l=Math.hypot(dx,dy);if(l>1){dx/=l;dy/=l}joy.x=dx;joy.y=dy;kn.style.transform='translate('+dx*35+'px,'+dy*35+'px)'}
+st.addEventListener('pointerdown',e=>{sid=e.pointerId;st.setPointerCapture(e.pointerId);mvj(e)});
+st.addEventListener('pointermove',e=>{if(e.pointerId===sid)mvj(e)});
+const endj=e=>{if(e.pointerId===sid){sid=null;joy.x=joy.y=0;kn.style.transform=''}};
+st.addEventListener('pointerup',endj);st.addEventListener('pointercancel',endj);
+$('jb').addEventListener('pointerdown',()=>jbuf=.12);
+
+/* ---------- loop ---------- */
+let last=performance.now();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min((now-last)/1000,.05);last=now;
+  if(playing){
+    if(K.q)yaw+=1.8*dt;if(K.e)yaw-=1.8*dt;
+    time+=dt;step(dt/2);if(playing)step(dt/2);
+    $('h3').textContent=time.toFixed(1)+'s';
+  }
+  const spd=Math.hypot(P.vx,P.vz);
+  if(spd>.5)face=Math.atan2(P.vx,P.vz);
+  pg.position.set(P.x,P.y,P.z);pg.rotation.y=face;
+  const sw=Math.sin(now/1000*12)*Math.min(1,spd/6)*(ground?1:.3);
+  lL.rotation.x=sw*.9;lR.rotation.x=-sw*.9;
+  aL.rotation.x=ground?-sw*.9:-2.5;aR.rotation.x=ground?sw*.9:-2.5;
+  trophy.rotation.y=now/600;coinL.forEach(c=>{c.rotation.y=now/400;if(playing&&c.visible&&Math.abs(c.position.x-P.x)<1.1&&Math.abs(c.position.z-P.z)<1.1&&c.position.y>P.y-.3&&c.position.y<P.y+H+.3){c.visible=false;coins++;upd()}});
+  const D=11,cp=Math.cos(pitch);
+  cam.position.set(P.x+Math.sin(yaw)*cp*D,P.y+1.5+Math.sin(pitch)*D,P.z+Math.cos(yaw)*cp*D);
+  cam.lookAt(P.x,P.y+1.4,P.z);
+  R.render(S,cam);
+}
+upd();requestAnimationFrame(loop);
+</script><script>document.addEventListener("keydown",function(e){if(e.key==="Escape"){e.preventDefault();parent.postMessage({type:"oz-arcade:close"},"*");}},true);</script></body></html>
